@@ -155,7 +155,10 @@ export interface DashboardKPIs {
   totalStockValue: number;
   totalRevenue: number;
   totalPurchase: number;
+  totalCOGS: number;
+  totalExpenses: number;
   grossProfit: number;
+  netProfit: number;
 }
 
 export interface RevenueChartData {

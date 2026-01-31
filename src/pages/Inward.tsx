@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Trash2, Search, Eye, Upload, Download } from 'lucide-react';
+import { Plus, Trash2, Search, Eye, Upload, Download, Edit, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { inwardService, InwardInvoiceFormData } from '@/services/inwardService';
 import { productService } from '@/services/productService';
@@ -42,6 +42,7 @@ const Inward: React.FC = () => {
   const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<InwardInvoice | null>(null);
+  const [editingInvoice, setEditingInvoice] = useState<InwardInvoice | null>(null);
   const [search, setSearch] = useState('');
   const [pagination, setPagination] = useState({
     page: 1,
@@ -130,7 +131,33 @@ const Inward: React.FC = () => {
 
   const closeModal = () => {
     setModalOpen(false);
+    setEditingInvoice(null);
     reset();
+  };
+
+  const editInvoice = async (invoice: InwardInvoice) => {
+    try {
+      const fullInvoice = await inwardService.getById(invoice.id);
+      setEditingInvoice(fullInvoice);
+      
+      // Populate form with existing data
+      reset({
+        invoiceNo: fullInvoice.invoiceNo,
+        date: fullInvoice.date.split('T')[0],
+        vendorId: fullInvoice.vendorId,
+        locationId: fullInvoice.locationId,
+        items: fullInvoice.items?.map(item => ({
+          productId: item.productId,
+          boxes: item.boxes,
+          pcsPerBox: item.pcsPerBox,
+          ratePerBox: item.ratePerBox,
+        })) || [{ productId: '', boxes: 1, pcsPerBox: 1, ratePerBox: 0 }],
+      });
+      
+      setModalOpen(true);
+    } catch (error) {
+      console.error('Failed to load invoice for editing:', error);
+    }
   };
 
   const viewInvoice = async (invoice: InwardInvoice) => {
@@ -145,12 +172,29 @@ const Inward: React.FC = () => {
 
   const onSubmit = async (data: InwardInvoiceFormData) => {
     try {
-      await inwardService.create(data);
-      toast.success('Inward invoice created successfully');
+      if (editingInvoice) {
+        await inwardService.update(editingInvoice.id, data);
+        toast.success('Inward invoice updated successfully');
+      } else {
+        await inwardService.create(data);
+        toast.success('Inward invoice created successfully');
+      }
       closeModal();
       loadInvoices();
     } catch (error) {
       // Error handled by interceptor
+    }
+  };
+
+  const deleteInvoice = async (invoice: InwardInvoice) => {
+    if (window.confirm('Are you sure you want to delete this invoice?')) {
+      try {
+        await inwardService.delete(invoice.id);
+        toast.success('Inward invoice deleted successfully');
+        loadInvoices();
+      } catch (error) {
+        // Error handled by interceptor
+      }
     }
   };
 
@@ -249,6 +293,21 @@ const Inward: React.FC = () => {
           >
             <Eye className="h-4 w-4" />
           </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => editInvoice(record)}
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => deleteInvoice(record)}
+            className="text-red-600 hover:text-red-700"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
         </div>
       ),
     },
@@ -270,7 +329,7 @@ const Inward: React.FC = () => {
           </Button>
           <Button onClick={openModal}>
             <Plus className="mr-2 h-4 w-4" />
-            Create Invoice
+            Add Stock
           </Button>
         </div>
       </div>
@@ -310,7 +369,7 @@ const Inward: React.FC = () => {
       <Modal
         isOpen={modalOpen}
         onClose={closeModal}
-        title="Create Inward Invoice"
+        title={editingInvoice ? 'Edit Inward Invoice' : 'Create Inward Invoice'}
         size="xl"
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -477,7 +536,7 @@ const Inward: React.FC = () => {
               Cancel
             </Button>
             <Button type="submit" loading={isSubmitting}>
-              Create Invoice
+              {editingInvoice ? 'Update Invoice' : 'Create Invoice'}
             </Button>
           </div>
         </form>

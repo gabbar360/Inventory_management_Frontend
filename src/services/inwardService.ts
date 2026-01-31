@@ -35,6 +35,11 @@ export const inwardService = {
     return response.data.data!;
   },
 
+  async update(id: string, data: InwardInvoiceFormData): Promise<InwardInvoice> {
+    const response = await api.put<ApiResponse<InwardInvoice>>(`/inward/${id}`, data);
+    return response.data.data!;
+  },
+
   async delete(id: string): Promise<void> {
     await api.delete(`/inward/${id}`);
   },

@@ -23,7 +23,7 @@ const navigation = [
   { name: 'Products', href: '/products', icon: Package },
   { name: 'Vendors', href: '/vendors', icon: Users },
   { name: 'Customers', href: '/customers', icon: Users },
-  { name: 'Locations', href: '/locations', icon: MapPin },
+  { name: 'Warehouse', href: '/locations', icon: MapPin },
   { name: 'Inward', href: '/inward', icon: ArrowDownToLine },
   { name: 'Outward', href: '/outward', icon: ArrowUpFromLine },
   { name: 'Inventory', href: '/inventory', icon: Warehouse },

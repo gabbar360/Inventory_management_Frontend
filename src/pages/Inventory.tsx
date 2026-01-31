@@ -1,18 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { Package, MapPin, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Package, MapPin, TrendingUp, AlertTriangle, Calendar, User, Archive } from 'lucide-react';
 import { inventoryService, StockSummary } from '@/services/inventoryService';
 import { locationService } from '@/services/locationService';
-import { Location } from '@/types';
+import { Location, StockBatch } from '@/types';
 import { formatCurrency, formatNumber } from '@/utils';
 import Button from '@/components/Button';
 import Select from '@/components/Select';
 import Table from '@/components/Table';
+import Pagination from '@/components/Pagination';
 
 const Inventory: React.FC = () => {
   const [stockSummary, setStockSummary] = useState<StockSummary[]>([]);
+  const [stockBatches, setStockBatches] = useState<StockBatch[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [selectedLocation, setSelectedLocation] = useState<string>('');
+  const [selectedProduct, setSelectedProduct] = useState<string>('');
+  const [viewMode, setViewMode] = useState<'summary' | 'batches'>('summary');
+  const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     loadData();
@@ -34,6 +40,21 @@ const Inventory: React.FC = () => {
     }
   };
 
+  const loadBatches = async (productId: string) => {
+    setLoading(true);
+    try {
+      const batchData = await inventoryService.getAvailableStock(productId, selectedLocation || undefined);
+      setStockBatches(batchData);
+      setSelectedProduct(productId);
+      setViewMode('batches');
+      setCurrentPage(1);
+    } catch (error) {
+      console.error('Failed to load batch data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const locationOptions = [
     { value: '', label: 'All Locations' },
     ...locations.map((loc) => ({
@@ -46,7 +67,7 @@ const Inventory: React.FC = () => {
   const totalProducts = stockSummary.length;
   const lowStockItems = stockSummary.filter(item => item.totalPcs < 100); // Assuming low stock threshold
 
-  const columns = [
+  const summaryColumns = [
     {
       key: 'productName',
       title: 'Product',
@@ -117,14 +138,130 @@ const Inventory: React.FC = () => {
         );
       },
     },
+    {
+      key: 'actions',
+      title: 'Actions',
+      render: (_: any, record: StockSummary) => (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => loadBatches(record.productId)}
+        >
+          View Batches
+        </Button>
+      ),
+    },
+  ];
+
+  const batchColumns = [
+    {
+      key: 'inwardDate',
+      title: 'Batch Date',
+      render: (value: string) => (
+        <div className="flex items-center">
+          <Calendar className="w-4 h-4 mr-2 text-gray-400" />
+          {new Date(value).toLocaleDateString()}
+        </div>
+      ),
+    },
+    {
+      key: 'vendor',
+      title: 'Vendor',
+      render: (vendor: any) => (
+        <div className="flex items-center">
+          <User className="w-4 h-4 mr-2 text-gray-400" />
+          <div>
+            <div className="font-medium text-gray-900">{vendor?.name || 'N/A'}</div>
+            <div className="text-sm text-gray-500">{vendor?.code || ''}</div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'location',
+      title: 'Location',
+      render: (location: any) => (
+        <div className="flex items-center">
+          <MapPin className="w-4 h-4 mr-2 text-gray-400" />
+          {location?.name || 'N/A'}
+        </div>
+      ),
+    },
+    {
+      key: 'remainingBoxes',
+      title: 'Remaining Stock',
+      render: (_: any, record: StockBatch) => (
+        <div>
+          <div className="font-medium text-gray-900">
+            {formatNumber(record.remainingBoxes)} boxes
+          </div>
+          <div className="text-sm text-gray-500">
+            {formatNumber(record.remainingPcs)} pieces
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'costPerBox',
+      title: 'Cost/Box',
+      render: (value: number) => formatCurrency(value),
+    },
+    {
+      key: 'costPerPcs',
+      title: 'Cost/Piece',
+      render: (value: number) => formatCurrency(value),
+    },
+    {
+      key: 'totalValue',
+      title: 'Batch Value',
+      render: (_: any, record: StockBatch) => {
+        const totalValue = record.remainingBoxes * record.costPerBox + 
+                          (record.remainingPcs % record.pcsPerBox) * record.costPerPcs;
+        return formatCurrency(totalValue);
+      },
+    },
   ];
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Inventory</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold text-gray-900">Inventory</h1>
+          {viewMode === 'batches' && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setViewMode('summary');
+                setSelectedProduct('');
+                setStockBatches([]);
+              }}
+            >
+              ← Back to Summary
+            </Button>
+          )}
+        </div>
         <div className="flex items-center space-x-4">
+          <div className="flex bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode('summary')}
+              className={`px-3 py-1 rounded-md text-sm transition-colors ${
+                viewMode === 'summary' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Summary
+            </button>
+            <button
+              onClick={() => setViewMode('batches')}
+              className={`px-3 py-1 rounded-md text-sm transition-colors ${
+                viewMode === 'batches' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-600 hover:text-gray-900'
+              }`}
+              disabled={!selectedProduct}
+            >
+              Batches
+            </button>
+          </div>
           <Select
             value={selectedLocation}
             onChange={(e) => setSelectedLocation(e.target.value)}
@@ -177,24 +314,132 @@ const Inventory: React.FC = () => {
       </div>
 
       {/* Stock Summary Table */}
-      <div className="card">
-        <div className="card-header">
-          <h3 className="text-lg font-semibold text-gray-900">
-            Stock Summary
-            {selectedLocation && (
-              <span className="ml-2 text-sm font-normal text-gray-500">
-                - {locations.find(l => l.id === selectedLocation)?.name}
-              </span>
-            )}
-          </h3>
+      {viewMode === 'summary' && (
+        <div className="card">
+          <div className="card-header">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Stock Summary
+              {selectedLocation && (
+                <span className="ml-2 text-sm font-normal text-gray-500">
+                  - {locations.find(l => l.id === selectedLocation)?.name}
+                </span>
+              )}
+            </h3>
+          </div>
+          <Table
+            data={stockSummary}
+            columns={summaryColumns}
+            loading={loading}
+            emptyMessage="No stock available"
+          />
         </div>
-        <Table
-          data={stockSummary}
-          columns={columns}
-          loading={loading}
-          emptyMessage="No stock available"
-        />
-      </div>
+      )}
+
+      {/* Stock Batches Table */}
+      {viewMode === 'batches' && (
+        <>
+          {/* Batch Statistics */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div className="stat-card">
+              <div className="flex items-center">
+                <div className="flex-shrink-0 p-3 rounded-lg bg-blue-500">
+                  <Archive className="h-6 w-6 text-white" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Total Batches</p>
+                  <p className="text-2xl font-semibold text-gray-900">{stockBatches.length}</p>
+                </div>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="flex items-center">
+                <div className="flex-shrink-0 p-3 rounded-lg bg-green-500">
+                  <Package className="h-6 w-6 text-white" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Total Boxes</p>
+                  <p className="text-2xl font-semibold text-gray-900">
+                    {formatNumber(stockBatches.reduce((sum, batch) => sum + batch.remainingBoxes, 0))}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="flex items-center">
+                <div className="flex-shrink-0 p-3 rounded-lg bg-purple-500">
+                  <Package className="h-6 w-6 text-white" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Total Pieces</p>
+                  <p className="text-2xl font-semibold text-gray-900">
+                    {formatNumber(stockBatches.reduce((sum, batch) => sum + batch.remainingPcs, 0))}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="flex items-center">
+                <div className="flex-shrink-0 p-3 rounded-lg bg-orange-500">
+                  <TrendingUp className="h-6 w-6 text-white" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Total Value</p>
+                  <p className="text-2xl font-semibold text-gray-900">
+                    {formatCurrency(stockBatches.reduce((sum, batch) => {
+                      const batchValue = batch.remainingBoxes * batch.costPerBox + 
+                                        (batch.remainingPcs % batch.pcsPerBox) * batch.costPerPcs;
+                      return sum + batchValue;
+                    }, 0))}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-header">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Stock Batches
+                    {selectedProduct && (
+                      <span className="ml-2 text-sm font-normal text-gray-500">
+                        - {stockSummary.find(s => s.productId === selectedProduct)?.productName}
+                      </span>
+                    )}
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Showing batch-wise inventory details (FIFO order)
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Archive className="w-5 h-5 text-gray-400" />
+                  <span className="text-sm text-gray-600">
+                    {stockBatches.length} batches
+                  </span>
+                </div>
+              </div>
+            </div>
+            <Table
+              data={stockBatches.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)}
+              columns={batchColumns}
+              loading={loading}
+              emptyMessage="No batches available for this product"
+            />
+            {stockBatches.length > itemsPerPage && (
+              <div className="card-footer">
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={Math.ceil(stockBatches.length / itemsPerPage)}
+                  total={stockBatches.length}
+                  limit={itemsPerPage}
+                  onPageChange={setCurrentPage}
+                />
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       {/* Low Stock Alert */}
       {lowStockItems.length > 0 && (
