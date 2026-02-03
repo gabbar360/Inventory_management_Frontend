@@ -154,11 +154,12 @@ const Dashboard: React.FC = () => {
         ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== ''))
       });
 
-      const [kpisData, chartData, productsData, customersData] = await Promise.all([
+      const [kpisData, chartData, productsData, customersData, performanceData] = await Promise.all([
         dashboardService.getKPIs(period),
         dashboardService.getRevenueChart(period),
         dashboardService.getTopProducts(10),
         dashboardService.getTopCustomers(10),
+        dashboardService.getPerformanceMetrics(period),
       ]);
 
       console.log('KPIs Data:', kpisData); // Debug log
@@ -166,16 +167,7 @@ const Dashboard: React.FC = () => {
       setRevenueChart(chartData);
       setTopProducts(productsData);
       setTopCustomers(customersData);
-      // Mock performance metrics for now
-      setPerformanceMetrics({
-        inventoryTurnover: 4.2,
-        inventoryTurnoverTrend: 5.2,
-        avgOrderValue: 25430,
-        avgOrderValueTrend: 3.1,
-        customerRetention: 92,
-        customerRetentionTrend: 2.8,
-        lowStockCount: 12,
-      });
+      setPerformanceMetrics(performanceData);
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     } finally {

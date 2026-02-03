@@ -80,13 +80,18 @@ export interface InwardItem {
   id: string;
   productId: string;
   boxes: number;
-  pcsPerBox: number;
+  packPerBox: number;
+  packPerPiece: number;
+  totalPacks: number;
   totalPcs: number;
   ratePerBox: number;
+  ratePerPack: number;
   ratePerPcs: number;
   gstAmount: number;
   totalCost: number;
   product?: Product;
+  // Legacy fields for backward compatibility
+  pcsPerBox?: number;
 }
 
 export interface InwardInvoice {
@@ -107,7 +112,7 @@ export interface OutwardItem {
   id: string;
   productId: string;
   stockBatchId: string;
-  saleUnit: 'box' | 'piece';
+  saleUnit: 'box' | 'pack' | 'piece';
   quantity: number;
   ratePerUnit: number;
   totalCost: number;
@@ -138,17 +143,23 @@ export interface StockBatch {
   locationId: string;
   inwardDate: string;
   boxes: number;
-  pcsPerBox: number;
+  packPerBox: number;
+  packPerPiece: number;
+  totalPacks: number;
   totalPcs: number;
   remainingBoxes: number;
+  remainingPacks: number;
   remainingPcs: number;
   costPerBox: number;
+  costPerPack: number;
   costPerPcs: number;
   createdAt: string;
   updatedAt: string;
   product?: Product;
   vendor?: Vendor;
   location?: Location;
+  // Legacy fields for backward compatibility
+  pcsPerBox?: number;
 }
 
 export interface DashboardKPIs {

@@ -85,6 +85,11 @@ const Inventory: React.FC = () => {
       render: (value: number) => formatNumber(value),
     },
     {
+      key: 'totalPacks',
+      title: 'Packs',
+      render: (_: any, record: StockSummary) => formatNumber(record.totalPacks || 0),
+    },
+    {
       key: 'totalPcs',
       title: 'Pieces',
       render: (value: number) => formatNumber(value),
@@ -103,7 +108,7 @@ const Inventory: React.FC = () => {
             <div key={index} className="text-sm">
               <span className="font-medium">{loc.locationName}:</span>
               <span className="ml-1 text-gray-600">
-                {formatNumber(loc.boxes)} boxes, {formatNumber(loc.pcs)} pcs
+                {formatNumber(loc.boxes)} boxes, {formatNumber(loc.packs || 0)} packs, {formatNumber(loc.pcs)} pcs
               </span>
             </div>
           ))}
@@ -196,6 +201,9 @@ const Inventory: React.FC = () => {
             {formatNumber(record.remainingBoxes)} boxes
           </div>
           <div className="text-sm text-gray-500">
+            {formatNumber(record.remainingPacks || 0)} packs
+          </div>
+          <div className="text-sm text-gray-500">
             {formatNumber(record.remainingPcs)} pieces
           </div>
         </div>
@@ -207,6 +215,14 @@ const Inventory: React.FC = () => {
       render: (value: number) => formatCurrency(value),
     },
     {
+      key: 'costPerPack',
+      title: 'Cost/Pack',
+      render: (_: any, record: StockBatch) => {
+        const costPerPack = record.costPerPack || (record.costPerBox / (record.packPerBox || record.pcsPerBox || 1));
+        return formatCurrency(costPerPack);
+      },
+    },
+    {
       key: 'costPerPcs',
       title: 'Cost/Piece',
       render: (value: number) => formatCurrency(value),
@@ -215,8 +231,9 @@ const Inventory: React.FC = () => {
       key: 'totalValue',
       title: 'Batch Value',
       render: (_: any, record: StockBatch) => {
-        const totalValue = record.remainingBoxes * record.costPerBox + 
-                          (record.remainingPcs % record.pcsPerBox) * record.costPerPcs;
+        // Calculate total value based on remaining stock only
+        const totalRemainingPcs = record.remainingPcs;
+        const totalValue = totalRemainingPcs * record.costPerPcs;
         return formatCurrency(totalValue);
       },
     },
@@ -339,7 +356,7 @@ const Inventory: React.FC = () => {
       {viewMode === 'batches' && (
         <>
           {/* Batch Statistics */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
             <div className="stat-card">
               <div className="flex items-center">
                 <div className="flex-shrink-0 p-3 rounded-lg bg-blue-500">
@@ -370,6 +387,19 @@ const Inventory: React.FC = () => {
                   <Package className="h-6 w-6 text-white" />
                 </div>
                 <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Total Packs</p>
+                  <p className="text-2xl font-semibold text-gray-900">
+                    {formatNumber(stockBatches.reduce((sum, batch) => sum + (batch.remainingPacks || 0), 0))}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="flex items-center">
+                <div className="flex-shrink-0 p-3 rounded-lg bg-indigo-500">
+                  <Package className="h-6 w-6 text-white" />
+                </div>
+                <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Total Pieces</p>
                   <p className="text-2xl font-semibold text-gray-900">
                     {formatNumber(stockBatches.reduce((sum, batch) => sum + batch.remainingPcs, 0))}
@@ -386,8 +416,7 @@ const Inventory: React.FC = () => {
                   <p className="text-sm font-medium text-gray-600">Total Value</p>
                   <p className="text-2xl font-semibold text-gray-900">
                     {formatCurrency(stockBatches.reduce((sum, batch) => {
-                      const batchValue = batch.remainingBoxes * batch.costPerBox + 
-                                        (batch.remainingPcs % batch.pcsPerBox) * batch.costPerPcs;
+                      const batchValue = batch.remainingPcs * batch.costPerPcs;
                       return sum + batchValue;
                     }, 0))}
                   </p>

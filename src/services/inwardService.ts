@@ -4,7 +4,8 @@ import { ApiResponse, InwardInvoice, PaginationQuery } from '@/types';
 export interface InwardItemFormData {
   productId: string;
   boxes: number;
-  pcsPerBox: number;
+  packPerBox: number;
+  packPerPiece: number;
   ratePerBox: number;
 }
 

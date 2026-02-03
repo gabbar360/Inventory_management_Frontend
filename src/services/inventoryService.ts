@@ -6,12 +6,14 @@ export interface StockSummary {
   productName: string;
   categoryName: string;
   totalBoxes: number;
+  totalPacks?: number;
   totalPcs: number;
   totalValue: number;
   locations: {
     locationId: string;
     locationName: string;
     boxes: number;
+    packs?: number;
     pcs: number;
     value: number;
   }[];

@@ -30,7 +30,7 @@ const outwardSchema = z.object({
   items: z.array(z.object({
     productId: z.string().min(1, 'Product is required'),
     stockBatchId: z.string().min(1, 'Stock batch is required'),
-    saleUnit: z.enum(['box', 'piece'], { required_error: 'Sale unit is required' }),
+    saleUnit: z.enum(['box', 'pack', 'piece'], { required_error: 'Sale unit is required' }),
     quantity: z.number().min(1, 'Quantity must be at least 1'),
     ratePerUnit: z.number().min(0, 'Rate per unit must be positive'),
   })).min(1, 'At least one item is required'),
@@ -251,6 +251,8 @@ const Outward: React.FC = () => {
     if (selectedBatch) {
       const suggestedRate = item?.saleUnit === 'box' 
         ? selectedBatch.costPerBox * 1.2 // 20% markup
+        : item?.saleUnit === 'pack'
+        ? (selectedBatch.costPerPack || selectedBatch.costPerBox / (selectedBatch.packPerBox || 1)) * 1.2
         : selectedBatch.costPerPcs * 1.2;
       setValue(`items.${index}.ratePerUnit`, Math.round(suggestedRate * 100) / 100);
     }
@@ -297,6 +299,7 @@ const Outward: React.FC = () => {
 
   const saleUnitOptions = [
     { value: 'box', label: 'Box' },
+    { value: 'pack', label: 'Pack' },
     { value: 'piece', label: 'Piece' },
   ];
 
@@ -509,12 +512,14 @@ const Outward: React.FC = () => {
               const selectedBatch = stockBatches.find(b => b.id === item?.stockBatchId);
               const maxQuantity = item?.saleUnit === 'box' 
                 ? selectedBatch?.remainingBoxes || 0
+                : item?.saleUnit === 'pack'
+                ? selectedBatch?.remainingPacks || 0
                 : selectedBatch?.remainingPcs || 0;
               const totalAmount = (item?.quantity || 0) * (item?.ratePerUnit || 0);
 
               const stockBatchOptions = stockBatches.map(batch => ({
                 value: batch.id,
-                label: `${batch.vendor?.name} - ${formatDate(batch.inwardDate)} (${batch.remainingBoxes} boxes, ${batch.remainingPcs} pcs)`,
+                label: `${batch.vendor?.name} - ${formatDate(batch.inwardDate)} (${batch.remainingBoxes} boxes, ${batch.remainingPacks || 0} packs, ${batch.remainingPcs} pcs)`,
               }));
 
               return (
@@ -593,8 +598,8 @@ const Outward: React.FC = () => {
                       <div className="text-blue-800 space-y-1">
                         <div>Vendor: {selectedBatch.vendor?.name}</div>
                         <div>Inward Date: {formatDate(selectedBatch.inwardDate)}</div>
-                        <div>Available: {selectedBatch.remainingBoxes} boxes, {selectedBatch.remainingPcs} pieces</div>
-                        <div>Cost: ₹{selectedBatch.costPerBox}/box, ₹{selectedBatch.costPerPcs}/piece</div>
+                        <div>Available: {selectedBatch.remainingBoxes} boxes, {selectedBatch.remainingPacks || 0} packs, {selectedBatch.remainingPcs} pieces</div>
+                        <div>Cost: ₹{selectedBatch.costPerBox}/box, ₹{selectedBatch.costPerPack || (selectedBatch.costPerBox / (selectedBatch.packPerBox || 1)).toFixed(2)}/pack, ₹{selectedBatch.costPerPcs}/piece</div>
                       </div>
                     </div>
                   )}
