@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Trash2, Search, Eye, Upload, Download } from 'lucide-react';
+import { Plus, Trash2, Search, Eye, Upload, Download, Edit, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { outwardService, OutwardInvoiceFormData } from '@/services/outwardService';
 import { inventoryService } from '@/services/inventoryService';
@@ -30,7 +30,7 @@ const outwardSchema = z.object({
   items: z.array(z.object({
     productId: z.string().min(1, 'Product is required'),
     stockBatchId: z.string().min(1, 'Stock batch is required'),
-    saleUnit: z.enum(['box', 'piece'], { required_error: 'Sale unit is required' }),
+    saleUnit: z.enum(['box', 'pack', 'piece'], { required_error: 'Sale unit is required' }),
     quantity: z.number().min(1, 'Quantity must be at least 1'),
     ratePerUnit: z.number().min(0, 'Rate per unit must be positive'),
   })).min(1, 'At least one item is required'),
@@ -46,6 +46,7 @@ const Outward: React.FC = () => {
   const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<OutwardInvoice | null>(null);
+  const [editingInvoice, setEditingInvoice] = useState<OutwardInvoice | null>(null);
   const [search, setSearch] = useState('');
   const [pagination, setPagination] = useState({
     page: 1,
@@ -150,8 +151,44 @@ const Outward: React.FC = () => {
 
   const closeModal = () => {
     setModalOpen(false);
+    setEditingInvoice(null);
     reset();
     setAvailableStock({});
+  };
+
+  const editInvoice = async (invoice: OutwardInvoice) => {
+    try {
+      const fullInvoice = await outwardService.getById(invoice.id);
+      setEditingInvoice(fullInvoice);
+      
+      // Populate form with existing data
+      reset({
+        invoiceNo: fullInvoice.invoiceNo,
+        date: fullInvoice.date.split('T')[0],
+        customerId: fullInvoice.customerId,
+        locationId: fullInvoice.locationId,
+        saleType: fullInvoice.saleType,
+        expense: fullInvoice.expense,
+        items: fullInvoice.items?.map(item => ({
+          productId: item.productId,
+          stockBatchId: item.stockBatchId,
+          saleUnit: item.saleUnit,
+          quantity: item.quantity,
+          ratePerUnit: item.ratePerUnit,
+        })) || [{ productId: '', stockBatchId: '', saleUnit: 'box', quantity: 1, ratePerUnit: 0 }],
+      });
+      
+      // Load stock for existing items
+      if (fullInvoice.items) {
+        for (const item of fullInvoice.items) {
+          await loadAvailableStock(item.productId, fullInvoice.locationId);
+        }
+      }
+      
+      setModalOpen(true);
+    } catch (error) {
+      console.error('Failed to load invoice for editing:', error);
+    }
   };
 
   const viewInvoice = async (invoice: OutwardInvoice) => {
@@ -166,12 +203,29 @@ const Outward: React.FC = () => {
 
   const onSubmit = async (data: OutwardInvoiceFormData) => {
     try {
-      await outwardService.create(data);
-      toast.success('Outward invoice created successfully');
+      if (editingInvoice) {
+        await outwardService.update(editingInvoice.id, data);
+        toast.success('Outward invoice updated successfully');
+      } else {
+        await outwardService.create(data);
+        toast.success('Outward invoice created successfully');
+      }
       closeModal();
       loadInvoices();
     } catch (error) {
       // Error handled by interceptor
+    }
+  };
+
+  const deleteInvoice = async (invoice: OutwardInvoice) => {
+    if (window.confirm('Are you sure you want to delete this invoice?')) {
+      try {
+        await outwardService.delete(invoice.id);
+        toast.success('Outward invoice deleted successfully');
+        loadInvoices();
+      } catch (error) {
+        // Error handled by interceptor
+      }
     }
   };
 
@@ -197,6 +251,8 @@ const Outward: React.FC = () => {
     if (selectedBatch) {
       const suggestedRate = item?.saleUnit === 'box' 
         ? selectedBatch.costPerBox * 1.2 // 20% markup
+        : item?.saleUnit === 'pack'
+        ? (selectedBatch.costPerPack || selectedBatch.costPerBox / (selectedBatch.packPerBox || 1)) * 1.2
         : selectedBatch.costPerPcs * 1.2;
       setValue(`items.${index}.ratePerUnit`, Math.round(suggestedRate * 100) / 100);
     }
@@ -243,6 +299,7 @@ const Outward: React.FC = () => {
 
   const saleUnitOptions = [
     { value: 'box', label: 'Box' },
+    { value: 'pack', label: 'Pack' },
     { value: 'piece', label: 'Piece' },
   ];
 
@@ -305,6 +362,21 @@ const Outward: React.FC = () => {
           >
             <Eye className="h-4 w-4" />
           </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => editInvoice(record)}
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => deleteInvoice(record)}
+            className="text-red-600 hover:text-red-700"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
         </div>
       ),
     },
@@ -366,7 +438,7 @@ const Outward: React.FC = () => {
       <Modal
         isOpen={modalOpen}
         onClose={closeModal}
-        title="Create Outward Invoice"
+        title={editingInvoice ? 'Edit Outward Invoice' : 'Create Outward Invoice'}
         size="xl"
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -440,12 +512,14 @@ const Outward: React.FC = () => {
               const selectedBatch = stockBatches.find(b => b.id === item?.stockBatchId);
               const maxQuantity = item?.saleUnit === 'box' 
                 ? selectedBatch?.remainingBoxes || 0
+                : item?.saleUnit === 'pack'
+                ? selectedBatch?.remainingPacks || 0
                 : selectedBatch?.remainingPcs || 0;
               const totalAmount = (item?.quantity || 0) * (item?.ratePerUnit || 0);
 
               const stockBatchOptions = stockBatches.map(batch => ({
                 value: batch.id,
-                label: `${batch.vendor?.name} - ${formatDate(batch.inwardDate)} (${batch.remainingBoxes} boxes, ${batch.remainingPcs} pcs)`,
+                label: `${batch.vendor?.name} - ${formatDate(batch.inwardDate)} (${batch.remainingBoxes} boxes, ${batch.remainingPacks || 0} packs, ${batch.remainingPcs} pcs)`,
               }));
 
               return (
@@ -524,8 +598,8 @@ const Outward: React.FC = () => {
                       <div className="text-blue-800 space-y-1">
                         <div>Vendor: {selectedBatch.vendor?.name}</div>
                         <div>Inward Date: {formatDate(selectedBatch.inwardDate)}</div>
-                        <div>Available: {selectedBatch.remainingBoxes} boxes, {selectedBatch.remainingPcs} pieces</div>
-                        <div>Cost: ₹{selectedBatch.costPerBox}/box, ₹{selectedBatch.costPerPcs}/piece</div>
+                        <div>Available: {selectedBatch.remainingBoxes} boxes, {selectedBatch.remainingPacks || 0} packs, {selectedBatch.remainingPcs} pieces</div>
+                        <div>Cost: ₹{selectedBatch.costPerBox}/box, ₹{selectedBatch.costPerPack || (selectedBatch.costPerBox / (selectedBatch.packPerBox || 1)).toFixed(2)}/pack, ₹{selectedBatch.costPerPcs}/piece</div>
                       </div>
                     </div>
                   )}
@@ -559,7 +633,7 @@ const Outward: React.FC = () => {
               Cancel
             </Button>
             <Button type="submit" loading={isSubmitting}>
-              Create Invoice
+              {editingInvoice ? 'Update Invoice' : 'Create Invoice'}
             </Button>
           </div>
         </form>

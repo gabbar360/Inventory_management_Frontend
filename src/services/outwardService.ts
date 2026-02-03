@@ -38,6 +38,11 @@ export const outwardService = {
     return response.data.data!;
   },
 
+  async update(id: string, data: OutwardInvoiceFormData): Promise<OutwardInvoice> {
+    const response = await api.put<ApiResponse<OutwardInvoice>>(`/outward/${id}`, data);
+    return response.data.data!;
+  },
+
   async delete(id: string): Promise<void> {
     await api.delete(`/outward/${id}`);
   },

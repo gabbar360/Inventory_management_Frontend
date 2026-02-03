@@ -34,4 +34,11 @@ export const dashboardService = {
     const response = await api.get<ApiResponse<any>>('/dashboard/inventory-alerts');
     return response.data.data!;
   },
+
+  async getPerformanceMetrics(period: 'week' | 'month' | 'year' = 'month'): Promise<any> {
+    const response = await api.get<ApiResponse<any>>('/dashboard/performance-metrics', {
+      params: { period },
+    });
+    return response.data.data!;
+  },
 };

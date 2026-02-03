@@ -4,7 +4,8 @@ import { ApiResponse, InwardInvoice, PaginationQuery } from '@/types';
 export interface InwardItemFormData {
   productId: string;
   boxes: number;
-  pcsPerBox: number;
+  packPerBox: number;
+  packPerPiece: number;
   ratePerBox: number;
 }
 
@@ -32,6 +33,11 @@ export const inwardService = {
 
   async create(data: InwardInvoiceFormData): Promise<InwardInvoice> {
     const response = await api.post<ApiResponse<InwardInvoice>>('/inward', data);
+    return response.data.data!;
+  },
+
+  async update(id: string, data: InwardInvoiceFormData): Promise<InwardInvoice> {
+    const response = await api.put<ApiResponse<InwardInvoice>>(`/inward/${id}`, data);
     return response.data.data!;
   },
 
