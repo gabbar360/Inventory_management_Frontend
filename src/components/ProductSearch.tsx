@@ -14,7 +14,7 @@ interface ProductSearchProps {
 const ProductSearch: React.FC<ProductSearchProps> = ({
   value,
   onChange,
-  placeholder = "Search and select product...",
+  placeholder = 'Search and select product...',
   error,
   disabled = false,
 }) => {
@@ -43,7 +43,10 @@ const ProductSearch: React.FC<ProductSearchProps> = ({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
@@ -88,7 +91,7 @@ const ProductSearch: React.FC<ProductSearchProps> = ({
     const searchValue = e.target.value;
     setSearch(searchValue);
     setIsOpen(true);
-    
+
     if (!searchValue) {
       setSelectedProduct(null);
       onChange('');
@@ -102,7 +105,7 @@ const ProductSearch: React.FC<ProductSearchProps> = ({
     }
   };
 
-  const displayValue = selectedProduct 
+  const displayValue = selectedProduct
     ? `${selectedProduct.name}${selectedProduct.grade ? ` (${selectedProduct.grade})` : ''}`
     : search;
 
@@ -127,10 +130,8 @@ const ProductSearch: React.FC<ProductSearchProps> = ({
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
         <ChevronDown className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
       </div>
-      
-      {error && (
-        <p className="mt-1 text-sm text-red-600">{error}</p>
-      )}
+
+      {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
 
       {isOpen && (
         <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
@@ -146,18 +147,26 @@ const ProductSearch: React.FC<ProductSearchProps> = ({
                 <div className="font-medium text-gray-900">
                   {product.name}
                   {product.grade && (
-                    <span className="ml-2 text-sm text-gray-600">({product.grade})</span>
+                    <span className="ml-2 text-sm text-gray-600">
+                      ({product.grade})
+                    </span>
                   )}
                 </div>
                 {product.category && (
-                  <div className="text-sm text-gray-500">{product.category.name}</div>
+                  <div className="text-sm text-gray-500">
+                    {product.category.name}
+                  </div>
                 )}
               </div>
             ))
           ) : search.length >= 2 ? (
-            <div className="px-4 py-2 text-sm text-gray-500">No products found</div>
+            <div className="px-4 py-2 text-sm text-gray-500">
+              No products found
+            </div>
           ) : (
-            <div className="px-4 py-2 text-sm text-gray-500">Type at least 2 characters to search</div>
+            <div className="px-4 py-2 text-sm text-gray-500">
+              Type at least 2 characters to search
+            </div>
           )}
         </div>
       )}

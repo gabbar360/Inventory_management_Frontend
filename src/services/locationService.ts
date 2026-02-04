@@ -1,4 +1,4 @@
-import api from './api';
+import api from '@/utils/api';
 import { ApiResponse, Location, PaginationQuery } from '@/types';
 
 export interface LocationFormData {
@@ -7,8 +7,12 @@ export interface LocationFormData {
 }
 
 export const locationService = {
-  async getAll(params?: PaginationQuery): Promise<{ data: Location[]; pagination: any }> {
-    const response = await api.get<ApiResponse<Location[]>>('/locations', { params });
+  async getAll(
+    params?: PaginationQuery
+  ): Promise<{ data: Location[]; pagination: any }> {
+    const response = await api.get<ApiResponse<Location[]>>('/locations', {
+      params,
+    });
     return {
       data: response.data.data!,
       pagination: response.data.pagination,
@@ -26,7 +30,10 @@ export const locationService = {
   },
 
   async update(id: string, data: Partial<LocationFormData>): Promise<Location> {
-    const response = await api.put<ApiResponse<Location>>(`/locations/${id}`, data);
+    const response = await api.put<ApiResponse<Location>>(
+      `/locations/${id}`,
+      data
+    );
     return response.data.data!;
   },
 

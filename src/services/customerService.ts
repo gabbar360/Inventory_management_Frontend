@@ -1,4 +1,4 @@
-import api from './api';
+import api from '@/utils/api';
 import { ApiResponse, Customer, PaginationQuery } from '@/types';
 
 export interface CustomerFormData {
@@ -9,8 +9,12 @@ export interface CustomerFormData {
 }
 
 export const customerService = {
-  async getAll(params?: PaginationQuery): Promise<{ data: Customer[]; pagination: any }> {
-    const response = await api.get<ApiResponse<Customer[]>>('/customers', { params });
+  async getAll(
+    params?: PaginationQuery
+  ): Promise<{ data: Customer[]; pagination: any }> {
+    const response = await api.get<ApiResponse<Customer[]>>('/customers', {
+      params,
+    });
     return {
       data: response.data.data!,
       pagination: response.data.pagination,
@@ -28,7 +32,10 @@ export const customerService = {
   },
 
   async update(id: string, data: Partial<CustomerFormData>): Promise<Customer> {
-    const response = await api.put<ApiResponse<Customer>>(`/customers/${id}`, data);
+    const response = await api.put<ApiResponse<Customer>>(
+      `/customers/${id}`,
+      data
+    );
     return response.data.data!;
   },
 

@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import toast from 'react-hot-toast';
 import { Building2 } from 'lucide-react';
-import { useAuthStore } from '@/store';
-import { authService } from '@/services/authService';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { loginUser } from '@/slices/authSlice';
 import Button from '@/components/Button';
 import Input from '@/components/Input';
 
@@ -19,8 +19,8 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const login = useAuthStore((state) => state.login);
-  const [loading, setLoading] = useState(false);
+  const dispatch = useAppDispatch();
+  const { loading } = useAppSelector((state) => state.auth);
 
   const {
     register,
@@ -31,16 +31,12 @@ const Login: React.FC = () => {
   });
 
   const onSubmit = async (data: LoginFormData) => {
-    setLoading(true);
     try {
-      const response = await authService.login(data);
-      login(response.user, response.token);
+      await dispatch(loginUser(data)).unwrap();
       toast.success('Login successful!');
       navigate('/dashboard');
     } catch (error) {
-      // Error is handled by the API interceptor
-    } finally {
-      setLoading(false);
+      // Error is handled by Redux
     }
   };
 
@@ -58,7 +54,7 @@ const Login: React.FC = () => {
             Sign in to your account
           </p>
         </div>
-        
+
         <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-4">
             <Input
@@ -69,7 +65,7 @@ const Login: React.FC = () => {
               error={errors.email?.message}
               {...register('email')}
             />
-            
+
             <Input
               label="Password"
               type="password"

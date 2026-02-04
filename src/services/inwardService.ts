@@ -1,4 +1,4 @@
-import api from './api';
+import api from '@/utils/api';
 import { ApiResponse, InwardInvoice, PaginationQuery } from '@/types';
 
 export interface InwardItemFormData {
@@ -18,8 +18,12 @@ export interface InwardInvoiceFormData {
 }
 
 export const inwardService = {
-  async getAll(params?: PaginationQuery): Promise<{ data: InwardInvoice[]; pagination: any }> {
-    const response = await api.get<ApiResponse<InwardInvoice[]>>('/inward', { params });
+  async getAll(
+    params?: PaginationQuery
+  ): Promise<{ data: InwardInvoice[]; pagination: any }> {
+    const response = await api.get<ApiResponse<InwardInvoice[]>>('/inward', {
+      params,
+    });
     return {
       data: response.data.data!,
       pagination: response.data.pagination,
@@ -32,12 +36,21 @@ export const inwardService = {
   },
 
   async create(data: InwardInvoiceFormData): Promise<InwardInvoice> {
-    const response = await api.post<ApiResponse<InwardInvoice>>('/inward', data);
+    const response = await api.post<ApiResponse<InwardInvoice>>(
+      '/inward',
+      data
+    );
     return response.data.data!;
   },
 
-  async update(id: string, data: InwardInvoiceFormData): Promise<InwardInvoice> {
-    const response = await api.put<ApiResponse<InwardInvoice>>(`/inward/${id}`, data);
+  async update(
+    id: string,
+    data: InwardInvoiceFormData
+  ): Promise<InwardInvoice> {
+    const response = await api.put<ApiResponse<InwardInvoice>>(
+      `/inward/${id}`,
+      data
+    );
     return response.data.data!;
   },
 

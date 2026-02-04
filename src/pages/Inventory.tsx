@@ -1,8 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Package, MapPin, TrendingUp, AlertTriangle, Calendar, User, Archive } from 'lucide-react';
-import { inventoryService, StockSummary } from '@/services/inventoryService';
-import { locationService } from '@/services/locationService';
-import { Location, StockBatch } from '@/types';
+import {
+  Package,
+  MapPin,
+  TrendingUp,
+  AlertTriangle,
+  Calendar,
+  User,
+  Archive,
+} from 'lucide-react';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import {
+  fetchStockSummary,
+  fetchAvailableStock,
+  clearAvailableStock,
+} from '@/slices/inventorySlice';
+import { fetchLocations } from '@/slices/locationSlice';
+import { StockBatch } from '@/types';
 import { formatCurrency, formatNumber } from '@/utils';
 import Button from '@/components/Button';
 import Select from '@/components/Select';
@@ -10,14 +23,16 @@ import Table from '@/components/Table';
 import Pagination from '@/components/Pagination';
 
 const Inventory: React.FC = () => {
-  const [stockSummary, setStockSummary] = useState<StockSummary[]>([]);
-  const [stockBatches, setStockBatches] = useState<StockBatch[]>([]);
-  const [locations, setLocations] = useState<Location[]>([]);
+  const dispatch = useAppDispatch();
+  const { stockSummary, availableStock, loading } = useAppSelector(
+    (state) => state.inventory
+  );
+  const { locations } = useAppSelector((state) => state.locations);
+
   const [selectedLocation, setSelectedLocation] = useState<string>('');
   const [selectedProduct, setSelectedProduct] = useState<string>('');
   const [viewMode, setViewMode] = useState<'summary' | 'batches'>('summary');
   const [currentPage, setCurrentPage] = useState(1);
-  const [loading, setLoading] = useState(true);
   const itemsPerPage = 10;
 
   useEffect(() => {
@@ -25,34 +40,20 @@ const Inventory: React.FC = () => {
   }, [selectedLocation]);
 
   const loadData = async () => {
-    setLoading(true);
-    try {
-      const [stockData, locationsData] = await Promise.all([
-        inventoryService.getStockSummary(selectedLocation || undefined),
-        locationService.getAll({ limit: 100 }),
-      ]);
-      setStockSummary(stockData);
-      setLocations(locationsData.data);
-    } catch (error) {
-      console.error('Failed to load inventory data:', error);
-    } finally {
-      setLoading(false);
-    }
+    dispatch(fetchStockSummary(selectedLocation || undefined));
+    dispatch(fetchLocations({ limit: 100 }));
   };
 
   const loadBatches = async (productId: string) => {
-    setLoading(true);
-    try {
-      const batchData = await inventoryService.getAvailableStock(productId, selectedLocation || undefined);
-      setStockBatches(batchData);
-      setSelectedProduct(productId);
-      setViewMode('batches');
-      setCurrentPage(1);
-    } catch (error) {
-      console.error('Failed to load batch data:', error);
-    } finally {
-      setLoading(false);
-    }
+    dispatch(
+      fetchAvailableStock({
+        productId,
+        locationId: selectedLocation || undefined,
+      })
+    );
+    setSelectedProduct(productId);
+    setViewMode('batches');
+    setCurrentPage(1);
   };
 
   const locationOptions = [
@@ -63,9 +64,12 @@ const Inventory: React.FC = () => {
     })),
   ];
 
-  const totalStockValue = stockSummary.reduce((sum, item) => sum + item.totalValue, 0);
+  const totalStockValue = stockSummary.reduce(
+    (sum, item) => sum + item.totalValue,
+    0
+  );
   const totalProducts = stockSummary.length;
-  const lowStockItems = stockSummary.filter(item => item.totalPcs < 100); // Assuming low stock threshold
+  const lowStockItems = stockSummary.filter((item) => item.totalPcs < 100); // Assuming low stock threshold
 
   const summaryColumns = [
     {
@@ -87,7 +91,8 @@ const Inventory: React.FC = () => {
     {
       key: 'totalPacks',
       title: 'Packs',
-      render: (_: any, record: StockSummary) => formatNumber(record.totalPacks || 0),
+      render: (_: any, record: StockSummary) =>
+        formatNumber(record.totalPacks || 0),
     },
     {
       key: 'totalPcs',
@@ -108,7 +113,8 @@ const Inventory: React.FC = () => {
             <div key={index} className="text-sm">
               <span className="font-medium">{loc.locationName}:</span>
               <span className="ml-1 text-gray-600">
-                {formatNumber(loc.boxes)} boxes, {formatNumber(loc.packs || 0)} packs, {formatNumber(loc.pcs)} pcs
+                {formatNumber(loc.boxes)} boxes, {formatNumber(loc.packs || 0)}{' '}
+                packs, {formatNumber(loc.pcs)} pcs
               </span>
             </div>
           ))}
@@ -176,7 +182,9 @@ const Inventory: React.FC = () => {
         <div className="flex items-center">
           <User className="w-4 h-4 mr-2 text-gray-400" />
           <div>
-            <div className="font-medium text-gray-900">{vendor?.name || 'N/A'}</div>
+            <div className="font-medium text-gray-900">
+              {vendor?.name || 'N/A'}
+            </div>
             <div className="text-sm text-gray-500">{vendor?.code || ''}</div>
           </div>
         </div>
@@ -218,7 +226,9 @@ const Inventory: React.FC = () => {
       key: 'costPerPack',
       title: 'Cost/Pack',
       render: (_: any, record: StockBatch) => {
-        const costPerPack = record.costPerPack || (record.costPerBox / (record.packPerBox || record.pcsPerBox || 1));
+        const costPerPack =
+          record.costPerPack ||
+          record.costPerBox / (record.packPerBox || record.pcsPerBox || 1);
         return formatCurrency(costPerPack);
       },
     },
@@ -252,7 +262,7 @@ const Inventory: React.FC = () => {
               onClick={() => {
                 setViewMode('summary');
                 setSelectedProduct('');
-                setStockBatches([]);
+                dispatch(clearAvailableStock());
               }}
             >
               ← Back to Summary
@@ -264,7 +274,9 @@ const Inventory: React.FC = () => {
             <button
               onClick={() => setViewMode('summary')}
               className={`px-3 py-1 rounded-md text-sm transition-colors ${
-                viewMode === 'summary' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-600 hover:text-gray-900'
+                viewMode === 'summary'
+                  ? 'bg-white shadow-sm text-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
               }`}
             >
               Summary
@@ -272,7 +284,9 @@ const Inventory: React.FC = () => {
             <button
               onClick={() => setViewMode('batches')}
               className={`px-3 py-1 rounded-md text-sm transition-colors ${
-                viewMode === 'batches' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-600 hover:text-gray-900'
+                viewMode === 'batches'
+                  ? 'bg-white shadow-sm text-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
               }`}
               disabled={!selectedProduct}
             >
@@ -297,8 +311,12 @@ const Inventory: React.FC = () => {
               <Package className="h-6 w-6 text-white" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Products</p>
-              <p className="text-2xl font-semibold text-gray-900">{totalProducts}</p>
+              <p className="text-sm font-medium text-gray-600">
+                Total Products
+              </p>
+              <p className="text-2xl font-semibold text-gray-900">
+                {totalProducts}
+              </p>
             </div>
           </div>
         </div>
@@ -323,8 +341,12 @@ const Inventory: React.FC = () => {
               <AlertTriangle className="h-6 w-6 text-white" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Low Stock Items</p>
-              <p className="text-2xl font-semibold text-gray-900">{lowStockItems.length}</p>
+              <p className="text-sm font-medium text-gray-600">
+                Low Stock Items
+              </p>
+              <p className="text-2xl font-semibold text-gray-900">
+                {lowStockItems.length}
+              </p>
             </div>
           </div>
         </div>
@@ -338,7 +360,7 @@ const Inventory: React.FC = () => {
               Stock Summary
               {selectedLocation && (
                 <span className="ml-2 text-sm font-normal text-gray-500">
-                  - {locations.find(l => l.id === selectedLocation)?.name}
+                  - {locations.find((l) => l.id === selectedLocation)?.name}
                 </span>
               )}
             </h3>
@@ -363,8 +385,12 @@ const Inventory: React.FC = () => {
                   <Archive className="h-6 w-6 text-white" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Batches</p>
-                  <p className="text-2xl font-semibold text-gray-900">{stockBatches.length}</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Total Batches
+                  </p>
+                  <p className="text-2xl font-semibold text-gray-900">
+                    {availableStock.length}
+                  </p>
                 </div>
               </div>
             </div>
@@ -374,9 +400,16 @@ const Inventory: React.FC = () => {
                   <Package className="h-6 w-6 text-white" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Boxes</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Total Boxes
+                  </p>
                   <p className="text-2xl font-semibold text-gray-900">
-                    {formatNumber(stockBatches.reduce((sum, batch) => sum + batch.remainingBoxes, 0))}
+                    {formatNumber(
+                      availableStock.reduce(
+                        (sum, batch) => sum + batch.remainingBoxes,
+                        0
+                      )
+                    )}
                   </p>
                 </div>
               </div>
@@ -387,9 +420,16 @@ const Inventory: React.FC = () => {
                   <Package className="h-6 w-6 text-white" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Packs</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Total Packs
+                  </p>
                   <p className="text-2xl font-semibold text-gray-900">
-                    {formatNumber(stockBatches.reduce((sum, batch) => sum + (batch.remainingPacks || 0), 0))}
+                    {formatNumber(
+                      availableStock.reduce(
+                        (sum, batch) => sum + (batch.remainingPacks || 0),
+                        0
+                      )
+                    )}
                   </p>
                 </div>
               </div>
@@ -400,9 +440,16 @@ const Inventory: React.FC = () => {
                   <Package className="h-6 w-6 text-white" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Pieces</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Total Pieces
+                  </p>
                   <p className="text-2xl font-semibold text-gray-900">
-                    {formatNumber(stockBatches.reduce((sum, batch) => sum + batch.remainingPcs, 0))}
+                    {formatNumber(
+                      availableStock.reduce(
+                        (sum, batch) => sum + batch.remainingPcs,
+                        0
+                      )
+                    )}
                   </p>
                 </div>
               </div>
@@ -413,12 +460,17 @@ const Inventory: React.FC = () => {
                   <TrendingUp className="h-6 w-6 text-white" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Value</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Total Value
+                  </p>
                   <p className="text-2xl font-semibold text-gray-900">
-                    {formatCurrency(stockBatches.reduce((sum, batch) => {
-                      const batchValue = batch.remainingPcs * batch.costPerPcs;
-                      return sum + batchValue;
-                    }, 0))}
+                    {formatCurrency(
+                      availableStock.reduce((sum, batch) => {
+                        const batchValue =
+                          batch.remainingPcs * batch.costPerPcs;
+                        return sum + batchValue;
+                      }, 0)
+                    )}
                   </p>
                 </div>
               </div>
@@ -433,7 +485,12 @@ const Inventory: React.FC = () => {
                     Stock Batches
                     {selectedProduct && (
                       <span className="ml-2 text-sm font-normal text-gray-500">
-                        - {stockSummary.find(s => s.productId === selectedProduct)?.productName}
+                        -{' '}
+                        {
+                          stockSummary.find(
+                            (s) => s.productId === selectedProduct
+                          )?.productName
+                        }
                       </span>
                     )}
                   </h3>
@@ -444,23 +501,26 @@ const Inventory: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <Archive className="w-5 h-5 text-gray-400" />
                   <span className="text-sm text-gray-600">
-                    {stockBatches.length} batches
+                    {availableStock.length} batches
                   </span>
                 </div>
               </div>
             </div>
             <Table
-              data={stockBatches.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)}
+              data={availableStock.slice(
+                (currentPage - 1) * itemsPerPage,
+                currentPage * itemsPerPage
+              )}
               columns={batchColumns}
               loading={loading}
               emptyMessage="No batches available for this product"
             />
-            {stockBatches.length > itemsPerPage && (
+            {availableStock.length > itemsPerPage && (
               <div className="card-footer">
                 <Pagination
                   currentPage={currentPage}
-                  totalPages={Math.ceil(stockBatches.length / itemsPerPage)}
-                  total={stockBatches.length}
+                  totalPages={Math.ceil(availableStock.length / itemsPerPage)}
+                  total={availableStock.length}
                   limit={itemsPerPage}
                   onPageChange={setCurrentPage}
                 />
@@ -484,10 +544,17 @@ const Inventory: React.FC = () => {
           <div className="card-content">
             <div className="space-y-2">
               {lowStockItems.slice(0, 5).map((item, index) => (
-                <div key={index} className="flex items-center justify-between py-2 border-b border-gray-200 last:border-0">
+                <div
+                  key={index}
+                  className="flex items-center justify-between py-2 border-b border-gray-200 last:border-0"
+                >
                   <div>
-                    <span className="font-medium text-gray-900">{item.productName}</span>
-                    <span className="ml-2 text-sm text-gray-500">({item.categoryName})</span>
+                    <span className="font-medium text-gray-900">
+                      {item.productName}
+                    </span>
+                    <span className="ml-2 text-sm text-gray-500">
+                      ({item.categoryName})
+                    </span>
                   </div>
                   <div className="text-right">
                     <div className="text-sm font-medium text-red-600">

@@ -4,7 +4,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Edit, Trash2, Search, Upload, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { categoryService, CategoryFormData } from '@/services/categoryService';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import {
+  fetchCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+  clearError,
+} from '@/slices/categorySlice';
 import { bulkUploadService } from '@/services/bulkUploadService';
 import { Category } from '@/types';
 import { formatDate, debounce } from '@/utils';
@@ -15,6 +22,12 @@ import Table from '@/components/Table';
 import BulkUpload from '@/components/BulkUpload';
 import Pagination from '@/components/Pagination';
 
+interface CategoryFormData {
+  name: string;
+  hsnCode: string;
+  gstRate: number;
+}
+
 const categorySchema = z.object({
   name: z.string().min(1, 'Category name is required'),
   hsnCode: z.string().min(1, 'HSN code is required'),
@@ -22,18 +35,16 @@ const categorySchema = z.object({
 });
 
 const Categories: React.FC = () => {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useAppDispatch();
+  const { categories, pagination, loading, error } = useAppSelector(
+    (state) => state.categories
+  );
+
   const [modalOpen, setModalOpen] = useState(false);
   const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [search, setSearch] = useState('');
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 10,
-    total: 0,
-    totalPages: 0,
-  });
+  const [currentPage, setCurrentPage] = useState(1);
 
   const {
     register,
@@ -46,29 +57,19 @@ const Categories: React.FC = () => {
   });
 
   useEffect(() => {
-    loadCategories();
-  }, [search, pagination.page]);
+    dispatch(fetchCategories({ page: currentPage, limit: 10, search }));
+  }, [dispatch, search, currentPage]);
 
-  const loadCategories = async () => {
-    setLoading(true);
-    try {
-      const response = await categoryService.getAll({
-        page: pagination.page,
-        limit: pagination.limit,
-        search,
-      });
-      setCategories(response.data);
-      setPagination(response.pagination);
-    } catch (error) {
-      console.error('Failed to load categories:', error);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (error) {
+      toast.error(error);
+      dispatch(clearError());
     }
-  };
+  }, [error, dispatch]);
 
   const debouncedSearch = debounce((value: string) => {
     setSearch(value);
-    setPagination((prev) => ({ ...prev, page: 1 }));
+    setCurrentPage(1);
   }, 300);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -97,34 +98,34 @@ const Categories: React.FC = () => {
   const onSubmit = async (data: CategoryFormData) => {
     try {
       if (editingCategory) {
-        await categoryService.update(editingCategory.id, data);
+        await dispatch(
+          updateCategory({ id: editingCategory.id, data })
+        ).unwrap();
         toast.success('Category updated successfully');
       } else {
-        await categoryService.create(data);
+        await dispatch(createCategory(data)).unwrap();
         toast.success('Category created successfully');
       }
       closeModal();
-      loadCategories();
     } catch (error) {
-      // Error handled by interceptor
+      // Error handled by Redux
     }
   };
 
   const handleDelete = async (category: Category) => {
     if (window.confirm(`Are you sure you want to delete "${category.name}"?`)) {
       try {
-        await categoryService.delete(category.id);
+        await dispatch(deleteCategory(category.id)).unwrap();
         toast.success('Category deleted successfully');
-        loadCategories();
       } catch (error) {
-        // Error handled by interceptor
+        // Error handled by Redux
       }
     }
   };
 
   const handleBulkUploadSuccess = () => {
     setBulkUploadOpen(false);
-    loadCategories();
+    dispatch(fetchCategories({ page: currentPage, limit: 10, search }));
   };
 
   const handleExport = async () => {
@@ -176,11 +177,7 @@ const Categories: React.FC = () => {
       title: 'Actions',
       render: (_: any, record: Category) => (
         <div className="flex space-x-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => openModal(record)}
-          >
+          <Button variant="ghost" size="sm" onClick={() => openModal(record)}>
             <Edit className="h-4 w-4" />
           </Button>
           <Button
@@ -202,10 +199,7 @@ const Categories: React.FC = () => {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Categories</h1>
         <div className="flex space-x-3">
-          <Button
-            variant="outline"
-            onClick={() => setBulkUploadOpen(true)}
-          >
+          <Button variant="outline" onClick={() => setBulkUploadOpen(true)}>
             <Upload className="mr-2 h-4 w-4" />
             Bulk Upload
           </Button>
@@ -235,18 +229,14 @@ const Categories: React.FC = () => {
 
       {/* Table */}
       <div className="card">
-        <Table
-          data={categories}
-          columns={columns}
-          loading={loading}
-        />
-        
+        <Table data={categories} columns={columns} loading={loading} />
+
         <Pagination
-          currentPage={pagination.page}
-          totalPages={pagination.totalPages}
-          total={pagination.total}
-          limit={pagination.limit}
-          onPageChange={(page) => setPagination(prev => ({ ...prev, page }))}
+          currentPage={pagination?.page || 1}
+          totalPages={pagination?.totalPages || 1}
+          total={pagination?.total || 0}
+          limit={pagination?.limit || 10}
+          onPageChange={setCurrentPage}
           loading={loading}
         />
       </div>
@@ -264,14 +254,14 @@ const Categories: React.FC = () => {
             error={errors.name?.message}
             {...register('name')}
           />
-          
+
           <Input
             label="HSN Code"
             placeholder="Enter HSN code"
             error={errors.hsnCode?.message}
             {...register('hsnCode')}
           />
-          
+
           <Input
             label="GST Rate (%)"
             type="number"
@@ -284,17 +274,10 @@ const Categories: React.FC = () => {
           />
 
           <div className="form-actions">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={closeModal}
-            >
+            <Button type="button" variant="outline" onClick={closeModal}>
               Cancel
             </Button>
-            <Button
-              type="submit"
-              loading={isSubmitting}
-            >
+            <Button type="submit" loading={isSubmitting}>
               {editingCategory ? 'Update' : 'Create'}
             </Button>
           </div>

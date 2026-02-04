@@ -1,5 +1,4 @@
 import axios, { AxiosResponse } from 'axios';
-import { useAuthStore } from '@/store';
 import { ApiResponse } from '@/types';
 import toast from 'react-hot-toast';
 
@@ -15,7 +14,7 @@ const api = axios.create({
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
-    const token = useAuthStore.getState().token;
+    const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -33,13 +32,14 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      useAuthStore.getState().logout();
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
       window.location.href = '/login';
     }
-    
+
     const message = error.response?.data?.error || 'An error occurred';
     toast.error(message);
-    
+
     return Promise.reject(error);
   }
 );

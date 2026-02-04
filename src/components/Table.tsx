@@ -57,7 +57,12 @@ function Table<T extends Record<string, any>>({
   }
 
   return (
-    <div className={cn('overflow-hidden rounded-lg border border-gray-200', className)}>
+    <div
+      className={cn(
+        'overflow-hidden rounded-lg border border-gray-200',
+        className
+      )}
+    >
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -72,7 +77,9 @@ function Table<T extends Record<string, any>>({
                     column.align === 'right' && 'text-right'
                   )}
                   style={{ width: column.width }}
-                  onClick={() => handleSort(String(column.key), column.sortable)}
+                  onClick={() =>
+                    handleSort(String(column.key), column.sortable)
+                  }
                 >
                   <div className="flex items-center space-x-1">
                     <span>{column.title}</span>
@@ -124,7 +131,11 @@ function Table<T extends Record<string, any>>({
                       )}
                     >
                       {column.render
-                        ? column.render(getValue(record, column.key), record, index)
+                        ? column.render(
+                            getValue(record, column.key),
+                            record,
+                            index
+                          )
                         : getValue(record, column.key)}
                     </td>
                   ))}
