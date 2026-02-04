@@ -2,15 +2,37 @@ import React, { useState, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Trash2, Search, Eye, Upload, Download, Edit, X } from 'lucide-react';
+import {
+  Plus,
+  Trash2,
+  Search,
+  Eye,
+  Upload,
+  Download,
+  Edit,
+  X,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
-import { outwardService, OutwardInvoiceFormData } from '@/services/outwardService';
-import { inventoryService } from '@/services/inventoryService';
-import { customerService } from '@/services/customerService';
-import { locationService } from '@/services/locationService';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import {
+  fetchOutwardInvoices,
+  fetchOutwardInvoiceById,
+  createOutwardInvoice,
+  updateOutwardInvoice,
+  deleteOutwardInvoice,
+  clearError,
+} from '@/slices/outwardSlice';
+import { fetchAvailableStock } from '@/slices/inventorySlice';
+import { fetchCustomers } from '@/slices/customerSlice';
+import { fetchLocations } from '@/slices/locationSlice';
 import { bulkUploadService } from '@/services/bulkUploadService';
-import { OutwardInvoice, Customer, Location, StockBatch, Product } from '@/types';
-import { formatDate, formatCurrency, generateInvoiceNumber, debounce } from '@/utils';
+import { OutwardInvoice, StockBatch, Product } from '@/types';
+import {
+  formatDate,
+  formatCurrency,
+  generateInvoiceNumber,
+  debounce,
+} from '@/utils';
 import Button from '@/components/Button';
 import Input from '@/components/Input';
 import Select from '@/components/Select';
@@ -20,40 +42,68 @@ import ProductSearch from '@/components/ProductSearch';
 import BulkUpload from '@/components/BulkUpload';
 import Pagination from '@/components/Pagination';
 
+interface OutwardInvoiceFormData {
+  invoiceNo: string;
+  date: string;
+  customerId: string;
+  locationId: string;
+  saleType: 'export' | 'domestic';
+  expense: number;
+  items: {
+    productId: string;
+    stockBatchId: string;
+    saleUnit: 'box' | 'pack' | 'piece';
+    quantity: number;
+    ratePerUnit: number;
+  }[];
+}
+
 const outwardSchema = z.object({
   invoiceNo: z.string().min(1, 'Invoice number is required'),
   date: z.string().min(1, 'Date is required'),
   customerId: z.string().min(1, 'Customer is required'),
   locationId: z.string().min(1, 'Location is required'),
-  saleType: z.enum(['export', 'domestic'], { required_error: 'Sale type is required' }),
+  saleType: z.enum(['export', 'domestic'], {
+    required_error: 'Sale type is required',
+  }),
   expense: z.number().min(0, 'Expense must be positive').default(0),
-  items: z.array(z.object({
-    productId: z.string().min(1, 'Product is required'),
-    stockBatchId: z.string().min(1, 'Stock batch is required'),
-    saleUnit: z.enum(['box', 'pack', 'piece'], { required_error: 'Sale unit is required' }),
-    quantity: z.number().min(1, 'Quantity must be at least 1'),
-    ratePerUnit: z.number().min(0, 'Rate per unit must be positive'),
-  })).min(1, 'At least one item is required'),
+  items: z
+    .array(
+      z.object({
+        productId: z.string().min(1, 'Product is required'),
+        stockBatchId: z.string().min(1, 'Stock batch is required'),
+        saleUnit: z.enum(['box', 'pack', 'piece'], {
+          required_error: 'Sale unit is required',
+        }),
+        quantity: z.number().min(1, 'Quantity must be at least 1'),
+        ratePerUnit: z.number().min(0, 'Rate per unit must be positive'),
+      })
+    )
+    .min(1, 'At least one item is required'),
 });
 
 const Outward: React.FC = () => {
-  const [invoices, setInvoices] = useState<OutwardInvoice[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [locations, setLocations] = useState<Location[]>([]);
-  const [availableStock, setAvailableStock] = useState<{ [key: string]: StockBatch[] }>({});
-  const [loading, setLoading] = useState(true);
+  const dispatch = useAppDispatch();
+  const { invoices, currentInvoice, pagination, loading, error } =
+    useAppSelector((state) => state.outward);
+  const { customers } = useAppSelector((state) => state.customers);
+  const { locations } = useAppSelector((state) => state.locations);
+  const { availableStock } = useAppSelector((state) => state.inventory);
+
+  const [availableStockCache, setAvailableStockCache] = useState<{
+    [key: string]: StockBatch[];
+  }>({});
   const [modalOpen, setModalOpen] = useState(false);
   const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
-  const [selectedInvoice, setSelectedInvoice] = useState<OutwardInvoice | null>(null);
-  const [editingInvoice, setEditingInvoice] = useState<OutwardInvoice | null>(null);
+  const [selectedInvoice, setSelectedInvoice] = useState<OutwardInvoice | null>(
+    null
+  );
+  const [editingInvoice, setEditingInvoice] = useState<OutwardInvoice | null>(
+    null
+  );
   const [search, setSearch] = useState('');
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 10,
-    total: 0,
-    totalPages: 0,
-  });
+  const [currentPage, setCurrentPage] = useState(1);
 
   const {
     register,
@@ -66,7 +116,15 @@ const Outward: React.FC = () => {
   } = useForm<OutwardInvoiceFormData>({
     resolver: zodResolver(outwardSchema),
     defaultValues: {
-      items: [{ productId: '', stockBatchId: '', saleUnit: 'box', quantity: 1, ratePerUnit: 0 }],
+      items: [
+        {
+          productId: '',
+          stockBatchId: '',
+          saleUnit: 'box',
+          quantity: 1,
+          ratePerUnit: 0,
+        },
+      ],
       expense: 0,
     },
   });
@@ -80,55 +138,35 @@ const Outward: React.FC = () => {
   const watchedLocationId = watch('locationId');
 
   useEffect(() => {
-    loadInvoices();
+    dispatch(fetchOutwardInvoices({ page: currentPage, limit: 10, search }));
     loadMasterData();
-  }, [search, pagination.page]);
+  }, [dispatch, search, currentPage]);
 
-  const loadInvoices = async () => {
-    setLoading(true);
-    try {
-      const response = await outwardService.getAll({
-        page: pagination.page,
-        limit: pagination.limit,
-        search,
-      });
-      setInvoices(response.data);
-      setPagination(response.pagination);
-    } catch (error) {
-      console.error('Failed to load invoices:', error);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (error) {
+      toast.error(error);
+      dispatch(clearError());
     }
-  };
+  }, [error, dispatch]);
 
   const loadMasterData = async () => {
-    try {
-      const [customersData, locationsData] = await Promise.all([
-        customerService.getAll({ limit: 100 }),
-        locationService.getAll({ limit: 100 }),
-      ]);
-      setCustomers(customersData.data);
-      setLocations(locationsData.data);
-    } catch (error) {
-      console.error('Failed to load master data:', error);
-    }
+    dispatch(fetchCustomers({ limit: 100 }));
+    dispatch(fetchLocations({ limit: 100 }));
   };
 
   const loadAvailableStock = async (productId: string, locationId?: string) => {
-    try {
-      const stock = await inventoryService.getAvailableStock(productId, locationId);
-      setAvailableStock(prev => ({
-        ...prev,
-        [`${productId}-${locationId || 'all'}`]: stock,
-      }));
-    } catch (error) {
-      console.error('Failed to load available stock:', error);
-    }
+    const result = await dispatch(
+      fetchAvailableStock({ productId, locationId })
+    ).unwrap();
+    setAvailableStockCache((prev) => ({
+      ...prev,
+      [`${productId}-${locationId || 'all'}`]: result,
+    }));
   };
 
   const debouncedSearch = debounce((value: string) => {
     setSearch(value);
-    setPagination((prev) => ({ ...prev, page: 1 }));
+    setCurrentPage(1);
   }, 300);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -143,9 +181,17 @@ const Outward: React.FC = () => {
       locationId: '',
       saleType: 'domestic',
       expense: 0,
-      items: [{ productId: '', stockBatchId: '', saleUnit: 'box', quantity: 1, ratePerUnit: 0 }],
+      items: [
+        {
+          productId: '',
+          stockBatchId: '',
+          saleUnit: 'box',
+          quantity: 1,
+          ratePerUnit: 0,
+        },
+      ],
     });
-    setAvailableStock({});
+    setAvailableStockCache({});
     setModalOpen(true);
   };
 
@@ -153,39 +199,50 @@ const Outward: React.FC = () => {
     setModalOpen(false);
     setEditingInvoice(null);
     reset();
-    setAvailableStock({});
+    setAvailableStockCache({});
   };
 
   const editInvoice = async (invoice: OutwardInvoice) => {
     try {
-      const fullInvoice = await outwardService.getById(invoice.id);
-      setEditingInvoice(fullInvoice);
-      
-      // Populate form with existing data
-      reset({
-        invoiceNo: fullInvoice.invoiceNo,
-        date: fullInvoice.date.split('T')[0],
-        customerId: fullInvoice.customerId,
-        locationId: fullInvoice.locationId,
-        saleType: fullInvoice.saleType,
-        expense: fullInvoice.expense,
-        items: fullInvoice.items?.map(item => ({
-          productId: item.productId,
-          stockBatchId: item.stockBatchId,
-          saleUnit: item.saleUnit,
-          quantity: item.quantity,
-          ratePerUnit: item.ratePerUnit,
-        })) || [{ productId: '', stockBatchId: '', saleUnit: 'box', quantity: 1, ratePerUnit: 0 }],
-      });
-      
-      // Load stock for existing items
-      if (fullInvoice.items) {
-        for (const item of fullInvoice.items) {
-          await loadAvailableStock(item.productId, fullInvoice.locationId);
+      await dispatch(fetchOutwardInvoiceById(invoice.id)).unwrap();
+      const fullInvoice = currentInvoice;
+      if (fullInvoice) {
+        setEditingInvoice(fullInvoice);
+
+        // Populate form with existing data
+        reset({
+          invoiceNo: fullInvoice.invoiceNo,
+          date: fullInvoice.date.split('T')[0],
+          customerId: fullInvoice.customerId,
+          locationId: fullInvoice.locationId,
+          saleType: fullInvoice.saleType,
+          expense: fullInvoice.expense,
+          items: fullInvoice.items?.map((item) => ({
+            productId: item.productId,
+            stockBatchId: item.stockBatchId,
+            saleUnit: item.saleUnit,
+            quantity: item.quantity,
+            ratePerUnit: item.ratePerUnit,
+          })) || [
+            {
+              productId: '',
+              stockBatchId: '',
+              saleUnit: 'box',
+              quantity: 1,
+              ratePerUnit: 0,
+            },
+          ],
+        });
+
+        // Load stock for existing items
+        if (fullInvoice.items) {
+          for (const item of fullInvoice.items) {
+            await loadAvailableStock(item.productId, fullInvoice.locationId);
+          }
         }
+
+        setModalOpen(true);
       }
-      
-      setModalOpen(true);
     } catch (error) {
       console.error('Failed to load invoice for editing:', error);
     }
@@ -193,8 +250,8 @@ const Outward: React.FC = () => {
 
   const viewInvoice = async (invoice: OutwardInvoice) => {
     try {
-      const fullInvoice = await outwardService.getById(invoice.id);
-      setSelectedInvoice(fullInvoice);
+      await dispatch(fetchOutwardInvoiceById(invoice.id)).unwrap();
+      setSelectedInvoice(currentInvoice);
       setViewModalOpen(true);
     } catch (error) {
       console.error('Failed to load invoice details:', error);
@@ -204,36 +261,40 @@ const Outward: React.FC = () => {
   const onSubmit = async (data: OutwardInvoiceFormData) => {
     try {
       if (editingInvoice) {
-        await outwardService.update(editingInvoice.id, data);
+        await dispatch(
+          updateOutwardInvoice({ id: editingInvoice.id, data })
+        ).unwrap();
         toast.success('Outward invoice updated successfully');
       } else {
-        await outwardService.create(data);
+        await dispatch(createOutwardInvoice(data)).unwrap();
         toast.success('Outward invoice created successfully');
       }
       closeModal();
-      loadInvoices();
     } catch (error) {
-      // Error handled by interceptor
+      // Error handled by Redux
     }
   };
 
   const deleteInvoice = async (invoice: OutwardInvoice) => {
     if (window.confirm('Are you sure you want to delete this invoice?')) {
       try {
-        await outwardService.delete(invoice.id);
+        await dispatch(deleteOutwardInvoice(invoice.id)).unwrap();
         toast.success('Outward invoice deleted successfully');
-        loadInvoices();
       } catch (error) {
-        // Error handled by interceptor
+        // Error handled by Redux
       }
     }
   };
 
-  const handleProductChange = (index: number, productId: string, product?: Product) => {
+  const handleProductChange = (
+    index: number,
+    productId: string,
+    product?: Product
+  ) => {
     setValue(`items.${index}.productId`, productId);
     setValue(`items.${index}.stockBatchId`, '');
     setValue(`items.${index}.ratePerUnit`, 0);
-    
+
     if (productId && watchedLocationId) {
       loadAvailableStock(productId, watchedLocationId);
     }
@@ -241,26 +302,32 @@ const Outward: React.FC = () => {
 
   const handleStockBatchChange = (index: number, stockBatchId: string) => {
     setValue(`items.${index}.stockBatchId`, stockBatchId);
-    
+
     // Auto-set rate based on stock batch cost
     const item = watchedItems[index];
     const stockKey = `${item?.productId}-${watchedLocationId || 'all'}`;
-    const stockBatches = availableStock[stockKey] || [];
-    const selectedBatch = stockBatches.find(b => b.id === stockBatchId);
-    
+    const stockBatches = availableStockCache[stockKey] || [];
+    const selectedBatch = stockBatches.find((b) => b.id === stockBatchId);
+
     if (selectedBatch) {
-      const suggestedRate = item?.saleUnit === 'box' 
-        ? selectedBatch.costPerBox * 1.2 // 20% markup
-        : item?.saleUnit === 'pack'
-        ? (selectedBatch.costPerPack || selectedBatch.costPerBox / (selectedBatch.packPerBox || 1)) * 1.2
-        : selectedBatch.costPerPcs * 1.2;
-      setValue(`items.${index}.ratePerUnit`, Math.round(suggestedRate * 100) / 100);
+      const suggestedRate =
+        item?.saleUnit === 'box'
+          ? selectedBatch.costPerBox * 1.2 // 20% markup
+          : item?.saleUnit === 'pack'
+            ? (selectedBatch.costPerPack ||
+                selectedBatch.costPerBox / (selectedBatch.packPerBox || 1)) *
+              1.2
+            : selectedBatch.costPerPcs * 1.2;
+      setValue(
+        `items.${index}.ratePerUnit`,
+        Math.round(suggestedRate * 100) / 100
+      );
     }
   };
 
   const calculateGrandTotal = () => {
     const itemsTotal = watchedItems.reduce((total, item) => {
-      return total + (item.quantity * item.ratePerUnit);
+      return total + item.quantity * item.ratePerUnit;
     }, 0);
     return itemsTotal;
   };
@@ -282,12 +349,12 @@ const Outward: React.FC = () => {
     }
   };
 
-  const customerOptions = customers.map(c => ({
+  const customerOptions = customers.map((c) => ({
     value: c.id,
     label: `${c.code} - ${c.name}`,
   }));
 
-  const locationOptions = locations.map(l => ({
+  const locationOptions = locations.map((l) => ({
     value: l.id,
     label: l.name,
   }));
@@ -333,9 +400,13 @@ const Outward: React.FC = () => {
       key: 'saleType',
       title: 'Type',
       render: (value: string) => (
-        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-          value === 'export' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
-        }`}>
+        <span
+          className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+            value === 'export'
+              ? 'bg-blue-100 text-blue-800'
+              : 'bg-green-100 text-green-800'
+          }`}
+        >
           {value.charAt(0).toUpperCase() + value.slice(1)}
         </span>
       ),
@@ -355,18 +426,10 @@ const Outward: React.FC = () => {
       title: 'Actions',
       render: (_: any, record: OutwardInvoice) => (
         <div className="flex space-x-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => viewInvoice(record)}
-          >
+          <Button variant="ghost" size="sm" onClick={() => viewInvoice(record)}>
             <Eye className="h-4 w-4" />
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => editInvoice(record)}
-          >
+          <Button variant="ghost" size="sm" onClick={() => editInvoice(record)}>
             <Edit className="h-4 w-4" />
           </Button>
           <Button
@@ -418,18 +481,14 @@ const Outward: React.FC = () => {
 
       {/* Table */}
       <div className="card">
-        <Table
-          data={invoices}
-          columns={columns}
-          loading={loading}
-        />
-        
+        <Table data={invoices} columns={columns} loading={loading} />
+
         <Pagination
-          currentPage={pagination.page}
-          totalPages={pagination.totalPages}
-          total={pagination.total}
-          limit={pagination.limit}
-          onPageChange={(page) => setPagination(prev => ({ ...prev, page }))}
+          currentPage={pagination?.page || 1}
+          totalPages={pagination?.totalPages || 1}
+          total={pagination?.total || 0}
+          limit={pagination?.limit || 10}
+          onPageChange={setCurrentPage}
           loading={loading}
         />
       </div>
@@ -438,7 +497,9 @@ const Outward: React.FC = () => {
       <Modal
         isOpen={modalOpen}
         onClose={closeModal}
-        title={editingInvoice ? 'Edit Outward Invoice' : 'Create Outward Invoice'}
+        title={
+          editingInvoice ? 'Edit Outward Invoice' : 'Create Outward Invoice'
+        }
         size="xl"
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -498,7 +559,15 @@ const Outward: React.FC = () => {
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => append({ productId: '', stockBatchId: '', saleUnit: 'box', quantity: 1, ratePerUnit: 0 })}
+                onClick={() =>
+                  append({
+                    productId: '',
+                    stockBatchId: '',
+                    saleUnit: 'box',
+                    quantity: 1,
+                    ratePerUnit: 0,
+                  })
+                }
               >
                 <Plus className="h-4 w-4 mr-1" />
                 Add Item
@@ -508,22 +577,29 @@ const Outward: React.FC = () => {
             {fields.map((field, index) => {
               const item = watchedItems[index];
               const stockKey = `${item?.productId}-${watchedLocationId || 'all'}`;
-              const stockBatches = availableStock[stockKey] || [];
-              const selectedBatch = stockBatches.find(b => b.id === item?.stockBatchId);
-              const maxQuantity = item?.saleUnit === 'box' 
-                ? selectedBatch?.remainingBoxes || 0
-                : item?.saleUnit === 'pack'
-                ? selectedBatch?.remainingPacks || 0
-                : selectedBatch?.remainingPcs || 0;
-              const totalAmount = (item?.quantity || 0) * (item?.ratePerUnit || 0);
+              const stockBatches = availableStockCache[stockKey] || [];
+              const selectedBatch = stockBatches.find(
+                (b) => b.id === item?.stockBatchId
+              );
+              const maxQuantity =
+                item?.saleUnit === 'box'
+                  ? selectedBatch?.remainingBoxes || 0
+                  : item?.saleUnit === 'pack'
+                    ? selectedBatch?.remainingPacks || 0
+                    : selectedBatch?.remainingPcs || 0;
+              const totalAmount =
+                (item?.quantity || 0) * (item?.ratePerUnit || 0);
 
-              const stockBatchOptions = stockBatches.map(batch => ({
+              const stockBatchOptions = stockBatches.map((batch) => ({
                 value: batch.id,
                 label: `${batch.vendor?.name} - ${formatDate(batch.inwardDate)} (${batch.remainingBoxes} boxes, ${batch.remainingPacks || 0} packs, ${batch.remainingPcs} pcs)`,
               }));
 
               return (
-                <div key={field.id} className="border border-gray-200 rounded-lg p-4 space-y-4">
+                <div
+                  key={field.id}
+                  className="border border-gray-200 rounded-lg p-4 space-y-4"
+                >
                   <div className="flex items-center justify-between">
                     <h4 className="font-medium">Item {index + 1}</h4>
                     {fields.length > 1 && (
@@ -542,14 +618,22 @@ const Outward: React.FC = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <ProductSearch
                       value={item?.productId}
-                      onChange={(productId, product) => handleProductChange(index, productId, product)}
+                      onChange={(productId, product) =>
+                        handleProductChange(index, productId, product)
+                      }
                       error={errors.items?.[index]?.productId?.message}
                     />
                     <Select
                       label="Stock Batch"
                       options={stockBatchOptions}
-                      placeholder={item?.productId ? "Select stock batch" : "Select product first"}
-                      disabled={!item?.productId || stockBatchOptions.length === 0}
+                      placeholder={
+                        item?.productId
+                          ? 'Select stock batch'
+                          : 'Select product first'
+                      }
+                      disabled={
+                        !item?.productId || stockBatchOptions.length === 0
+                      }
                       error={errors.items?.[index]?.stockBatchId?.message}
                       {...register(`items.${index}.stockBatchId`)}
                       onChange={(e) => {
@@ -572,7 +656,9 @@ const Outward: React.FC = () => {
                       min="1"
                       max={maxQuantity}
                       error={errors.items?.[index]?.quantity?.message}
-                      {...register(`items.${index}.quantity`, { valueAsNumber: true })}
+                      {...register(`items.${index}.quantity`, {
+                        valueAsNumber: true,
+                      })}
                     />
                     <Input
                       label="Rate per Unit"
@@ -580,7 +666,9 @@ const Outward: React.FC = () => {
                       step="0.01"
                       min="0"
                       error={errors.items?.[index]?.ratePerUnit?.message}
-                      {...register(`items.${index}.ratePerUnit`, { valueAsNumber: true })}
+                      {...register(`items.${index}.ratePerUnit`, {
+                        valueAsNumber: true,
+                      })}
                     />
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -594,21 +682,40 @@ const Outward: React.FC = () => {
 
                   {selectedBatch && (
                     <div className="bg-blue-50 p-3 rounded text-sm">
-                      <div className="font-medium text-blue-900">Stock Information:</div>
+                      <div className="font-medium text-blue-900">
+                        Stock Information:
+                      </div>
                       <div className="text-blue-800 space-y-1">
                         <div>Vendor: {selectedBatch.vendor?.name}</div>
-                        <div>Inward Date: {formatDate(selectedBatch.inwardDate)}</div>
-                        <div>Available: {selectedBatch.remainingBoxes} boxes, {selectedBatch.remainingPacks || 0} packs, {selectedBatch.remainingPcs} pieces</div>
-                        <div>Cost: ₹{selectedBatch.costPerBox}/box, ₹{selectedBatch.costPerPack || (selectedBatch.costPerBox / (selectedBatch.packPerBox || 1)).toFixed(2)}/pack, ₹{selectedBatch.costPerPcs}/piece</div>
+                        <div>
+                          Inward Date: {formatDate(selectedBatch.inwardDate)}
+                        </div>
+                        <div>
+                          Available: {selectedBatch.remainingBoxes} boxes,{' '}
+                          {selectedBatch.remainingPacks || 0} packs,{' '}
+                          {selectedBatch.remainingPcs} pieces
+                        </div>
+                        <div>
+                          Cost: ₹{selectedBatch.costPerBox}/box, ₹
+                          {selectedBatch.costPerPack ||
+                            (
+                              selectedBatch.costPerBox /
+                              (selectedBatch.packPerBox || 1)
+                            ).toFixed(2)}
+                          /pack, ₹{selectedBatch.costPerPcs}/piece
+                        </div>
                       </div>
                     </div>
                   )}
-                  
+
                   {item?.productId && stockBatchOptions.length === 0 && (
                     <div className="bg-yellow-50 p-3 rounded text-sm">
-                      <div className="font-medium text-yellow-900">No Stock Available</div>
+                      <div className="font-medium text-yellow-900">
+                        No Stock Available
+                      </div>
                       <div className="text-yellow-800">
-                        No stock available for this product at the selected location.
+                        No stock available for this product at the selected
+                        location.
                       </div>
                     </div>
                   )}
@@ -650,28 +757,53 @@ const Outward: React.FC = () => {
           <div className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Date</label>
-                <div className="text-gray-900">{formatDate(selectedInvoice.date)}</div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Date
+                </label>
+                <div className="text-gray-900">
+                  {formatDate(selectedInvoice.date)}
+                </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Total Cost</label>
-                <div className="text-gray-900 font-semibold">{formatCurrency(selectedInvoice.totalCost)}</div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Total Cost
+                </label>
+                <div className="text-gray-900 font-semibold">
+                  {formatCurrency(selectedInvoice.totalCost)}
+                </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Customer</label>
-                <div className="text-gray-900">{selectedInvoice.customer?.name} ({selectedInvoice.customer?.code})</div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Customer
+                </label>
+                <div className="text-gray-900">
+                  {selectedInvoice.customer?.name} (
+                  {selectedInvoice.customer?.code})
+                </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Location</label>
-                <div className="text-gray-900">{selectedInvoice.location?.name}</div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Location
+                </label>
+                <div className="text-gray-900">
+                  {selectedInvoice.location?.name}
+                </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Sale Type</label>
-                <div className="text-gray-900 capitalize">{selectedInvoice.saleType}</div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Sale Type
+                </label>
+                <div className="text-gray-900 capitalize">
+                  {selectedInvoice.saleType}
+                </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Expense</label>
-                <div className="text-gray-900">{formatCurrency(selectedInvoice.expense)}</div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Expense
+                </label>
+                <div className="text-gray-900">
+                  {formatCurrency(selectedInvoice.expense)}
+                </div>
               </div>
             </div>
 
@@ -681,23 +813,42 @@ const Outward: React.FC = () => {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Unit</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Quantity</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Rate</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Product
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Unit
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Quantity
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Rate
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Total
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {selectedInvoice.items?.map((item, index) => (
                       <tr key={index}>
                         <td className="px-4 py-2 text-sm text-gray-900">
-                          {item.product?.name} {item.product?.grade && `(${item.product.grade})`}
+                          {item.product?.name}{' '}
+                          {item.product?.grade && `(${item.product.grade})`}
                         </td>
-                        <td className="px-4 py-2 text-sm text-gray-900 capitalize">{item.saleUnit}</td>
-                        <td className="px-4 py-2 text-sm text-gray-900">{item.quantity}</td>
-                        <td className="px-4 py-2 text-sm text-gray-900">{formatCurrency(item.ratePerUnit)}</td>
-                        <td className="px-4 py-2 text-sm text-gray-900 font-semibold">{formatCurrency(item.totalCost)}</td>
+                        <td className="px-4 py-2 text-sm text-gray-900 capitalize">
+                          {item.saleUnit}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-900">
+                          {item.quantity}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-900">
+                          {formatCurrency(item.ratePerUnit)}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-900 font-semibold">
+                          {formatCurrency(item.totalCost)}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -713,7 +864,11 @@ const Outward: React.FC = () => {
         type="outward"
         isOpen={bulkUploadOpen}
         onClose={() => setBulkUploadOpen(false)}
-        onSuccess={loadInvoices}
+        onSuccess={() =>
+          dispatch(
+            fetchOutwardInvoices({ page: currentPage, limit: 10, search })
+          )
+        }
       />
     </div>
   );

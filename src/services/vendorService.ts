@@ -1,4 +1,4 @@
-import api from './api';
+import api from '@/utils/api';
 import { ApiResponse, Vendor, PaginationQuery } from '@/types';
 
 export interface VendorFormData {
@@ -9,8 +9,12 @@ export interface VendorFormData {
 }
 
 export const vendorService = {
-  async getAll(params?: PaginationQuery): Promise<{ data: Vendor[]; pagination: any }> {
-    const response = await api.get<ApiResponse<Vendor[]>>('/vendors', { params });
+  async getAll(
+    params?: PaginationQuery
+  ): Promise<{ data: Vendor[]; pagination: any }> {
+    const response = await api.get<ApiResponse<Vendor[]>>('/vendors', {
+      params,
+    });
     return {
       data: response.data.data!,
       pagination: response.data.pagination,

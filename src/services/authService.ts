@@ -1,4 +1,4 @@
-import api from './api';
+import api from '@/utils/api';
 import { ApiResponse, User } from '@/types';
 
 export interface LoginCredentials {
@@ -19,12 +19,18 @@ export interface AuthResponse {
 
 export const authService = {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const response = await api.post<ApiResponse<AuthResponse>>('/auth/login', credentials);
+    const response = await api.post<ApiResponse<AuthResponse>>(
+      '/auth/login',
+      credentials
+    );
     return response.data.data!;
   },
 
   async register(data: RegisterData): Promise<AuthResponse> {
-    const response = await api.post<ApiResponse<AuthResponse>>('/auth/register', data);
+    const response = await api.post<ApiResponse<AuthResponse>>(
+      '/auth/register',
+      data
+    );
     return response.data.data!;
   },
 };

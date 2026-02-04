@@ -37,7 +37,7 @@ const Modal: React.FC<ModalProps> = ({
           className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
           onClick={onClose}
         />
-        
+
         {/* Modal */}
         <div
           className={cn(
@@ -63,11 +63,9 @@ const Modal: React.FC<ModalProps> = ({
               )}
             </div>
           )}
-          
+
           {/* Content */}
-          <div className="px-6 py-4">
-            {children}
-          </div>
+          <div className="px-6 py-4">{children}</div>
         </div>
       </div>
     </div>

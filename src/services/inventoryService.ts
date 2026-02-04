@@ -1,4 +1,4 @@
-import api from './api';
+import api from '@/utils/api';
 import { ApiResponse, StockBatch } from '@/types';
 
 export interface StockSummary {
@@ -21,16 +21,25 @@ export interface StockSummary {
 
 export const inventoryService = {
   async getStockSummary(locationId?: string): Promise<StockSummary[]> {
-    const response = await api.get<ApiResponse<StockSummary[]>>('/inventory/stock-summary', {
-      params: { locationId },
-    });
+    const response = await api.get<ApiResponse<StockSummary[]>>(
+      '/inventory/stock-summary',
+      {
+        params: { locationId },
+      }
+    );
     return response.data.data!;
   },
 
-  async getAvailableStock(productId: string, locationId?: string): Promise<StockBatch[]> {
-    const response = await api.get<ApiResponse<StockBatch[]>>('/inventory/available-stock', {
-      params: { productId, locationId },
-    });
+  async getAvailableStock(
+    productId: string,
+    locationId?: string
+  ): Promise<StockBatch[]> {
+    const response = await api.get<ApiResponse<StockBatch[]>>(
+      '/inventory/available-stock',
+      {
+        params: { productId, locationId },
+      }
+    );
     return response.data.data!;
   },
 };

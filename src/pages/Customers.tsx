@@ -4,7 +4,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Edit, Trash2, Search, Upload, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { customerService, CustomerFormData } from '@/services/customerService';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import {
+  fetchCustomers,
+  createCustomer,
+  updateCustomer,
+  deleteCustomer,
+  clearError,
+} from '@/slices/customerSlice';
 import { bulkUploadService } from '@/services/bulkUploadService';
 import { Customer } from '@/types';
 import { formatDate, debounce } from '@/utils';
@@ -15,6 +22,13 @@ import Table from '@/components/Table';
 import BulkUpload from '@/components/BulkUpload';
 import Pagination from '@/components/Pagination';
 
+interface CustomerFormData {
+  name: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+}
+
 const customerSchema = z.object({
   name: z.string().min(1, 'Customer name is required'),
   email: z.string().email().optional().or(z.literal('')),
@@ -23,18 +37,16 @@ const customerSchema = z.object({
 });
 
 const Customers: React.FC = () => {
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useAppDispatch();
+  const { customers, pagination, loading, error } = useAppSelector(
+    (state) => state.customers
+  );
+
   const [modalOpen, setModalOpen] = useState(false);
   const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [search, setSearch] = useState('');
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 10,
-    total: 0,
-    totalPages: 0,
-  });
+  const [currentPage, setCurrentPage] = useState(1);
 
   const {
     register,
@@ -47,29 +59,19 @@ const Customers: React.FC = () => {
   });
 
   useEffect(() => {
-    loadCustomers();
-  }, [search, pagination.page]);
+    dispatch(fetchCustomers({ page: currentPage, limit: 10, search }));
+  }, [dispatch, search, currentPage]);
 
-  const loadCustomers = async () => {
-    setLoading(true);
-    try {
-      const response = await customerService.getAll({
-        page: pagination.page,
-        limit: pagination.limit,
-        search,
-      });
-      setCustomers(response.data);
-      setPagination(response.pagination);
-    } catch (error) {
-      console.error('Failed to load customers:', error);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (error) {
+      toast.error(error);
+      dispatch(clearError());
     }
-  };
+  }, [error, dispatch]);
 
   const debouncedSearch = debounce((value: string) => {
     setSearch(value);
-    setPagination((prev) => ({ ...prev, page: 1 }));
+    setCurrentPage(1);
   }, 300);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -99,27 +101,27 @@ const Customers: React.FC = () => {
   const onSubmit = async (data: CustomerFormData) => {
     try {
       if (editingCustomer) {
-        await customerService.update(editingCustomer.id, data);
+        await dispatch(
+          updateCustomer({ id: editingCustomer.id, data })
+        ).unwrap();
         toast.success('Customer updated successfully');
       } else {
-        await customerService.create(data);
+        await dispatch(createCustomer(data)).unwrap();
         toast.success('Customer created successfully');
       }
       closeModal();
-      loadCustomers();
     } catch (error) {
-      // Error handled by interceptor
+      // Error handled by Redux
     }
   };
 
   const handleDelete = async (customer: Customer) => {
     if (window.confirm(`Are you sure you want to delete "${customer.name}"?`)) {
       try {
-        await customerService.delete(customer.id);
+        await dispatch(deleteCustomer(customer.id)).unwrap();
         toast.success('Customer deleted successfully');
-        loadCustomers();
       } catch (error) {
-        // Error handled by interceptor
+        // Error handled by Redux
       }
     }
   };
@@ -177,11 +179,7 @@ const Customers: React.FC = () => {
       title: 'Actions',
       render: (_: any, record: Customer) => (
         <div className="flex space-x-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => openModal(record)}
-          >
+          <Button variant="ghost" size="sm" onClick={() => openModal(record)}>
             <Edit className="h-4 w-4" />
           </Button>
           <Button
@@ -233,18 +231,14 @@ const Customers: React.FC = () => {
 
       {/* Table */}
       <div className="card">
-        <Table
-          data={customers}
-          columns={columns}
-          loading={loading}
-        />
-        
+        <Table data={customers} columns={columns} loading={loading} />
+
         <Pagination
-          currentPage={pagination.page}
-          totalPages={pagination.totalPages}
-          total={pagination.total}
-          limit={pagination.limit}
-          onPageChange={(page) => setPagination(prev => ({ ...prev, page }))}
+          currentPage={pagination?.page || 1}
+          totalPages={pagination?.totalPages || 1}
+          total={pagination?.total || 0}
+          limit={pagination?.limit || 10}
+          onPageChange={setCurrentPage}
           loading={loading}
         />
       </div>
@@ -262,7 +256,7 @@ const Customers: React.FC = () => {
             error={errors.name?.message}
             {...register('name')}
           />
-          
+
           <Input
             label="Email (Optional)"
             type="email"
@@ -270,14 +264,14 @@ const Customers: React.FC = () => {
             error={errors.email?.message}
             {...register('email')}
           />
-          
+
           <Input
             label="Phone (Optional)"
             placeholder="Enter phone number"
             error={errors.phone?.message}
             {...register('phone')}
           />
-          
+
           <Input
             label="Address (Optional)"
             placeholder="Enter address"
@@ -286,17 +280,10 @@ const Customers: React.FC = () => {
           />
 
           <div className="form-actions">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={closeModal}
-            >
+            <Button type="button" variant="outline" onClick={closeModal}>
               Cancel
             </Button>
-            <Button
-              type="submit"
-              loading={isSubmitting}
-            >
+            <Button type="submit" loading={isSubmitting}>
               {editingCustomer ? 'Update' : 'Create'}
             </Button>
           </div>
@@ -308,7 +295,9 @@ const Customers: React.FC = () => {
         type="customers"
         isOpen={bulkUploadOpen}
         onClose={() => setBulkUploadOpen(false)}
-        onSuccess={loadCustomers}
+        onSuccess={() =>
+          dispatch(fetchCustomers({ page: currentPage, limit: 10, search }))
+        }
       />
     </div>
   );

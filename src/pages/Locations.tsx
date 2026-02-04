@@ -4,7 +4,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Edit, Trash2, Search, Upload, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { locationService, LocationFormData } from '@/services/locationService';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import {
+  fetchLocations,
+  createLocation,
+  updateLocation,
+  deleteLocation,
+  clearError,
+} from '@/slices/locationSlice';
 import { bulkUploadService } from '@/services/bulkUploadService';
 import { Location } from '@/types';
 import { formatDate, debounce } from '@/utils';
@@ -15,24 +22,27 @@ import Table from '@/components/Table';
 import BulkUpload from '@/components/BulkUpload';
 import Pagination from '@/components/Pagination';
 
+interface LocationFormData {
+  name: string;
+  address?: string;
+}
+
 const locationSchema = z.object({
   name: z.string().min(1, 'Location name is required'),
   address: z.string().optional(),
 });
 
 const Locations: React.FC = () => {
-  const [locations, setLocations] = useState<Location[]>([]);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useAppDispatch();
+  const { locations, pagination, loading, error } = useAppSelector(
+    (state) => state.locations
+  );
+
   const [modalOpen, setModalOpen] = useState(false);
   const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
   const [editingLocation, setEditingLocation] = useState<Location | null>(null);
   const [search, setSearch] = useState('');
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 10,
-    total: 0,
-    totalPages: 0,
-  });
+  const [currentPage, setCurrentPage] = useState(1);
 
   const {
     register,
@@ -45,29 +55,19 @@ const Locations: React.FC = () => {
   });
 
   useEffect(() => {
-    loadLocations();
-  }, [search, pagination.page]);
+    dispatch(fetchLocations({ page: currentPage, limit: 10, search }));
+  }, [dispatch, search, currentPage]);
 
-  const loadLocations = async () => {
-    setLoading(true);
-    try {
-      const response = await locationService.getAll({
-        page: pagination.page,
-        limit: pagination.limit,
-        search,
-      });
-      setLocations(response.data);
-      setPagination(response.pagination);
-    } catch (error) {
-      console.error('Failed to load locations:', error);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (error) {
+      toast.error(error);
+      dispatch(clearError());
     }
-  };
+  }, [error, dispatch]);
 
   const debouncedSearch = debounce((value: string) => {
     setSearch(value);
-    setPagination((prev) => ({ ...prev, page: 1 }));
+    setCurrentPage(1);
   }, 300);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -95,27 +95,27 @@ const Locations: React.FC = () => {
   const onSubmit = async (data: LocationFormData) => {
     try {
       if (editingLocation) {
-        await locationService.update(editingLocation.id, data);
+        await dispatch(
+          updateLocation({ id: editingLocation.id, data })
+        ).unwrap();
         toast.success('Location updated successfully');
       } else {
-        await locationService.create(data);
+        await dispatch(createLocation(data)).unwrap();
         toast.success('Location created successfully');
       }
       closeModal();
-      loadLocations();
     } catch (error) {
-      // Error handled by interceptor
+      // Error handled by Redux
     }
   };
 
   const handleDelete = async (location: Location) => {
     if (window.confirm(`Are you sure you want to delete "${location.name}"?`)) {
       try {
-        await locationService.delete(location.id);
+        await dispatch(deleteLocation(location.id)).unwrap();
         toast.success('Location deleted successfully');
-        loadLocations();
       } catch (error) {
-        // Error handled by interceptor
+        // Error handled by Redux
       }
     }
   };
@@ -173,11 +173,7 @@ const Locations: React.FC = () => {
       title: 'Actions',
       render: (_: any, record: Location) => (
         <div className="flex space-x-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => openModal(record)}
-          >
+          <Button variant="ghost" size="sm" onClick={() => openModal(record)}>
             <Edit className="h-4 w-4" />
           </Button>
           <Button
@@ -229,18 +225,14 @@ const Locations: React.FC = () => {
 
       {/* Table */}
       <div className="card">
-        <Table
-          data={locations}
-          columns={columns}
-          loading={loading}
-        />
-        
+        <Table data={locations} columns={columns} loading={loading} />
+
         <Pagination
-          currentPage={pagination.page}
-          totalPages={pagination.totalPages}
-          total={pagination.total}
-          limit={pagination.limit}
-          onPageChange={(page) => setPagination(prev => ({ ...prev, page }))}
+          currentPage={pagination?.page || 1}
+          totalPages={pagination?.totalPages || 1}
+          total={pagination?.total || 0}
+          limit={pagination?.limit || 10}
+          onPageChange={setCurrentPage}
           loading={loading}
         />
       </div>
@@ -258,7 +250,7 @@ const Locations: React.FC = () => {
             error={errors.name?.message}
             {...register('name')}
           />
-          
+
           <Input
             label="Address (Optional)"
             placeholder="Enter address"
@@ -267,17 +259,10 @@ const Locations: React.FC = () => {
           />
 
           <div className="form-actions">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={closeModal}
-            >
+            <Button type="button" variant="outline" onClick={closeModal}>
               Cancel
             </Button>
-            <Button
-              type="submit"
-              loading={isSubmitting}
-            >
+            <Button type="submit" loading={isSubmitting}>
               {editingLocation ? 'Update' : 'Create'}
             </Button>
           </div>
@@ -289,7 +274,9 @@ const Locations: React.FC = () => {
         type="locations"
         isOpen={bulkUploadOpen}
         onClose={() => setBulkUploadOpen(false)}
-        onSuccess={loadLocations}
+        onSuccess={() =>
+          dispatch(fetchLocations({ page: currentPage, limit: 10, search }))
+        }
       />
     </div>
   );

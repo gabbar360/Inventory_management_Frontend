@@ -13,7 +13,8 @@ import {
   LogOut,
   User,
 } from 'lucide-react';
-import { useAuthStore, useUIStore } from '@/store';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { logout } from '@/slices/authSlice';
 import { cn } from '@/utils';
 import Button from '@/components/Button';
 
@@ -31,11 +32,16 @@ const navigation = [
 
 const Layout: React.FC = () => {
   const location = useLocation();
-  const { user, logout } = useAuthStore();
-  const { sidebarOpen, toggleSidebar } = useUIStore();
+  const dispatch = useAppDispatch();
+  const { user } = useAppSelector((state) => state.auth);
+  const [sidebarOpen, setSidebarOpen] = React.useState(true);
 
   const handleLogout = () => {
-    logout();
+    dispatch(logout());
+  };
+
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
   };
 
   return (

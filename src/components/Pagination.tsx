@@ -27,7 +27,7 @@ const Pagination: React.FC<PaginationProps> = ({
   const getVisiblePages = () => {
     const pages = [];
     const maxVisible = 5;
-    
+
     if (totalPages <= maxVisible) {
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
@@ -35,12 +35,12 @@ const Pagination: React.FC<PaginationProps> = ({
     } else {
       const start = Math.max(1, currentPage - 2);
       const end = Math.min(totalPages, start + maxVisible - 1);
-      
+
       for (let i = start; i <= end; i++) {
         pages.push(i);
       }
     }
-    
+
     return pages;
   };
 
@@ -51,7 +51,7 @@ const Pagination: React.FC<PaginationProps> = ({
           Showing {startItem} to {endItem} of {total} results
         </span>
       </div>
-      
+
       <div className="flex items-center space-x-2">
         <Button
           variant="outline"
@@ -62,12 +62,12 @@ const Pagination: React.FC<PaginationProps> = ({
           <ChevronLeft className="h-4 w-4 mr-1" />
           Previous
         </Button>
-        
+
         <div className="flex items-center space-x-1">
           {getVisiblePages().map((page) => (
             <Button
               key={page}
-              variant={page === currentPage ? "default" : "outline"}
+              variant={page === currentPage ? 'default' : 'outline'}
               size="sm"
               disabled={loading}
               onClick={() => onPageChange(page)}
@@ -77,7 +77,7 @@ const Pagination: React.FC<PaginationProps> = ({
             </Button>
           ))}
         </div>
-        
+
         <Button
           variant="outline"
           size="sm"
