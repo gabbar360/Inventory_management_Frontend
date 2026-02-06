@@ -1,4 +1,4 @@
-import api from './api';
+import api from '@/utils/api';
 import { ApiResponse, OutwardInvoice, PaginationQuery } from '@/types';
 
 export interface OutwardItemFormData {
@@ -20,8 +20,12 @@ export interface OutwardInvoiceFormData {
 }
 
 export const outwardService = {
-  async getAll(params?: PaginationQuery): Promise<{ data: OutwardInvoice[]; pagination: any }> {
-    const response = await api.get<ApiResponse<OutwardInvoice[]>>('/outward', { params });
+  async getAll(
+    params?: PaginationQuery
+  ): Promise<{ data: OutwardInvoice[]; pagination: any }> {
+    const response = await api.get<ApiResponse<OutwardInvoice[]>>('/outward', {
+      params,
+    });
     return {
       data: response.data.data!,
       pagination: response.data.pagination,
@@ -29,17 +33,28 @@ export const outwardService = {
   },
 
   async getById(id: string): Promise<OutwardInvoice> {
-    const response = await api.get<ApiResponse<OutwardInvoice>>(`/outward/${id}`);
+    const response = await api.get<ApiResponse<OutwardInvoice>>(
+      `/outward/${id}`
+    );
     return response.data.data!;
   },
 
   async create(data: OutwardInvoiceFormData): Promise<OutwardInvoice> {
-    const response = await api.post<ApiResponse<OutwardInvoice>>('/outward', data);
+    const response = await api.post<ApiResponse<OutwardInvoice>>(
+      '/outward',
+      data
+    );
     return response.data.data!;
   },
 
-  async update(id: string, data: OutwardInvoiceFormData): Promise<OutwardInvoice> {
-    const response = await api.put<ApiResponse<OutwardInvoice>>(`/outward/${id}`, data);
+  async update(
+    id: string,
+    data: OutwardInvoiceFormData
+  ): Promise<OutwardInvoice> {
+    const response = await api.put<ApiResponse<OutwardInvoice>>(
+      `/outward/${id}`,
+      data
+    );
     return response.data.data!;
   },
 

@@ -2,15 +2,37 @@ import React, { useState, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Trash2, Search, Eye, Upload, Download, Edit, X } from 'lucide-react';
+import {
+  Plus,
+  Trash2,
+  Search,
+  Eye,
+  Upload,
+  Download,
+  Edit,
+  X,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
-import { inwardService, InwardInvoiceFormData } from '@/services/inwardService';
-import { productService } from '@/services/productService';
-import { vendorService } from '@/services/vendorService';
-import { locationService } from '@/services/locationService';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import {
+  fetchInwardInvoices,
+  fetchInwardInvoiceById,
+  createInwardInvoice,
+  updateInwardInvoice,
+  deleteInwardInvoice,
+  clearError,
+} from '@/slices/inwardSlice';
+import { fetchProducts } from '@/slices/productSlice';
+import { fetchVendors } from '@/slices/vendorSlice';
+import { fetchLocations } from '@/slices/locationSlice';
 import { bulkUploadService } from '@/services/bulkUploadService';
-import { InwardInvoice, Product, Vendor, Location } from '@/types';
-import { formatDate, formatCurrency, generateInvoiceNumber, debounce } from '@/utils';
+import { InwardInvoice } from '@/types';
+import {
+  formatDate,
+  formatCurrency,
+  generateInvoiceNumber,
+  debounce,
+} from '@/utils';
 import Button from '@/components/Button';
 import Input from '@/components/Input';
 import Select from '@/components/Select';
@@ -19,38 +41,57 @@ import Table from '@/components/Table';
 import BulkUpload from '@/components/BulkUpload';
 import Pagination from '@/components/Pagination';
 
+interface InwardInvoiceFormData {
+  invoiceNo: string;
+  date: string;
+  vendorId: string;
+  locationId: string;
+  items: {
+    productId: string;
+    boxes: number;
+    packPerBox: number;
+    packPerPiece: number;
+    ratePerBox: number;
+  }[];
+}
+
 const inwardSchema = z.object({
   invoiceNo: z.string().min(1, 'Invoice number is required'),
   date: z.string().min(1, 'Date is required'),
   vendorId: z.string().min(1, 'Vendor is required'),
   locationId: z.string().min(1, 'Location is required'),
-  items: z.array(z.object({
-    productId: z.string().min(1, 'Product is required'),
-    boxes: z.number().min(1, 'Boxes must be at least 1'),
-    packPerBox: z.number().min(1, 'Pack per box must be at least 1'),
-    packPerPiece: z.number().min(1, 'Pack per piece must be at least 1'),
-    ratePerBox: z.number().min(0, 'Rate per box must be positive'),
-  })).min(1, 'At least one item is required'),
+  items: z
+    .array(
+      z.object({
+        productId: z.string().min(1, 'Product is required'),
+        boxes: z.number().min(1, 'Boxes must be at least 1'),
+        packPerBox: z.number().min(1, 'Pack per box must be at least 1'),
+        packPerPiece: z.number().min(1, 'Pack per piece must be at least 1'),
+        ratePerBox: z.number().min(0, 'Rate per box must be positive'),
+      })
+    )
+    .min(1, 'At least one item is required'),
 });
 
 const Inward: React.FC = () => {
-  const [invoices, setInvoices] = useState<InwardInvoice[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [locations, setLocations] = useState<Location[]>([]);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useAppDispatch();
+  const { invoices, currentInvoice, pagination, loading, error } =
+    useAppSelector((state) => state.inward);
+  const { products } = useAppSelector((state) => state.products);
+  const { vendors } = useAppSelector((state) => state.vendors);
+  const { locations } = useAppSelector((state) => state.locations);
+
   const [modalOpen, setModalOpen] = useState(false);
   const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
-  const [selectedInvoice, setSelectedInvoice] = useState<InwardInvoice | null>(null);
-  const [editingInvoice, setEditingInvoice] = useState<InwardInvoice | null>(null);
+  const [selectedInvoice, setSelectedInvoice] = useState<InwardInvoice | null>(
+    null
+  );
+  const [editingInvoice, setEditingInvoice] = useState<InwardInvoice | null>(
+    null
+  );
   const [search, setSearch] = useState('');
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 10,
-    total: 0,
-    totalPages: 0,
-  });
+  const [currentPage, setCurrentPage] = useState(1);
 
   const {
     register,
@@ -62,7 +103,15 @@ const Inward: React.FC = () => {
   } = useForm<InwardInvoiceFormData>({
     resolver: zodResolver(inwardSchema),
     defaultValues: {
-      items: [{ productId: '', boxes: 1, packPerBox: 1, packPerPiece: 1, ratePerBox: 0 }],
+      items: [
+        {
+          productId: '',
+          boxes: 1,
+          packPerBox: 1,
+          packPerPiece: 1,
+          ratePerBox: 0,
+        },
+      ],
     },
   });
 
@@ -74,45 +123,26 @@ const Inward: React.FC = () => {
   const watchedItems = watch('items');
 
   useEffect(() => {
-    loadInvoices();
+    dispatch(fetchInwardInvoices({ page: currentPage, limit: 10, search }));
     loadMasterData();
-  }, [search, pagination.page]);
+  }, [dispatch, search, currentPage]);
 
-  const loadInvoices = async () => {
-    setLoading(true);
-    try {
-      const response = await inwardService.getAll({
-        page: pagination.page,
-        limit: pagination.limit,
-        search,
-      });
-      setInvoices(response.data);
-      setPagination(response.pagination);
-    } catch (error) {
-      console.error('Failed to load invoices:', error);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (error) {
+      toast.error(error);
+      dispatch(clearError());
     }
-  };
+  }, [error, dispatch]);
 
   const loadMasterData = async () => {
-    try {
-      const [productsData, vendorsData, locationsData] = await Promise.all([
-        productService.getAll({ limit: 100 }),
-        vendorService.getAll({ limit: 100 }),
-        locationService.getAll({ limit: 100 }),
-      ]);
-      setProducts(productsData.data);
-      setVendors(vendorsData.data);
-      setLocations(locationsData.data);
-    } catch (error) {
-      console.error('Failed to load master data:', error);
-    }
+    dispatch(fetchProducts({ limit: 100 }));
+    dispatch(fetchVendors({ limit: 100 }));
+    dispatch(fetchLocations({ limit: 100 }));
   };
 
   const debouncedSearch = debounce((value: string) => {
     setSearch(value);
-    setPagination((prev) => ({ ...prev, page: 1 }));
+    setCurrentPage(1);
   }, 300);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -125,7 +155,15 @@ const Inward: React.FC = () => {
       date: new Date().toISOString().split('T')[0],
       vendorId: '',
       locationId: '',
-      items: [{ productId: '', boxes: 1, packPerBox: 1, packPerPiece: 1, ratePerBox: 0 }],
+      items: [
+        {
+          productId: '',
+          boxes: 1,
+          packPerBox: 1,
+          packPerPiece: 1,
+          ratePerBox: 0,
+        },
+      ],
     });
     setModalOpen(true);
   };
@@ -138,25 +176,36 @@ const Inward: React.FC = () => {
 
   const editInvoice = async (invoice: InwardInvoice) => {
     try {
-      const fullInvoice = await inwardService.getById(invoice.id);
-      setEditingInvoice(fullInvoice);
-      
-      // Populate form with existing data
-      reset({
-        invoiceNo: fullInvoice.invoiceNo,
-        date: fullInvoice.date.split('T')[0],
-        vendorId: fullInvoice.vendorId,
-        locationId: fullInvoice.locationId,
-        items: fullInvoice.items?.map(item => ({
-          productId: item.productId,
-          boxes: item.boxes,
-          packPerBox: item.packPerBox || item.pcsPerBox, // fallback for existing data
-          packPerPiece: item.packPerPiece || 1, // fallback for existing data
-          ratePerBox: item.ratePerBox,
-        })) || [{ productId: '', boxes: 1, packPerBox: 1, packPerPiece: 1, ratePerBox: 0 }],
-      });
-      
-      setModalOpen(true);
+      await dispatch(fetchInwardInvoiceById(invoice.id)).unwrap();
+      const fullInvoice = currentInvoice;
+      if (fullInvoice) {
+        setEditingInvoice(fullInvoice);
+
+        // Populate form with existing data
+        reset({
+          invoiceNo: fullInvoice.invoiceNo,
+          date: fullInvoice.date.split('T')[0],
+          vendorId: fullInvoice.vendorId,
+          locationId: fullInvoice.locationId,
+          items: fullInvoice.items?.map((item) => ({
+            productId: item.productId,
+            boxes: item.boxes,
+            packPerBox: item.packPerBox || item.pcsPerBox, // fallback for existing data
+            packPerPiece: item.packPerPiece || 1, // fallback for existing data
+            ratePerBox: item.ratePerBox,
+          })) || [
+            {
+              productId: '',
+              boxes: 1,
+              packPerBox: 1,
+              packPerPiece: 1,
+              ratePerBox: 0,
+            },
+          ],
+        });
+
+        setModalOpen(true);
+      }
     } catch (error) {
       console.error('Failed to load invoice for editing:', error);
     }
@@ -164,8 +213,8 @@ const Inward: React.FC = () => {
 
   const viewInvoice = async (invoice: InwardInvoice) => {
     try {
-      const fullInvoice = await inwardService.getById(invoice.id);
-      setSelectedInvoice(fullInvoice);
+      await dispatch(fetchInwardInvoiceById(invoice.id)).unwrap();
+      setSelectedInvoice(currentInvoice);
       setViewModalOpen(true);
     } catch (error) {
       console.error('Failed to load invoice details:', error);
@@ -175,35 +224,35 @@ const Inward: React.FC = () => {
   const onSubmit = async (data: InwardInvoiceFormData) => {
     try {
       if (editingInvoice) {
-        await inwardService.update(editingInvoice.id, data);
+        await dispatch(
+          updateInwardInvoice({ id: editingInvoice.id, data })
+        ).unwrap();
         toast.success('Inward invoice updated successfully');
       } else {
-        await inwardService.create(data);
+        await dispatch(createInwardInvoice(data)).unwrap();
         toast.success('Inward invoice created successfully');
       }
       closeModal();
-      loadInvoices();
     } catch (error) {
-      // Error handled by interceptor
+      // Error handled by Redux
     }
   };
 
   const deleteInvoice = async (invoice: InwardInvoice) => {
     if (window.confirm('Are you sure you want to delete this invoice?')) {
       try {
-        await inwardService.delete(invoice.id);
+        await dispatch(deleteInwardInvoice(invoice.id)).unwrap();
         toast.success('Inward invoice deleted successfully');
-        loadInvoices();
       } catch (error) {
-        // Error handled by interceptor
+        // Error handled by Redux
       }
     }
   };
 
   const calculateItemTotal = (item: any, index: number) => {
-    const product = products.find(p => p.id === item.productId);
+    const product = products.find((p) => p.id === item.productId);
     if (!product) return 0;
-    
+
     const baseAmount = item.boxes * item.ratePerBox;
     const gstAmount = (baseAmount * (product.category?.gstRate || 0)) / 100;
     return baseAmount + gstAmount;
@@ -232,17 +281,17 @@ const Inward: React.FC = () => {
     }
   };
 
-  const productOptions = products.map(p => ({
+  const productOptions = products.map((p) => ({
     value: p.id,
     label: `${p.name} ${p.grade ? `(${p.grade})` : ''}`,
   }));
 
-  const vendorOptions = vendors.map(v => ({
+  const vendorOptions = vendors.map((v) => ({
     value: v.id,
     label: `${v.code} - ${v.name}`,
   }));
 
-  const locationOptions = locations.map(l => ({
+  const locationOptions = locations.map((l) => ({
     value: l.id,
     label: l.name,
   }));
@@ -288,18 +337,10 @@ const Inward: React.FC = () => {
       title: 'Actions',
       render: (_: any, record: InwardInvoice) => (
         <div className="flex space-x-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => viewInvoice(record)}
-          >
+          <Button variant="ghost" size="sm" onClick={() => viewInvoice(record)}>
             <Eye className="h-4 w-4" />
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => editInvoice(record)}
-          >
+          <Button variant="ghost" size="sm" onClick={() => editInvoice(record)}>
             <Edit className="h-4 w-4" />
           </Button>
           <Button
@@ -351,18 +392,14 @@ const Inward: React.FC = () => {
 
       {/* Table */}
       <div className="card">
-        <Table
-          data={invoices}
-          columns={columns}
-          loading={loading}
-        />
-        
+        <Table data={invoices} columns={columns} loading={loading} />
+
         <Pagination
-          currentPage={pagination.page}
-          totalPages={pagination.totalPages}
-          total={pagination.total}
-          limit={pagination.limit}
-          onPageChange={(page) => setPagination(prev => ({ ...prev, page }))}
+          currentPage={pagination?.page || 1}
+          totalPages={pagination?.totalPages || 1}
+          total={pagination?.total || 0}
+          limit={pagination?.limit || 10}
+          onPageChange={setCurrentPage}
           loading={loading}
         />
       </div>
@@ -414,7 +451,15 @@ const Inward: React.FC = () => {
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => append({ productId: '', boxes: 1, packPerBox: 1, packPerPiece: 1, ratePerBox: 0 })}
+                onClick={() =>
+                  append({
+                    productId: '',
+                    boxes: 1,
+                    packPerBox: 1,
+                    packPerPiece: 1,
+                    ratePerBox: 0,
+                  })
+                }
               >
                 <Plus className="h-4 w-4 mr-1" />
                 Add Item
@@ -423,10 +468,11 @@ const Inward: React.FC = () => {
 
             {fields.map((field, index) => {
               const item = watchedItems[index];
-              const product = products.find(p => p.id === item?.productId);
+              const product = products.find((p) => p.id === item?.productId);
               const totalPacks = (item?.boxes || 0) * (item?.packPerBox || 0);
               const totalPcs = totalPacks * (item?.packPerPiece || 0);
-              const ratePerPack = (item?.ratePerBox || 0) / (item?.packPerBox || 1);
+              const ratePerPack =
+                (item?.ratePerBox || 0) / (item?.packPerBox || 1);
               const ratePerPcs = ratePerPack / (item?.packPerPiece || 1);
               const baseAmount = (item?.boxes || 0) * (item?.ratePerBox || 0);
               const gstRate = product?.category?.gstRate || 0;
@@ -434,7 +480,10 @@ const Inward: React.FC = () => {
               const totalAmount = baseAmount + gstAmount;
 
               return (
-                <div key={field.id} className="border border-gray-200 rounded-lg p-4 space-y-4">
+                <div
+                  key={field.id}
+                  className="border border-gray-200 rounded-lg p-4 space-y-4"
+                >
                   <div className="flex items-center justify-between">
                     <h4 className="font-medium">Item {index + 1}</h4>
                     {fields.length > 1 && (
@@ -463,7 +512,9 @@ const Inward: React.FC = () => {
                         Category & GST
                       </label>
                       <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
-                        {product ? `${product.category?.name} (${product.category?.gstRate}% GST)` : 'Select product first'}
+                        {product
+                          ? `${product.category?.name} (${product.category?.gstRate}% GST)`
+                          : 'Select product first'}
                       </div>
                     </div>
                   </div>
@@ -474,21 +525,27 @@ const Inward: React.FC = () => {
                       type="number"
                       min="1"
                       error={errors.items?.[index]?.boxes?.message}
-                      {...register(`items.${index}.boxes`, { valueAsNumber: true })}
+                      {...register(`items.${index}.boxes`, {
+                        valueAsNumber: true,
+                      })}
                     />
                     <Input
                       label="Pack per Box"
                       type="number"
                       min="1"
                       error={errors.items?.[index]?.packPerBox?.message}
-                      {...register(`items.${index}.packPerBox`, { valueAsNumber: true })}
+                      {...register(`items.${index}.packPerBox`, {
+                        valueAsNumber: true,
+                      })}
                     />
                     <Input
                       label="Pack per Piece"
                       type="number"
                       min="1"
                       error={errors.items?.[index]?.packPerPiece?.message}
-                      {...register(`items.${index}.packPerPiece`, { valueAsNumber: true })}
+                      {...register(`items.${index}.packPerPiece`, {
+                        valueAsNumber: true,
+                      })}
                     />
                     <Input
                       label="Rate per Box"
@@ -496,7 +553,9 @@ const Inward: React.FC = () => {
                       step="0.01"
                       min="0"
                       error={errors.items?.[index]?.ratePerBox?.message}
-                      {...register(`items.${index}.ratePerBox`, { valueAsNumber: true })}
+                      {...register(`items.${index}.ratePerBox`, {
+                        valueAsNumber: true,
+                      })}
                     />
                   </div>
 
@@ -511,26 +570,36 @@ const Inward: React.FC = () => {
                     </div>
                     <div>
                       <span className="font-medium">Rate/Pack:</span>
-                      <div className="text-gray-600">{formatCurrency(ratePerPack)}</div>
+                      <div className="text-gray-600">
+                        {formatCurrency(ratePerPack)}
+                      </div>
                     </div>
                     <div>
                       <span className="font-medium">Rate/PCS:</span>
-                      <div className="text-gray-600">{formatCurrency(ratePerPcs)}</div>
+                      <div className="text-gray-600">
+                        {formatCurrency(ratePerPcs)}
+                      </div>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-3 gap-4 text-sm">
                     <div>
                       <span className="font-medium">Base Amount:</span>
-                      <div className="text-gray-600">{formatCurrency(baseAmount)}</div>
+                      <div className="text-gray-600">
+                        {formatCurrency(baseAmount)}
+                      </div>
                     </div>
                     <div>
                       <span className="font-medium">GST ({gstRate}%):</span>
-                      <div className="text-gray-600">{formatCurrency(gstAmount)}</div>
+                      <div className="text-gray-600">
+                        {formatCurrency(gstAmount)}
+                      </div>
                     </div>
                     <div>
                       <span className="font-medium">Total:</span>
-                      <div className="text-gray-900 font-semibold">{formatCurrency(totalAmount)}</div>
+                      <div className="text-gray-900 font-semibold">
+                        {formatCurrency(totalAmount)}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -571,20 +640,37 @@ const Inward: React.FC = () => {
           <div className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Date</label>
-                <div className="text-gray-900">{formatDate(selectedInvoice.date)}</div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Date
+                </label>
+                <div className="text-gray-900">
+                  {formatDate(selectedInvoice.date)}
+                </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Total Cost</label>
-                <div className="text-gray-900 font-semibold">{formatCurrency(selectedInvoice.totalCost)}</div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Total Cost
+                </label>
+                <div className="text-gray-900 font-semibold">
+                  {formatCurrency(selectedInvoice.totalCost)}
+                </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Vendor</label>
-                <div className="text-gray-900">{selectedInvoice.vendor?.name} ({selectedInvoice.vendor?.code})</div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Vendor
+                </label>
+                <div className="text-gray-900">
+                  {selectedInvoice.vendor?.name} ({selectedInvoice.vendor?.code}
+                  )
+                </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Location</label>
-                <div className="text-gray-900">{selectedInvoice.location?.name}</div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Location
+                </label>
+                <div className="text-gray-900">
+                  {selectedInvoice.location?.name}
+                </div>
               </div>
             </div>
 
@@ -594,31 +680,68 @@ const Inward: React.FC = () => {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Boxes</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Pack/Box</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Pack/Piece</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Total Packs</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Total PCS</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Rate/Box</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">GST</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Product
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Boxes
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Pack/Box
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Pack/Piece
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Total Packs
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Total PCS
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Rate/Box
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        GST
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Total
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {selectedInvoice.items?.map((item, index) => (
                       <tr key={index}>
                         <td className="px-4 py-2 text-sm text-gray-900">
-                          {item.product?.name} {item.product?.grade && `(${item.product.grade})`}
+                          {item.product?.name}{' '}
+                          {item.product?.grade && `(${item.product.grade})`}
                         </td>
-                        <td className="px-4 py-2 text-sm text-gray-900">{item.boxes}</td>
-                        <td className="px-4 py-2 text-sm text-gray-900">{item.packPerBox || item.pcsPerBox || 'N/A'}</td>
-                        <td className="px-4 py-2 text-sm text-gray-900">{item.packPerPiece || 1}</td>
-                        <td className="px-4 py-2 text-sm text-gray-900">{item.totalPacks || (item.boxes * (item.packPerBox || item.pcsPerBox || 1))}</td>
-                        <td className="px-4 py-2 text-sm text-gray-900">{item.totalPcs}</td>
-                        <td className="px-4 py-2 text-sm text-gray-900">{formatCurrency(item.ratePerBox)}</td>
-                        <td className="px-4 py-2 text-sm text-gray-900">{formatCurrency(item.gstAmount)}</td>
-                        <td className="px-4 py-2 text-sm text-gray-900 font-semibold">{formatCurrency(item.totalCost)}</td>
+                        <td className="px-4 py-2 text-sm text-gray-900">
+                          {item.boxes}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-900">
+                          {item.packPerBox || item.pcsPerBox || 'N/A'}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-900">
+                          {item.packPerPiece || 1}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-900">
+                          {item.totalPacks ||
+                            item.boxes *
+                              (item.packPerBox || item.pcsPerBox || 1)}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-900">
+                          {item.totalPcs}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-900">
+                          {formatCurrency(item.ratePerBox)}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-900">
+                          {formatCurrency(item.gstAmount)}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-900 font-semibold">
+                          {formatCurrency(item.totalCost)}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -634,7 +757,11 @@ const Inward: React.FC = () => {
         type="inward"
         isOpen={bulkUploadOpen}
         onClose={() => setBulkUploadOpen(false)}
-        onSuccess={loadInvoices}
+        onSuccess={() =>
+          dispatch(
+            fetchInwardInvoices({ page: currentPage, limit: 10, search })
+          )
+        }
       />
     </div>
   );

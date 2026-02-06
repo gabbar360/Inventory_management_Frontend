@@ -1,4 +1,4 @@
-import api from './api';
+import api from '@/utils/api';
 import { ApiResponse, Category, PaginationQuery } from '@/types';
 
 export interface CategoryFormData {
@@ -8,8 +8,12 @@ export interface CategoryFormData {
 }
 
 export const categoryService = {
-  async getAll(params?: PaginationQuery): Promise<{ data: Category[]; pagination: any }> {
-    const response = await api.get<ApiResponse<Category[]>>('/categories', { params });
+  async getAll(
+    params?: PaginationQuery
+  ): Promise<{ data: Category[]; pagination: any }> {
+    const response = await api.get<ApiResponse<Category[]>>('/categories', {
+      params,
+    });
     return {
       data: response.data.data!,
       pagination: response.data.pagination,
@@ -27,7 +31,10 @@ export const categoryService = {
   },
 
   async update(id: string, data: Partial<CategoryFormData>): Promise<Category> {
-    const response = await api.put<ApiResponse<Category>>(`/categories/${id}`, data);
+    const response = await api.put<ApiResponse<Category>>(
+      `/categories/${id}`,
+      data
+    );
     return response.data.data!;
   },
 

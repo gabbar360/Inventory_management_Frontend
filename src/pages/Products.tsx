@@ -4,8 +4,15 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Edit, Trash2, Search, Upload, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { productService, ProductFormData } from '@/services/productService';
-import { categoryService } from '@/services/categoryService';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import {
+  fetchProducts,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  clearError,
+} from '@/slices/productSlice';
+import { fetchCategories } from '@/slices/categorySlice';
 import { bulkUploadService } from '@/services/bulkUploadService';
 import { Product, Category } from '@/types';
 import { formatDate, debounce } from '@/utils';
@@ -17,6 +24,12 @@ import Table from '@/components/Table';
 import BulkUpload from '@/components/BulkUpload';
 import Pagination from '@/components/Pagination';
 
+interface ProductFormData {
+  name: string;
+  grade?: string;
+  categoryId: string;
+}
+
 const productSchema = z.object({
   name: z.string().min(1, 'Product name is required'),
   grade: z.string().optional(),
@@ -24,19 +37,17 @@ const productSchema = z.object({
 });
 
 const Products: React.FC = () => {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useAppDispatch();
+  const { products, pagination, loading, error } = useAppSelector(
+    (state) => state.products
+  );
+  const { categories } = useAppSelector((state) => state.categories);
+
   const [modalOpen, setModalOpen] = useState(false);
   const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [search, setSearch] = useState('');
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 10,
-    total: 0,
-    totalPages: 0,
-  });
+  const [currentPage, setCurrentPage] = useState(1);
 
   const {
     register,
@@ -49,39 +60,23 @@ const Products: React.FC = () => {
   });
 
   useEffect(() => {
-    loadProducts();
-    loadCategories();
-  }, [search, pagination.page]);
+    dispatch(fetchProducts({ page: currentPage, limit: 10, search }));
+  }, [dispatch, search, currentPage]);
 
-  const loadProducts = async () => {
-    setLoading(true);
-    try {
-      const response = await productService.getAll({
-        page: pagination.page,
-        limit: pagination.limit,
-        search,
-      });
-      setProducts(response.data);
-      setPagination(response.pagination);
-    } catch (error) {
-      console.error('Failed to load products:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    dispatch(fetchCategories({ limit: 100 }));
+  }, [dispatch]);
 
-  const loadCategories = async () => {
-    try {
-      const response = await categoryService.getAll({ limit: 100 });
-      setCategories(response.data);
-    } catch (error) {
-      console.error('Failed to load categories:', error);
+  useEffect(() => {
+    if (error) {
+      toast.error(error);
+      dispatch(clearError());
     }
-  };
+  }, [error, dispatch]);
 
   const debouncedSearch = debounce((value: string) => {
     setSearch(value);
-    setPagination((prev) => ({ ...prev, page: 1 }));
+    setCurrentPage(1);
   }, 300);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -110,34 +105,32 @@ const Products: React.FC = () => {
   const onSubmit = async (data: ProductFormData) => {
     try {
       if (editingProduct) {
-        await productService.update(editingProduct.id, data);
+        await dispatch(updateProduct({ id: editingProduct.id, data })).unwrap();
         toast.success('Product updated successfully');
       } else {
-        await productService.create(data);
+        await dispatch(createProduct(data)).unwrap();
         toast.success('Product created successfully');
       }
       closeModal();
-      loadProducts();
     } catch (error) {
-      // Error handled by interceptor
+      // Error handled by Redux
     }
   };
 
   const handleDelete = async (product: Product) => {
     if (window.confirm(`Are you sure you want to delete "${product.name}"?`)) {
       try {
-        await productService.delete(product.id);
+        await dispatch(deleteProduct(product.id)).unwrap();
         toast.success('Product deleted successfully');
-        loadProducts();
       } catch (error) {
-        // Error handled by interceptor
+        // Error handled by Redux
       }
     }
   };
 
   const handleBulkUploadSuccess = () => {
     setBulkUploadOpen(false);
-    loadProducts();
+    dispatch(fetchProducts({ page: currentPage, limit: 10, search }));
   };
 
   const handleExport = async () => {
@@ -193,11 +186,7 @@ const Products: React.FC = () => {
       title: 'Actions',
       render: (_: any, record: Product) => (
         <div className="flex space-x-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => openModal(record)}
-          >
+          <Button variant="ghost" size="sm" onClick={() => openModal(record)}>
             <Edit className="h-4 w-4" />
           </Button>
           <Button
@@ -219,10 +208,7 @@ const Products: React.FC = () => {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Products</h1>
         <div className="flex space-x-3">
-          <Button
-            variant="outline"
-            onClick={() => setBulkUploadOpen(true)}
-          >
+          <Button variant="outline" onClick={() => setBulkUploadOpen(true)}>
             <Upload className="mr-2 h-4 w-4" />
             Bulk Upload
           </Button>
@@ -252,18 +238,14 @@ const Products: React.FC = () => {
 
       {/* Table */}
       <div className="card">
-        <Table
-          data={products}
-          columns={columns}
-          loading={loading}
-        />
-        
+        <Table data={products} columns={columns} loading={loading} />
+
         <Pagination
-          currentPage={pagination.page}
-          totalPages={pagination.totalPages}
-          total={pagination.total}
-          limit={pagination.limit}
-          onPageChange={(page) => setPagination(prev => ({ ...prev, page }))}
+          currentPage={pagination?.page || 1}
+          totalPages={pagination?.totalPages || 1}
+          total={pagination?.total || 0}
+          limit={pagination?.limit || 10}
+          onPageChange={setCurrentPage}
           loading={loading}
         />
       </div>
@@ -281,14 +263,14 @@ const Products: React.FC = () => {
             error={errors.name?.message}
             {...register('name')}
           />
-          
+
           <Input
             label="Grade (Optional)"
             placeholder="Enter product grade"
             error={errors.grade?.message}
             {...register('grade')}
           />
-          
+
           <Select
             label="Category"
             placeholder="Select category"
@@ -298,17 +280,10 @@ const Products: React.FC = () => {
           />
 
           <div className="form-actions">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={closeModal}
-            >
+            <Button type="button" variant="outline" onClick={closeModal}>
               Cancel
             </Button>
-            <Button
-              type="submit"
-              loading={isSubmitting}
-            >
+            <Button type="submit" loading={isSubmitting}>
               {editingProduct ? 'Update' : 'Create'}
             </Button>
           </div>

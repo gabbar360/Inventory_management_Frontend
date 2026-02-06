@@ -67,6 +67,8 @@ export function truncateText(text: string, maxLength: number): string {
 
 export function generateInvoiceNumber(prefix: string): string {
   const timestamp = Date.now().toString().slice(-6);
-  const random = Math.floor(Math.random() * 100).toString().padStart(2, '0');
+  const random = Math.floor(Math.random() * 100)
+    .toString()
+    .padStart(2, '0');
   return `${prefix}${timestamp}${random}`;
 }
