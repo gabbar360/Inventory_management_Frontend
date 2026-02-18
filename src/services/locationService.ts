@@ -10,7 +10,7 @@ export const locationService = {
   async getAll(
     params?: PaginationQuery
   ): Promise<{ data: Location[]; pagination: any }> {
-    const response = await api.get<ApiResponse<Location[]>>('/locations', {
+    const response = await api.get<ApiResponse<Location[]>>('/getall-locations', {
       params,
     });
     return {
@@ -20,24 +20,24 @@ export const locationService = {
   },
 
   async getById(id: string): Promise<Location> {
-    const response = await api.get<ApiResponse<Location>>(`/locations/${id}`);
+    const response = await api.get<ApiResponse<Location>>(`/get-locations/${id}`);
     return response.data.data!;
   },
 
   async create(data: LocationFormData): Promise<Location> {
-    const response = await api.post<ApiResponse<Location>>('/locations', data);
+    const response = await api.post<ApiResponse<Location>>('/add-locations', data);
     return response.data.data!;
   },
 
   async update(id: string, data: Partial<LocationFormData>): Promise<Location> {
     const response = await api.put<ApiResponse<Location>>(
-      `/locations/${id}`,
+      `/update-locations/${id}`,
       data
     );
     return response.data.data!;
   },
 
   async delete(id: string): Promise<void> {
-    await api.delete(`/locations/${id}`);
+    await api.delete(`/delete-locations/${id}`);
   },
 };

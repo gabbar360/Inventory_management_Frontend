@@ -61,8 +61,8 @@ interface OutwardInvoiceFormData {
 const outwardSchema = z.object({
   invoiceNo: z.string().min(1, 'Invoice number is required'),
   date: z.string().min(1, 'Date is required'),
-  customerId: z.string().min(1, 'Customer is required'),
-  locationId: z.string().min(1, 'Location is required'),
+  customerId: z.union([z.string(), z.number()]).transform(val => val.toString()),
+  locationId: z.union([z.string(), z.number()]).transform(val => val.toString()),
   saleType: z.enum(['export', 'domestic'], {
     required_error: 'Sale type is required',
   }),
@@ -70,8 +70,8 @@ const outwardSchema = z.object({
   items: z
     .array(
       z.object({
-        productId: z.string().min(1, 'Product is required'),
-        stockBatchId: z.string().min(1, 'Stock batch is required'),
+        productId: z.union([z.string(), z.number()]).transform(val => val.toString()),
+        stockBatchId: z.union([z.string(), z.number()]).transform(val => val.toString()),
         saleUnit: z.enum(['box', 'pack', 'piece'], {
           required_error: 'Sale unit is required',
         }),
@@ -155,13 +155,19 @@ const Outward: React.FC = () => {
   };
 
   const loadAvailableStock = async (productId: string, locationId?: string) => {
-    const result = await dispatch(
-      fetchAvailableStock({ productId, locationId })
-    ).unwrap();
-    setAvailableStockCache((prev) => ({
-      ...prev,
-      [`${productId}-${locationId || 'all'}`]: result,
-    }));
+    try {
+      const result = await dispatch(
+        fetchAvailableStock({ productId, locationId })
+      ).unwrap();
+      setAvailableStockCache((prev) => ({
+        ...prev,
+        [`${productId}-${locationId || 'all'}`]: result,
+      }));
+      return result;
+    } catch (error) {
+      console.error('Failed to load stock:', error);
+      return [];
+    }
   };
 
   const debouncedSearch = debounce((value: string) => {
@@ -296,7 +302,7 @@ const Outward: React.FC = () => {
     setValue(`items.${index}.ratePerUnit`, 0);
 
     if (productId && watchedLocationId) {
-      loadAvailableStock(productId, watchedLocationId);
+      loadAvailableStock(productId.toString(), watchedLocationId.toString());
     }
   };
 
@@ -307,7 +313,7 @@ const Outward: React.FC = () => {
     const item = watchedItems[index];
     const stockKey = `${item?.productId}-${watchedLocationId || 'all'}`;
     const stockBatches = availableStockCache[stockKey] || [];
-    const selectedBatch = stockBatches.find((b) => b.id === stockBatchId);
+    const selectedBatch = stockBatches.find((b) => b.id.toString() === stockBatchId);
 
     if (selectedBatch) {
       const suggestedRate =
@@ -581,7 +587,7 @@ const Outward: React.FC = () => {
               const stockKey = `${item?.productId}-${watchedLocationId || 'all'}`;
               const stockBatches = availableStockCache[stockKey] || [];
               const selectedBatch = stockBatches.find(
-                (b) => b.id === item?.stockBatchId
+                (b) => b.id.toString() === item?.stockBatchId?.toString()
               );
               const maxQuantity =
                 item?.saleUnit === 'box'
@@ -593,7 +599,7 @@ const Outward: React.FC = () => {
                 (item?.quantity || 0) * (item?.ratePerUnit || 0);
 
               const stockBatchOptions = stockBatches.map((batch) => ({
-                value: batch.id,
+                value: batch.id.toString(),
                 label: `${batch.vendor?.name} - ${formatDate(batch.inwardDate)} (${batch.remainingBoxes} boxes, ${batch.remainingPacks || 0} packs, ${batch.remainingPcs} pcs)`,
               }));
 

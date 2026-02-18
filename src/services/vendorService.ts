@@ -12,7 +12,7 @@ export const vendorService = {
   async getAll(
     params?: PaginationQuery
   ): Promise<{ data: Vendor[]; pagination: any }> {
-    const response = await api.get<ApiResponse<Vendor[]>>('/vendors', {
+    const response = await api.get<ApiResponse<Vendor[]>>('/getall-vendors', {
       params,
     });
     return {
@@ -22,21 +22,21 @@ export const vendorService = {
   },
 
   async getById(id: string): Promise<Vendor> {
-    const response = await api.get<ApiResponse<Vendor>>(`/vendors/${id}`);
+    const response = await api.get<ApiResponse<Vendor>>(`/get-vendors/${id}`);
     return response.data.data!;
   },
 
   async create(data: VendorFormData): Promise<Vendor> {
-    const response = await api.post<ApiResponse<Vendor>>('/vendors', data);
+    const response = await api.post<ApiResponse<Vendor>>('/add-vendors', data);
     return response.data.data!;
   },
 
   async update(id: string, data: Partial<VendorFormData>): Promise<Vendor> {
-    const response = await api.put<ApiResponse<Vendor>>(`/vendors/${id}`, data);
+    const response = await api.put<ApiResponse<Vendor>>(`/update-vendors/${id}`, data);
     return response.data.data!;
   },
 
   async delete(id: string): Promise<void> {
-    await api.delete(`/vendors/${id}`);
+    await api.delete(`/delete-vendors/${id}`);
   },
 };

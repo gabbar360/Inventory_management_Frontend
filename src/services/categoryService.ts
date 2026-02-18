@@ -11,7 +11,7 @@ export const categoryService = {
   async getAll(
     params?: PaginationQuery
   ): Promise<{ data: Category[]; pagination: any }> {
-    const response = await api.get<ApiResponse<Category[]>>('/categories', {
+    const response = await api.get<ApiResponse<Category[]>>('/get-categories', {
       params,
     });
     return {
@@ -21,24 +21,24 @@ export const categoryService = {
   },
 
   async getById(id: string): Promise<Category> {
-    const response = await api.get<ApiResponse<Category>>(`/categories/${id}`);
+    const response = await api.get<ApiResponse<Category>>(`/get-categories/${id}`);
     return response.data.data!;
   },
 
   async create(data: CategoryFormData): Promise<Category> {
-    const response = await api.post<ApiResponse<Category>>('/categories', data);
+    const response = await api.post<ApiResponse<Category>>('/create-categories', data);
     return response.data.data!;
   },
 
   async update(id: string, data: Partial<CategoryFormData>): Promise<Category> {
     const response = await api.put<ApiResponse<Category>>(
-      `/categories/${id}`,
+      `/update-categories/${id}`,
       data
     );
     return response.data.data!;
   },
 
   async delete(id: string): Promise<void> {
-    await api.delete(`/categories/${id}`);
+    await api.delete(`/delete-categories/${id}`);
   },
 };
