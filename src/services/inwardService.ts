@@ -21,7 +21,7 @@ export const inwardService = {
   async getAll(
     params?: PaginationQuery
   ): Promise<{ data: InwardInvoice[]; pagination: any }> {
-    const response = await api.get<ApiResponse<InwardInvoice[]>>('/inward', {
+    const response = await api.get<ApiResponse<InwardInvoice[]>>('/getall-inward', {
       params,
     });
     return {
@@ -31,13 +31,13 @@ export const inwardService = {
   },
 
   async getById(id: string): Promise<InwardInvoice> {
-    const response = await api.get<ApiResponse<InwardInvoice>>(`/inward/${id}`);
+    const response = await api.get<ApiResponse<InwardInvoice>>(`/get-inward/${id}`);
     return response.data.data!;
   },
 
   async create(data: InwardInvoiceFormData): Promise<InwardInvoice> {
     const response = await api.post<ApiResponse<InwardInvoice>>(
-      '/inward',
+      '/add-inward',
       data
     );
     return response.data.data!;
@@ -48,13 +48,13 @@ export const inwardService = {
     data: InwardInvoiceFormData
   ): Promise<InwardInvoice> {
     const response = await api.put<ApiResponse<InwardInvoice>>(
-      `/inward/${id}`,
+      `/update-inward/${id}`,
       data
     );
     return response.data.data!;
   },
 
   async delete(id: string): Promise<void> {
-    await api.delete(`/inward/${id}`);
+    await api.delete(`/delete-inward/${id}`);
   },
 };

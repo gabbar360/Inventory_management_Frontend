@@ -23,7 +23,7 @@ export const outwardService = {
   async getAll(
     params?: PaginationQuery
   ): Promise<{ data: OutwardInvoice[]; pagination: any }> {
-    const response = await api.get<ApiResponse<OutwardInvoice[]>>('/outward', {
+    const response = await api.get<ApiResponse<OutwardInvoice[]>>('/getall-outward', {
       params,
     });
     return {
@@ -41,7 +41,7 @@ export const outwardService = {
 
   async create(data: OutwardInvoiceFormData): Promise<OutwardInvoice> {
     const response = await api.post<ApiResponse<OutwardInvoice>>(
-      '/outward',
+      '/add-outward',
       data
     );
     return response.data.data!;
@@ -52,13 +52,13 @@ export const outwardService = {
     data: OutwardInvoiceFormData
   ): Promise<OutwardInvoice> {
     const response = await api.put<ApiResponse<OutwardInvoice>>(
-      `/outward/${id}`,
+      `/update-outward/${id}`,
       data
     );
     return response.data.data!;
   },
 
   async delete(id: string): Promise<void> {
-    await api.delete(`/outward/${id}`);
+    await api.delete(`/delete-outward/${id}`);
   },
 };
