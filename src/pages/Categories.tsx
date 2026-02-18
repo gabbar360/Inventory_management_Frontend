@@ -176,7 +176,7 @@ const Categories: React.FC = () => {
       key: 'actions',
       title: 'Actions',
       render: (_: any, record: Category) => (
-        <div className="flex space-x-2">
+        <div className="flex gap-1 sm:gap-2">
           <Button variant="ghost" size="sm" onClick={() => openModal(record)}>
             <Edit className="h-4 w-4" />
           </Button>
@@ -196,27 +196,29 @@ const Categories: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-2xl font-bold text-gray-900">Categories</h1>
-        <div className="flex space-x-3">
-          <Button variant="outline" onClick={() => setBulkUploadOpen(true)}>
+        <div className="flex flex-wrap gap-2 sm:gap-3">
+          <Button variant="outline" onClick={() => setBulkUploadOpen(true)} className="flex-1 sm:flex-none">
             <Upload className="mr-2 h-4 w-4" />
-            Bulk Upload
+            <span className="hidden sm:inline">Bulk Upload</span>
+            <span className="sm:hidden">Upload</span>
           </Button>
-          <Button variant="outline" onClick={handleExport}>
+          <Button variant="outline" onClick={handleExport} className="flex-1 sm:flex-none">
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>
-          <Button onClick={() => openModal()}>
+          <Button onClick={() => openModal()} className="flex-1 sm:flex-none">
             <Plus className="mr-2 h-4 w-4" />
-            Add Category
+            <span className="hidden sm:inline">Add Category</span>
+            <span className="sm:hidden">Add</span>
           </Button>
         </div>
       </div>
 
       {/* Search */}
-      <div className="flex items-center space-x-4">
-        <div className="relative flex-1 max-w-md">
+      <div className="flex items-center">
+        <div className="relative w-full sm:max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
@@ -228,7 +230,7 @@ const Categories: React.FC = () => {
       </div>
 
       {/* Table */}
-      <div className="card">
+      <div className="card overflow-x-auto">
         <Table data={categories} columns={columns} loading={loading} />
 
         <Pagination

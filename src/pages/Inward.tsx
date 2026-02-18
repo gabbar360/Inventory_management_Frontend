@@ -336,7 +336,7 @@ const Inward: React.FC = () => {
       key: 'actions',
       title: 'Actions',
       render: (_: any, record: InwardInvoice) => (
-        <div className="flex space-x-2">
+        <div className="flex gap-1 sm:gap-2">
           <Button variant="ghost" size="sm" onClick={() => viewInvoice(record)}>
             <Eye className="h-4 w-4" />
           </Button>
@@ -359,27 +359,29 @@ const Inward: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-2xl font-bold text-gray-900">Inward (Purchase)</h1>
-        <div className="flex space-x-2">
-          <Button variant="outline" onClick={() => setBulkUploadOpen(true)}>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => setBulkUploadOpen(true)} className="flex-1 sm:flex-none">
             <Upload className="mr-2 h-4 w-4" />
-            Bulk Upload
+            <span className="hidden sm:inline">Bulk Upload</span>
+            <span className="sm:hidden">Upload</span>
           </Button>
-          <Button variant="outline" onClick={handleExport}>
+          <Button variant="outline" onClick={handleExport} className="flex-1 sm:flex-none">
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>
-          <Button onClick={openModal}>
+          <Button onClick={openModal} className="flex-1 sm:flex-none">
             <Plus className="mr-2 h-4 w-4" />
-            Add Stock
+            <span className="hidden sm:inline">Add Stock</span>
+            <span className="sm:hidden">Add</span>
           </Button>
         </div>
       </div>
 
       {/* Search */}
-      <div className="flex items-center space-x-4">
-        <div className="relative flex-1 max-w-md">
+      <div className="flex items-center">
+        <div className="relative w-full sm:max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
@@ -391,7 +393,7 @@ const Inward: React.FC = () => {
       </div>
 
       {/* Table */}
-      <div className="card">
+      <div className="card overflow-x-auto">
         <Table data={invoices} columns={columns} loading={loading} />
 
         <Pagination
@@ -412,7 +414,7 @@ const Inward: React.FC = () => {
         size="xl"
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          <div className="form-row">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
               label="Invoice Number"
               error={errors.invoiceNo?.message}
@@ -426,7 +428,7 @@ const Inward: React.FC = () => {
             />
           </div>
 
-          <div className="form-row">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Select
               label="Vendor"
               options={vendorOptions}
@@ -445,7 +447,7 @@ const Inward: React.FC = () => {
 
           {/* Items */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <h3 className="text-lg font-medium">Items</h3>
               <Button
                 type="button"
@@ -482,10 +484,10 @@ const Inward: React.FC = () => {
               return (
                 <div
                   key={field.id}
-                  className="border border-gray-200 rounded-lg p-4 space-y-4"
+                  className="border border-gray-200 rounded-lg p-3 sm:p-4 space-y-4"
                 >
                   <div className="flex items-center justify-between">
-                    <h4 className="font-medium">Item {index + 1}</h4>
+                    <h4 className="font-medium text-sm sm:text-base">Item {index + 1}</h4>
                     {fields.length > 1 && (
                       <Button
                         type="button"
@@ -499,7 +501,7 @@ const Inward: React.FC = () => {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Select
                       label="Product"
                       options={productOptions}
@@ -511,7 +513,7 @@ const Inward: React.FC = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Category & GST
                       </label>
-                      <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                      <div className="text-xs sm:text-sm text-gray-600 bg-gray-50 p-2 rounded">
                         {product
                           ? `${product.category?.name} (${product.category?.gstRate}% GST)`
                           : 'Select product first'}
@@ -519,7 +521,7 @@ const Inward: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <Input
                       label="Boxes"
                       type="number"
@@ -530,7 +532,7 @@ const Inward: React.FC = () => {
                       })}
                     />
                     <Input
-                      label="Pack per Box"
+                      label="Pack/Box"
                       type="number"
                       min="1"
                       error={errors.items?.[index]?.packPerBox?.message}
@@ -539,7 +541,7 @@ const Inward: React.FC = () => {
                       })}
                     />
                     <Input
-                      label="Pack per Piece"
+                      label="Pack/Piece"
                       type="number"
                       min="1"
                       error={errors.items?.[index]?.packPerPiece?.message}
@@ -548,7 +550,7 @@ const Inward: React.FC = () => {
                       })}
                     />
                     <Input
-                      label="Rate per Box"
+                      label="Rate/Box"
                       type="number"
                       step="0.01"
                       min="0"
@@ -559,45 +561,45 @@ const Inward: React.FC = () => {
                     />
                   </div>
 
-                  <div className="grid grid-cols-4 gap-4 text-sm">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs sm:text-sm bg-gray-50 p-3 rounded">
                     <div>
-                      <span className="font-medium">Total Packs:</span>
+                      <span className="font-medium block">Total Packs</span>
                       <div className="text-gray-600">{totalPacks}</div>
                     </div>
                     <div>
-                      <span className="font-medium">Total PCS:</span>
+                      <span className="font-medium block">Total PCS</span>
                       <div className="text-gray-600">{totalPcs}</div>
                     </div>
                     <div>
-                      <span className="font-medium">Rate/Pack:</span>
+                      <span className="font-medium block">Rate/Pack</span>
                       <div className="text-gray-600">
                         {formatCurrency(ratePerPack)}
                       </div>
                     </div>
                     <div>
-                      <span className="font-medium">Rate/PCS:</span>
+                      <span className="font-medium block">Rate/PCS</span>
                       <div className="text-gray-600">
                         {formatCurrency(ratePerPcs)}
                       </div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs sm:text-sm bg-blue-50 p-3 rounded">
                     <div>
-                      <span className="font-medium">Base Amount:</span>
-                      <div className="text-gray-600">
+                      <span className="font-medium block">Base Amount</span>
+                      <div className="text-gray-900">
                         {formatCurrency(baseAmount)}
                       </div>
                     </div>
                     <div>
-                      <span className="font-medium">GST ({gstRate}%):</span>
-                      <div className="text-gray-600">
+                      <span className="font-medium block">GST ({gstRate}%)</span>
+                      <div className="text-gray-900">
                         {formatCurrency(gstAmount)}
                       </div>
                     </div>
                     <div>
-                      <span className="font-medium">Total:</span>
-                      <div className="text-gray-900 font-semibold">
+                      <span className="font-medium block">Total</span>
+                      <div className="text-gray-900 font-semibold text-base">
                         {formatCurrency(totalAmount)}
                       </div>
                     </div>
@@ -610,19 +612,20 @@ const Inward: React.FC = () => {
           {/* Grand Total */}
           <div className="border-t pt-4">
             <div className="flex justify-end">
-              <div className="text-right">
-                <div className="text-lg font-semibold">
-                  Grand Total: {formatCurrency(calculateGrandTotal())}
+              <div className="text-right bg-green-50 p-4 rounded-lg">
+                <div className="text-sm text-gray-600 mb-1">Grand Total</div>
+                <div className="text-xl sm:text-2xl font-bold text-green-700">
+                  {formatCurrency(calculateGrandTotal())}
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="form-actions">
-            <Button type="button" variant="outline" onClick={closeModal}>
+          <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
+            <Button type="button" variant="outline" onClick={closeModal} className="w-full sm:w-auto">
               Cancel
             </Button>
-            <Button type="submit" loading={isSubmitting}>
+            <Button type="submit" loading={isSubmitting} className="w-full sm:w-auto">
               {editingInvoice ? 'Update Invoice' : 'Create Invoice'}
             </Button>
           </div>
@@ -638,7 +641,7 @@ const Inward: React.FC = () => {
       >
         {selectedInvoice && (
           <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   Date
