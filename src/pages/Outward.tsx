@@ -10,7 +10,6 @@ import {
   Upload,
   Download,
   Edit,
-  X,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -26,7 +25,7 @@ import { fetchAvailableStock } from '@/slices/inventorySlice';
 import { fetchCustomers } from '@/slices/customerSlice';
 import { fetchLocations } from '@/slices/locationSlice';
 import { bulkUploadService } from '@/services/bulkUploadService';
-import { OutwardInvoice, StockBatch, Product } from '@/types';
+import { OutwardInvoice, StockBatch } from '@/types';
 import {
   formatDate,
   formatCurrency,
@@ -88,8 +87,6 @@ const Outward: React.FC = () => {
     useAppSelector((state) => state.outward);
   const { customers } = useAppSelector((state) => state.customers);
   const { locations } = useAppSelector((state) => state.locations);
-  const { availableStock } = useAppSelector((state) => state.inventory);
-
   const [availableStockCache, setAvailableStockCache] = useState<{
     [key: string]: StockBatch[];
   }>({});
@@ -294,8 +291,7 @@ const Outward: React.FC = () => {
 
   const handleProductChange = (
     index: number,
-    productId: string,
-    product?: Product
+    productId: string
   ) => {
     setValue(`items.${index}.productId`, productId);
     setValue(`items.${index}.stockBatchId`, '');
@@ -626,8 +622,8 @@ const Outward: React.FC = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <ProductSearch
                       value={item?.productId}
-                      onChange={(productId, product) =>
-                        handleProductChange(index, productId, product)
+                      onChange={(productId) =>
+                        handleProductChange(index, productId)
                       }
                       error={errors.items?.[index]?.productId?.message}
                     />

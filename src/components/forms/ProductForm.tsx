@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   X,
-  Upload,
   QrCode,
   Barcode,
   Package,
@@ -228,7 +227,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
           <option value="">Select Category</option>
           {categories.map((category) => (
             <option key={category.id} value={category.id}>
-              {category.name} ({category.code})
+              {category.name}
             </option>
           ))}
         </Select>

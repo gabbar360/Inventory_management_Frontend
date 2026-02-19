@@ -10,7 +10,6 @@ import {
   Upload,
   Download,
   Edit,
-  X,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -249,7 +248,7 @@ const Inward: React.FC = () => {
     }
   };
 
-  const calculateItemTotal = (item: any, index: number) => {
+  const calculateItemTotal = (item: any) => {
     const product = products.find((p) => p.id === item.productId);
     if (!product) return 0;
 
@@ -259,8 +258,8 @@ const Inward: React.FC = () => {
   };
 
   const calculateGrandTotal = () => {
-    return watchedItems.reduce((total, item, index) => {
-      return total + calculateItemTotal(item, index);
+    return watchedItems.reduce((total, item) => {
+      return total + calculateItemTotal(item);
     }, 0);
   };
 

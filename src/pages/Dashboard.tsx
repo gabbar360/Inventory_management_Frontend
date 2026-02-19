@@ -9,16 +9,11 @@ import {
   ResponsiveContainer,
   LineChart,
   Line,
-  PieChart,
-  Pie,
-  Cell,
   AreaChart,
   Area,
-  ComposedChart,
 } from 'recharts';
 import {
   TrendingUp,
-  TrendingDown,
   Package,
   DollarSign,
   ShoppingCart,
@@ -26,19 +21,13 @@ import {
   AlertTriangle,
   Activity,
   Target,
-  Calendar,
   ArrowUpRight,
   ArrowDownRight,
   Filter,
-  Download,
   RefreshCw,
   Eye,
   BarChart3,
   PieChart as PieChartIcon,
-  Settings,
-  MapPin,
-  Building,
-  Truck,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
@@ -129,8 +118,6 @@ const Dashboard: React.FC = () => {
     useAppSelector((state) => state.dashboard);
   const { locations } = useAppSelector((state) => state.locations);
   const { categories } = useAppSelector((state) => state.categories);
-  const { vendors } = useAppSelector((state) => state.vendors);
-  const { customers } = useAppSelector((state) => state.customers);
 
   const [period, setPeriod] = useState<'week' | 'month' | 'year'>('month');
   const [chartType, setChartType] = useState<'area' | 'bar' | 'line'>('area');
@@ -145,9 +132,7 @@ const Dashboard: React.FC = () => {
     minAmount: '',
     maxAmount: '',
   });
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [refreshing, setRefreshing] = useState(false);
-  const [performanceMetrics, setPerformanceMetrics] = useState<any>(null);
 
   useEffect(() => {
     loadDashboardData();
@@ -201,17 +186,6 @@ const Dashboard: React.FC = () => {
       minAmount: '',
       maxAmount: '',
     });
-  };
-
-  const calculateTrend = (current: number, previous: number) => {
-    if (previous === 0) return 0;
-    return ((current - previous) / previous) * 100;
-  };
-
-  const getTrendDirection = (trend: number) => {
-    if (trend > 0) return 'up';
-    if (trend < 0) return 'down';
-    return 'neutral';
   };
 
   if (loading) {
@@ -792,23 +766,15 @@ const Dashboard: React.FC = () => {
                 <span className="text-sm font-medium text-gray-700">
                   Inventory Turnover
                 </span>
-                <span className="text-lg font-bold text-blue-600">
-                  {performanceMetrics?.inventoryTurnover?.toFixed(1) || '0.0'}x
-                </span>
+                <span className="text-lg font-bold text-blue-600">0.0x</span>
               </div>
               <div className="w-full bg-blue-200 rounded-full h-2">
                 <div
                   className="bg-blue-500 h-2 rounded-full transition-all duration-500"
-                  style={{
-                    width: `${Math.min((performanceMetrics?.inventoryTurnover || 0) * 20, 100)}%`,
-                  }}
+                  style={{ width: '0%' }}
                 ></div>
               </div>
-              <p className="text-xs text-blue-600 mt-1">
-                {performanceMetrics?.inventoryTurnoverTrend > 0 ? '+' : ''}
-                {performanceMetrics?.inventoryTurnoverTrend?.toFixed(1) || '0'}%
-                vs last period
-              </p>
+              <p className="text-xs text-blue-600 mt-1">0% vs last period</p>
             </div>
 
             {/* Average Order Value */}
@@ -818,22 +784,16 @@ const Dashboard: React.FC = () => {
                   Avg Order Value
                 </span>
                 <span className="text-lg font-bold text-green-600">
-                  {formatCurrency(performanceMetrics?.avgOrderValue || 0)}
+                  {formatCurrency(0)}
                 </span>
               </div>
               <div className="w-full bg-green-200 rounded-full h-2">
                 <div
                   className="bg-green-500 h-2 rounded-full transition-all duration-500"
-                  style={{
-                    width: `${Math.min((performanceMetrics?.avgOrderValue || 0) / 1000, 100)}%`,
-                  }}
+                  style={{ width: '0%' }}
                 ></div>
               </div>
-              <p className="text-xs text-green-600 mt-1">
-                {performanceMetrics?.avgOrderValueTrend > 0 ? '+' : ''}
-                {performanceMetrics?.avgOrderValueTrend?.toFixed(1) || '0'}% vs
-                last period
-              </p>
+              <p className="text-xs text-green-600 mt-1">0% vs last period</p>
             </div>
 
             {/* Customer Retention */}
@@ -842,23 +802,15 @@ const Dashboard: React.FC = () => {
                 <span className="text-sm font-medium text-gray-700">
                   Customer Retention
                 </span>
-                <span className="text-lg font-bold text-purple-600">
-                  {performanceMetrics?.customerRetention?.toFixed(0) || '0'}%
-                </span>
+                <span className="text-lg font-bold text-purple-600">0%</span>
               </div>
               <div className="w-full bg-purple-200 rounded-full h-2">
                 <div
                   className="bg-purple-500 h-2 rounded-full transition-all duration-500"
-                  style={{
-                    width: `${performanceMetrics?.customerRetention || 0}%`,
-                  }}
+                  style={{ width: '0%' }}
                 ></div>
               </div>
-              <p className="text-xs text-purple-600 mt-1">
-                {performanceMetrics?.customerRetentionTrend > 0 ? '+' : ''}
-                {performanceMetrics?.customerRetentionTrend?.toFixed(1) || '0'}%
-                vs last period
-              </p>
+              <p className="text-xs text-purple-600 mt-1">0% vs last period</p>
             </div>
 
             {/* Stock Alerts */}
@@ -867,17 +819,11 @@ const Dashboard: React.FC = () => {
                 <span className="text-sm font-medium text-gray-700">
                   Low Stock Items
                 </span>
-                <span className="text-lg font-bold text-orange-600">
-                  {performanceMetrics?.lowStockCount || 0}
-                </span>
+                <span className="text-lg font-bold text-orange-600">0</span>
               </div>
               <div className="flex items-center">
                 <AlertTriangle className="h-4 w-4 text-orange-500 mr-2" />
-                <p className="text-xs text-orange-600">
-                  {performanceMetrics?.lowStockCount > 0
-                    ? 'Requires attention'
-                    : 'All items in stock'}
-                </p>
+                <p className="text-xs text-orange-600">All items in stock</p>
               </div>
             </div>
           </div>

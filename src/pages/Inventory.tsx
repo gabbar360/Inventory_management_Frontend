@@ -15,7 +15,7 @@ import {
   clearAvailableStock,
 } from '@/slices/inventorySlice';
 import { fetchLocations } from '@/slices/locationSlice';
-import { StockBatch } from '@/types';
+import { StockBatch, StockSummary } from '@/types';
 import { formatCurrency, formatNumber } from '@/utils';
 import Button from '@/components/Button';
 import Select from '@/components/Select';

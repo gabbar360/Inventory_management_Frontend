@@ -67,7 +67,7 @@ const Pagination: React.FC<PaginationProps> = ({
           {getVisiblePages().map((page) => (
             <Button
               key={page}
-              variant={page === currentPage ? 'default' : 'outline'}
+              variant={page === currentPage ? 'primary' : 'outline'}
               size="sm"
               disabled={loading}
               onClick={() => onPageChange(page)}
