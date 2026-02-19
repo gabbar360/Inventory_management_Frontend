@@ -165,7 +165,7 @@ const Categories: React.FC = () => {
     {
       key: '_count.products',
       title: 'Products',
-      render: (value: any, record: Category) => record._count?.products || 0,
+      render: (_: any, record: Category) => record._count?.products || 0,
     },
     {
       key: 'createdAt',

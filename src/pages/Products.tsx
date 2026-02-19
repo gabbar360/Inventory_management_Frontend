@@ -14,7 +14,7 @@ import {
 } from '@/slices/productSlice';
 import { fetchCategories } from '@/slices/categorySlice';
 import { bulkUploadService } from '@/services/bulkUploadService';
-import { Product, Category } from '@/types';
+import { Product } from '@/types';
 import { formatDate, debounce } from '@/utils';
 import Button from '@/components/Button';
 import Input from '@/components/Input';

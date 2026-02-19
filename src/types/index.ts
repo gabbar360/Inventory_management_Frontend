@@ -20,8 +20,23 @@ export interface Category {
 export interface Product {
   id: string;
   name: string;
+  code: string;
   grade?: string;
   categoryId: string;
+  unit: string;
+  description?: string;
+  specifications?: string;
+  minStockLevel?: number;
+  maxStockLevel?: number;
+  reorderLevel?: number;
+  weight?: number;
+  dimensions?: string;
+  isPerishable?: boolean;
+  shelfLife?: number;
+  storageCondition?: string;
+  barcode?: string;
+  qrCode?: string;
+  isActive?: boolean;
   createdAt: string;
   updatedAt: string;
   category?: {
@@ -191,6 +206,17 @@ export interface TopCustomer {
   customerCode: string;
   totalOrders: number;
   totalRevenue: number;
+}
+
+export interface StockSummary {
+  productId: string;
+  productName: string;
+  categoryName: string;
+  totalBoxes: number;
+  totalPacks: number;
+  totalPcs: number;
+  stockValue: number;
+  lastInwardDate?: string;
 }
 
 export interface ApiResponse<T = any> {
