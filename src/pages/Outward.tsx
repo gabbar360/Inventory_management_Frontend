@@ -83,7 +83,7 @@ const outwardSchema = z.object({
 
 const Outward: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { invoices, currentInvoice, pagination, loading, error } =
+  const { invoices, pagination, loading, error } =
     useAppSelector((state) => state.outward);
   const { customers } = useAppSelector((state) => state.customers);
   const { locations } = useAppSelector((state) => state.locations);
