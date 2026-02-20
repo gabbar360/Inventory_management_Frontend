@@ -45,6 +45,7 @@ interface InwardInvoiceFormData {
   date: string;
   vendorId: string;
   locationId: string;
+  expense: number;
   items: {
     productId: string;
     boxes: number;
@@ -59,6 +60,7 @@ const inwardSchema = z.object({
   date: z.string().min(1, 'Date is required'),
   vendorId: z.union([z.string(), z.number()]).pipe(z.coerce.string().min(1, 'Vendor is required')),
   locationId: z.union([z.string(), z.number()]).pipe(z.coerce.string().min(1, 'Location is required')),
+  expense: z.number().min(0, 'Expense must be positive').default(0),
   items: z
     .array(
       z.object({
@@ -102,6 +104,7 @@ const Inward: React.FC = () => {
   } = useForm<InwardInvoiceFormData>({
     resolver: zodResolver(inwardSchema),
     defaultValues: {
+      expense: 0,
       items: [
         {
           productId: '',
@@ -157,6 +160,7 @@ const Inward: React.FC = () => {
       date: new Date().toISOString().split('T')[0],
       vendorId: '',
       locationId: '',
+      expense: 0,
       items: [
         {
           productId: '',
@@ -190,6 +194,7 @@ const Inward: React.FC = () => {
         date: fullInvoice.date.split('T')[0],
         vendorId: String(fullInvoice.vendorId),
         locationId: String(fullInvoice.locationId),
+        expense: fullInvoice.expense || 0,
         items: fullInvoice.items?.map((item) => ({
           productId: String(item.productId),
           boxes: item.boxes,
@@ -329,6 +334,11 @@ const Inward: React.FC = () => {
       render: (_: any, record: InwardInvoice) => record.location?.name,
     },
     {
+      key: 'expense',
+      title: 'Expense',
+      render: (value: number) => formatCurrency(value || 0),
+    },
+    {
       key: 'totalCost',
       title: 'Total Cost',
       render: (value: number) => formatCurrency(value),
@@ -449,6 +459,19 @@ const Inward: React.FC = () => {
               error={errors.locationId?.message}
               {...register('locationId')}
             />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Expense"
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="0.00"
+              error={errors.expense?.message}
+              {...register('expense', { valueAsNumber: true })}
+            />
+            <div></div>
           </div>
 
           {/* Items */}
@@ -680,6 +703,14 @@ const Inward: React.FC = () => {
                 </label>
                 <div className="text-gray-900">
                   {selectedInvoice.location?.name}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Expense
+                </label>
+                <div className="text-gray-900">
+                  {formatCurrency(selectedInvoice.expense || 0)}
                 </div>
               </div>
             </div>

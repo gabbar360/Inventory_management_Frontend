@@ -208,8 +208,8 @@ const Dashboard: React.FC = () => {
           </div>
 
           {/* KPI Cards Skeleton */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2 sm:gap-4 lg:gap-6 mb-6 lg:mb-8">
-            {[...Array(7)].map((_, i) => (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-9 gap-2 sm:gap-4 lg:gap-6 mb-6 lg:mb-8">
+            {[...Array(9)].map((_, i) => (
               <div
                 key={i}
                 className="h-24 sm:h-32 bg-gray-200 rounded-2xl"
@@ -363,15 +363,13 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-9 gap-6 mb-8">
         <KPICard
           title="Stock Value"
           value={formatCurrency(kpis?.totalStockValue || 0)}
           subtitle="Current inventory"
           icon={<Package />}
           color="bg-gradient-to-r from-blue-500 to-blue-600"
-          trend="up"
-          change={12.5}
         />
         <KPICard
           title="Revenue"
@@ -379,8 +377,6 @@ const Dashboard: React.FC = () => {
           subtitle="Total sales"
           icon={<DollarSign />}
           color="bg-gradient-to-r from-green-500 to-green-600"
-          trend="up"
-          change={8.3}
         />
         <KPICard
           title="Purchase"
@@ -388,8 +384,6 @@ const Dashboard: React.FC = () => {
           subtitle="Procurement"
           icon={<ShoppingCart />}
           color="bg-gradient-to-r from-orange-500 to-orange-600"
-          trend="neutral"
-          change={2.1}
         />
         <KPICard
           title="COGS"
@@ -397,17 +391,27 @@ const Dashboard: React.FC = () => {
           subtitle="Cost of goods"
           icon={<Target />}
           color="bg-gradient-to-r from-red-500 to-red-600"
-          trend="down"
-          change={3.2}
         />
         <KPICard
-          title="Expenses"
-          value={formatCurrency(kpis?.totalExpenses || 0)}
-          subtitle="Operating costs"
+          title="Inward Expense"
+          value={formatCurrency(kpis?.inwardExpenses || 0)}
+          subtitle="Purchase costs"
+          icon={<AlertTriangle />}
+          color="bg-gradient-to-r from-amber-500 to-amber-600"
+        />
+        <KPICard
+          title="Outward Expense"
+          value={formatCurrency(kpis?.outwardExpenses || 0)}
+          subtitle="Sales costs"
           icon={<AlertTriangle />}
           color="bg-gradient-to-r from-yellow-500 to-yellow-600"
-          trend="down"
-          change={1.8}
+        />
+        <KPICard
+          title="Total Expenses"
+          value={formatCurrency(kpis?.totalExpenses || 0)}
+          subtitle="All operating costs"
+          icon={<AlertTriangle />}
+          color="bg-gradient-to-r from-rose-500 to-rose-600"
         />
         <KPICard
           title="Gross Profit"
@@ -415,8 +419,6 @@ const Dashboard: React.FC = () => {
           subtitle="Revenue - COGS"
           icon={<TrendingUp />}
           color="bg-gradient-to-r from-purple-500 to-purple-600"
-          trend="up"
-          change={15.7}
         />
         <KPICard
           title="Net Profit"
@@ -424,8 +426,6 @@ const Dashboard: React.FC = () => {
           subtitle="Final profit"
           icon={<Activity />}
           color="bg-gradient-to-r from-indigo-500 to-indigo-600"
-          trend="up"
-          change={11.4}
         />
       </div>
 
