@@ -41,13 +41,12 @@ export function calculatePercentage(value: number, total: number): number {
 }
 
 export function debounce<T extends (...args: any[]) => any>(
-  func: T,
-  wait: number
+  func: T
 ): (...args: Parameters<T>) => void {
-  let timeout: ReturnType<typeof setTimeout>;
+  let timeout: ReturnType<typeof setTimeout> | null = null;
   return (...args: Parameters<T>) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
+    if (timeout) clearTimeout(timeout);
+    func(...args);
   };
 }
 

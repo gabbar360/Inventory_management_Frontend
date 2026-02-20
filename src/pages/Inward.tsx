@@ -57,12 +57,12 @@ interface InwardInvoiceFormData {
 const inwardSchema = z.object({
   invoiceNo: z.string().min(1, 'Invoice number is required'),
   date: z.string().min(1, 'Date is required'),
-  vendorId: z.string().min(1, 'Vendor is required'),
-  locationId: z.string().min(1, 'Location is required'),
+  vendorId: z.union([z.string(), z.number()]).pipe(z.coerce.string().min(1, 'Vendor is required')),
+  locationId: z.union([z.string(), z.number()]).pipe(z.coerce.string().min(1, 'Location is required')),
   items: z
     .array(
       z.object({
-        productId: z.string().min(1, 'Product is required'),
+        productId: z.union([z.string(), z.number()]).pipe(z.coerce.string().min(1, 'Product is required')),
         boxes: z.number().min(1, 'Boxes must be at least 1'),
         packPerBox: z.number().min(1, 'Pack per box must be at least 1'),
         packPerPiece: z.number().min(1, 'Pack per piece must be at least 1'),
@@ -134,21 +134,24 @@ const Inward: React.FC = () => {
   }, [error, dispatch]);
 
   const loadMasterData = async () => {
-    dispatch(fetchProducts({ limit: 100 }));
-    dispatch(fetchVendors({ limit: 100 }));
-    dispatch(fetchLocations({ limit: 100 }));
+    await Promise.all([
+      dispatch(fetchProducts({ limit: 1000 })),
+      dispatch(fetchVendors({ limit: 100 })),
+      dispatch(fetchLocations({ limit: 100 }))
+    ]);
   };
 
   const debouncedSearch = debounce((value: string) => {
     setSearch(value);
     setCurrentPage(1);
-  }, 300);
+  });
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     debouncedSearch(e.target.value);
   };
 
-  const openModal = () => {
+  const openModal = async () => {
+    await loadMasterData();
     reset({
       invoiceNo: generateInvoiceNumber('INW'),
       date: new Date().toISOString().split('T')[0],
@@ -175,36 +178,36 @@ const Inward: React.FC = () => {
 
   const editInvoice = async (invoice: InwardInvoice) => {
     try {
-      await dispatch(fetchInwardInvoiceById(invoice.id)).unwrap();
-      const fullInvoice = currentInvoice;
-      if (fullInvoice) {
-        setEditingInvoice(fullInvoice);
+      console.log('Editing invoice:', invoice);
+      const fullInvoice = await dispatch(fetchInwardInvoiceById(invoice.id)).unwrap();
+      console.log('Fetched full invoice:', fullInvoice);
+      
+      setEditingInvoice(fullInvoice);
 
-        // Populate form with existing data
-        reset({
-          invoiceNo: fullInvoice.invoiceNo,
-          date: fullInvoice.date.split('T')[0],
-          vendorId: fullInvoice.vendorId,
-          locationId: fullInvoice.locationId,
-          items: fullInvoice.items?.map((item) => ({
-            productId: item.productId,
-            boxes: item.boxes,
-            packPerBox: item.packPerBox || item.pcsPerBox, // fallback for existing data
-            packPerPiece: item.packPerPiece || 1, // fallback for existing data
-            ratePerBox: item.ratePerBox,
-          })) || [
-            {
-              productId: '',
-              boxes: 1,
-              packPerBox: 1,
-              packPerPiece: 1,
-              ratePerBox: 0,
-            },
-          ],
-        });
+      // Populate form with existing data
+      reset({
+        invoiceNo: fullInvoice.invoiceNo,
+        date: fullInvoice.date.split('T')[0],
+        vendorId: String(fullInvoice.vendorId),
+        locationId: String(fullInvoice.locationId),
+        items: fullInvoice.items?.map((item) => ({
+          productId: String(item.productId),
+          boxes: item.boxes,
+          packPerBox: item.packPerBox || item.pcsPerBox,
+          packPerPiece: item.packPerPiece || 1,
+          ratePerBox: item.ratePerBox,
+        })) || [
+          {
+            productId: '',
+            boxes: 1,
+            packPerBox: 1,
+            packPerPiece: 1,
+            ratePerBox: 0,
+          },
+        ],
+      });
 
-        setModalOpen(true);
-      }
+      setModalOpen(true);
     } catch (error) {
       console.error('Failed to load invoice for editing:', error);
     }
@@ -212,8 +215,11 @@ const Inward: React.FC = () => {
 
   const viewInvoice = async (invoice: InwardInvoice) => {
     try {
-      await dispatch(fetchInwardInvoiceById(invoice.id)).unwrap();
-      setSelectedInvoice(currentInvoice);
+      console.log('Viewing invoice:', invoice);
+      const result = await dispatch(fetchInwardInvoiceById(invoice.id)).unwrap();
+      console.log('Fetched invoice result:', result);
+      console.log('Current invoice from state:', currentInvoice);
+      setSelectedInvoice(result);
       setViewModalOpen(true);
     } catch (error) {
       console.error('Failed to load invoice details:', error);
@@ -249,11 +255,12 @@ const Inward: React.FC = () => {
   };
 
   const calculateItemTotal = (item: any) => {
-    const product = products.find((p) => p.id === item.productId);
-    if (!product) return 0;
+    const product = products.find((p) => String(p.id) === String(item.productId));
+    if (!product || !item.boxes || !item.ratePerBox) return 0;
 
     const baseAmount = item.boxes * item.ratePerBox;
-    const gstAmount = (baseAmount * (product.category?.gstRate || 0)) / 100;
+    const gstRate = product.category?.gstRate || 0;
+    const gstAmount = (baseAmount * gstRate) / 100;
     return baseAmount + gstAmount;
   };
 
@@ -469,7 +476,8 @@ const Inward: React.FC = () => {
 
             {fields.map((field, index) => {
               const item = watchedItems[index];
-              const product = products.find((p) => p.id === item?.productId);
+              const product = products.find((p) => String(p.id) === String(item?.productId));
+              
               const totalPacks = (item?.boxes || 0) * (item?.packPerBox || 0);
               const totalPcs = totalPacks * (item?.packPerPiece || 0);
               const ratePerPack =
@@ -513,8 +521,8 @@ const Inward: React.FC = () => {
                         Category & GST
                       </label>
                       <div className="text-xs sm:text-sm text-gray-600 bg-gray-50 p-2 rounded">
-                        {product
-                          ? `${product.category?.name} (${product.category?.gstRate}% GST)`
+                        {product && product.category
+                          ? `${product.category.name} (GST: ${product.category.gstRate}%)`
                           : 'Select product first'}
                       </div>
                     </div>
