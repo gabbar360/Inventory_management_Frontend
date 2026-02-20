@@ -115,6 +115,7 @@ export interface InwardInvoice {
   date: string;
   vendorId: string;
   locationId: string;
+  expense: number;
   totalCost: number;
   createdAt: string;
   updatedAt: string;
@@ -183,6 +184,8 @@ export interface DashboardKPIs {
   totalPurchase: number;
   totalCOGS: number;
   totalExpenses: number;
+  inwardExpenses: number;
+  outwardExpenses: number;
   grossProfit: number;
   netProfit: number;
 }
