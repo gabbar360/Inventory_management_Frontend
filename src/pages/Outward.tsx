@@ -170,7 +170,7 @@ const Outward: React.FC = () => {
   const debouncedSearch = debounce((value: string) => {
     setSearch(value);
     setCurrentPage(1);
-  }, 300);
+  });
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     debouncedSearch(e.target.value);
