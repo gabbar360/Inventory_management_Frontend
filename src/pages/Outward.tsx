@@ -207,13 +207,15 @@ const Outward: React.FC = () => {
 
   const editInvoice = async (invoice: OutwardInvoice) => {
     try {
-      await dispatch(fetchOutwardInvoiceById(invoice.id)).unwrap();
-      const fullInvoice = currentInvoice;
+      console.log('🔵 Edit Invoice - Starting for ID:', invoice.id);
+      const fullInvoice = await dispatch(fetchOutwardInvoiceById(invoice.id)).unwrap();
+      console.log('🟢 Edit Invoice - Fetched data:', fullInvoice);
+      
       if (fullInvoice) {
         setEditingInvoice(fullInvoice);
 
         // Populate form with existing data
-        reset({
+        const formData = {
           invoiceNo: fullInvoice.invoiceNo,
           date: fullInvoice.date.split('T')[0],
           customerId: fullInvoice.customerId,
@@ -235,7 +237,9 @@ const Outward: React.FC = () => {
               ratePerUnit: 0,
             },
           ],
-        });
+        };
+        console.log('🟡 Edit Invoice - Form data prepared:', formData);
+        reset(formData);
 
         // Load stock for existing items
         if (fullInvoice.items) {
@@ -245,19 +249,23 @@ const Outward: React.FC = () => {
         }
 
         setModalOpen(true);
+        console.log('✅ Edit Invoice - Modal opened with data');
       }
     } catch (error) {
-      console.error('Failed to load invoice for editing:', error);
+      console.error('❌ Edit Invoice - Failed to load:', error);
     }
   };
 
   const viewInvoice = async (invoice: OutwardInvoice) => {
     try {
-      await dispatch(fetchOutwardInvoiceById(invoice.id)).unwrap();
-      setSelectedInvoice(currentInvoice);
+      console.log('🔵 View Invoice - Starting for ID:', invoice.id);
+      const fullInvoice = await dispatch(fetchOutwardInvoiceById(invoice.id)).unwrap();
+      console.log('🟢 View Invoice - Fetched data:', fullInvoice);
+      setSelectedInvoice(fullInvoice);
       setViewModalOpen(true);
+      console.log('✅ View Invoice - Modal opened');
     } catch (error) {
-      console.error('Failed to load invoice details:', error);
+      console.error('❌ View Invoice - Failed to load:', error);
     }
   };
 
