@@ -252,69 +252,71 @@ const Inventory: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold text-gray-900">Inventory</h1>
-          {viewMode === 'batches' && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setViewMode('summary');
-                setSelectedProduct('');
-                dispatch(clearAvailableStock());
-              }}
-            >
-              ← Back to Summary
-            </Button>
-          )}
-        </div>
-        <div className="flex items-center space-x-4">
-          <div className="flex bg-gray-100 rounded-lg p-1">
-            <button
-              onClick={() => setViewMode('summary')}
-              className={`px-3 py-1 rounded-md text-sm transition-colors ${
-                viewMode === 'summary'
-                  ? 'bg-white shadow-sm text-blue-600'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Summary
-            </button>
-            <button
-              onClick={() => setViewMode('batches')}
-              className={`px-3 py-1 rounded-md text-sm transition-colors ${
-                viewMode === 'batches'
-                  ? 'bg-white shadow-sm text-blue-600'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-              disabled={!selectedProduct}
-            >
-              Batches
-            </button>
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Inventory</h1>
+            {viewMode === 'batches' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setViewMode('summary');
+                  setSelectedProduct('');
+                  dispatch(clearAvailableStock());
+                }}
+              >
+                ← Back to Summary
+              </Button>
+            )}
           </div>
-          <Select
-            value={selectedLocation}
-            onChange={(e) => setSelectedLocation(e.target.value)}
-            options={locationOptions}
-            className="w-48"
-          />
-          <Button onClick={loadData}>Refresh</Button>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('summary')}
+                className={`flex-1 sm:flex-none px-3 py-1 rounded-md text-sm transition-colors ${
+                  viewMode === 'summary'
+                    ? 'bg-white shadow-sm text-blue-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Summary
+              </button>
+              <button
+                onClick={() => setViewMode('batches')}
+                className={`flex-1 sm:flex-none px-3 py-1 rounded-md text-sm transition-colors ${
+                  viewMode === 'batches'
+                    ? 'bg-white shadow-sm text-blue-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+                disabled={!selectedProduct}
+              >
+                Batches
+              </button>
+            </div>
+            <Select
+              value={selectedLocation}
+              onChange={(e) => setSelectedLocation(e.target.value)}
+              options={locationOptions}
+              className="w-full sm:w-48"
+            />
+            <Button onClick={loadData} className="w-full sm:w-auto">Refresh</Button>
+          </div>
         </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="stat-card">
-          <div className="flex items-center">
-            <div className="flex-shrink-0 p-3 rounded-lg bg-blue-500">
-              <Package className="h-6 w-6 text-white" />
+          <div className="flex items-center min-w-0">
+            <div className="flex-shrink-0 p-2 sm:p-3 rounded-lg bg-blue-500">
+              <Package className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">
+            <div className="ml-3 sm:ml-4 min-w-0 flex-1">
+              <p className="text-xs sm:text-sm font-medium text-gray-600">
                 Total Products
               </p>
-              <p className="text-2xl font-semibold text-gray-900">
+              <p className="text-lg sm:text-2xl font-semibold text-gray-900 break-words">
                 {totalProducts}
               </p>
             </div>
@@ -322,13 +324,13 @@ const Inventory: React.FC = () => {
         </div>
 
         <div className="stat-card">
-          <div className="flex items-center">
-            <div className="flex-shrink-0 p-3 rounded-lg bg-green-500">
-              <TrendingUp className="h-6 w-6 text-white" />
+          <div className="flex items-center min-w-0">
+            <div className="flex-shrink-0 p-2 sm:p-3 rounded-lg bg-green-500">
+              <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Value</p>
-              <p className="text-2xl font-semibold text-gray-900">
+            <div className="ml-3 sm:ml-4 min-w-0 flex-1">
+              <p className="text-xs sm:text-sm font-medium text-gray-600">Total Value</p>
+              <p className="text-lg sm:text-2xl font-semibold text-gray-900 break-words">
                 {formatCurrency(totalStockValue)}
               </p>
             </div>
@@ -336,15 +338,15 @@ const Inventory: React.FC = () => {
         </div>
 
         <div className="stat-card">
-          <div className="flex items-center">
-            <div className="flex-shrink-0 p-3 rounded-lg bg-red-500">
-              <AlertTriangle className="h-6 w-6 text-white" />
+          <div className="flex items-center min-w-0">
+            <div className="flex-shrink-0 p-2 sm:p-3 rounded-lg bg-red-500">
+              <AlertTriangle className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">
+            <div className="ml-3 sm:ml-4 min-w-0 flex-1">
+              <p className="text-xs sm:text-sm font-medium text-gray-600">
                 Low Stock Items
               </p>
-              <p className="text-2xl font-semibold text-gray-900">
+              <p className="text-lg sm:text-2xl font-semibold text-gray-900 break-words">
                 {lowStockItems.length}
               </p>
             </div>
@@ -356,21 +358,23 @@ const Inventory: React.FC = () => {
       {viewMode === 'summary' && (
         <div className="card">
           <div className="card-header">
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900">
               Stock Summary
               {selectedLocation && (
-                <span className="ml-2 text-sm font-normal text-gray-500">
+                <span className="ml-2 text-xs sm:text-sm font-normal text-gray-500">
                   - {locations.find((l) => l.id === selectedLocation)?.name}
                 </span>
               )}
             </h3>
           </div>
-          <Table
+          <div className="overflow-x-auto">
+            <Table
             data={stockSummary}
             columns={summaryColumns}
             loading={loading}
             emptyMessage="No stock available"
           />
+          </div>
         </div>
       )}
 
@@ -378,32 +382,32 @@ const Inventory: React.FC = () => {
       {viewMode === 'batches' && (
         <>
           {/* Batch Statistics */}
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
             <div className="stat-card">
-              <div className="flex items-center">
-                <div className="flex-shrink-0 p-3 rounded-lg bg-blue-500">
-                  <Archive className="h-6 w-6 text-white" />
+              <div className="flex items-center min-w-0">
+                <div className="flex-shrink-0 p-2 sm:p-3 rounded-lg bg-blue-500">
+                  <Archive className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">
+                <div className="ml-3 sm:ml-4 min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">
                     Total Batches
                   </p>
-                  <p className="text-2xl font-semibold text-gray-900">
+                  <p className="text-lg sm:text-2xl font-semibold text-gray-900 break-words">
                     {availableStock.length}
                   </p>
                 </div>
               </div>
             </div>
             <div className="stat-card">
-              <div className="flex items-center">
-                <div className="flex-shrink-0 p-3 rounded-lg bg-green-500">
-                  <Package className="h-6 w-6 text-white" />
+              <div className="flex items-center min-w-0">
+                <div className="flex-shrink-0 p-2 sm:p-3 rounded-lg bg-green-500">
+                  <Package className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">
+                <div className="ml-3 sm:ml-4 min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">
                     Total Boxes
                   </p>
-                  <p className="text-2xl font-semibold text-gray-900">
+                  <p className="text-lg sm:text-2xl font-semibold text-gray-900 break-words">
                     {formatNumber(
                       availableStock.reduce(
                         (sum, batch) => sum + batch.remainingBoxes,
@@ -415,15 +419,15 @@ const Inventory: React.FC = () => {
               </div>
             </div>
             <div className="stat-card">
-              <div className="flex items-center">
-                <div className="flex-shrink-0 p-3 rounded-lg bg-purple-500">
-                  <Package className="h-6 w-6 text-white" />
+              <div className="flex items-center min-w-0">
+                <div className="flex-shrink-0 p-2 sm:p-3 rounded-lg bg-purple-500">
+                  <Package className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">
+                <div className="ml-3 sm:ml-4 min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">
                     Total Packs
                   </p>
-                  <p className="text-2xl font-semibold text-gray-900">
+                  <p className="text-lg sm:text-2xl font-semibold text-gray-900 break-words">
                     {formatNumber(
                       availableStock.reduce(
                         (sum, batch) => sum + (batch.remainingPacks || 0),
@@ -435,15 +439,15 @@ const Inventory: React.FC = () => {
               </div>
             </div>
             <div className="stat-card">
-              <div className="flex items-center">
-                <div className="flex-shrink-0 p-3 rounded-lg bg-indigo-500">
-                  <Package className="h-6 w-6 text-white" />
+              <div className="flex items-center min-w-0">
+                <div className="flex-shrink-0 p-2 sm:p-3 rounded-lg bg-indigo-500">
+                  <Package className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">
+                <div className="ml-3 sm:ml-4 min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">
                     Total Pieces
                   </p>
-                  <p className="text-2xl font-semibold text-gray-900">
+                  <p className="text-lg sm:text-2xl font-semibold text-gray-900 break-words">
                     {formatNumber(
                       availableStock.reduce(
                         (sum, batch) => sum + batch.remainingPcs,
@@ -455,15 +459,15 @@ const Inventory: React.FC = () => {
               </div>
             </div>
             <div className="stat-card">
-              <div className="flex items-center">
-                <div className="flex-shrink-0 p-3 rounded-lg bg-orange-500">
-                  <TrendingUp className="h-6 w-6 text-white" />
+              <div className="flex items-center min-w-0">
+                <div className="flex-shrink-0 p-2 sm:p-3 rounded-lg bg-orange-500">
+                  <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">
+                <div className="ml-3 sm:ml-4 min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">
                     Total Value
                   </p>
-                  <p className="text-2xl font-semibold text-gray-900">
+                  <p className="text-lg sm:text-2xl font-semibold text-gray-900 break-words">
                     {formatCurrency(
                       availableStock.reduce((sum, batch) => {
                         const batchValue =
@@ -479,12 +483,12 @@ const Inventory: React.FC = () => {
 
           <div className="card">
             <div className="card-header">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900">
                     Stock Batches
                     {selectedProduct && (
-                      <span className="ml-2 text-sm font-normal text-gray-500">
+                      <span className="ml-2 text-xs sm:text-sm font-normal text-gray-500">
                         -{' '}
                         {
                           stockSummary.find(
@@ -494,19 +498,20 @@ const Inventory: React.FC = () => {
                       </span>
                     )}
                   </h3>
-                  <p className="text-sm text-gray-600 mt-1">
+                  <p className="text-xs sm:text-sm text-gray-600 mt-1">
                     Showing batch-wise inventory details (FIFO order)
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Archive className="w-5 h-5 text-gray-400" />
-                  <span className="text-sm text-gray-600">
+                  <Archive className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+                  <span className="text-xs sm:text-sm text-gray-600">
                     {availableStock.length} batches
                   </span>
                 </div>
               </div>
             </div>
-            <Table
+            <div className="overflow-x-auto">
+              <Table
               data={availableStock.slice(
                 (currentPage - 1) * itemsPerPage,
                 currentPage * itemsPerPage
@@ -515,6 +520,7 @@ const Inventory: React.FC = () => {
               loading={loading}
               emptyMessage="No batches available for this product"
             />
+            </div>
             {availableStock.length > itemsPerPage && (
               <div className="card-footer">
                 <Pagination
@@ -535,8 +541,8 @@ const Inventory: React.FC = () => {
         <div className="card border-red-200">
           <div className="card-header bg-red-50">
             <div className="flex items-center">
-              <AlertTriangle className="h-5 w-5 text-red-600 mr-2" />
-              <h3 className="text-lg font-semibold text-red-900">
+              <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-red-600 mr-2" />
+              <h3 className="text-base sm:text-lg font-semibold text-red-900">
                 Low Stock Alert ({lowStockItems.length} items)
               </h3>
             </div>
@@ -546,18 +552,18 @@ const Inventory: React.FC = () => {
               {lowStockItems.slice(0, 5).map((item, index) => (
                 <div
                   key={index}
-                  className="flex items-center justify-between py-2 border-b border-gray-200 last:border-0"
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 py-2 border-b border-gray-200 last:border-0"
                 >
-                  <div>
-                    <span className="font-medium text-gray-900">
+                  <div className="min-w-0">
+                    <span className="font-medium text-gray-900 text-sm sm:text-base">
                       {item.productName}
                     </span>
-                    <span className="ml-2 text-sm text-gray-500">
+                    <span className="ml-2 text-xs sm:text-sm text-gray-500">
                       ({item.categoryName})
                     </span>
                   </div>
-                  <div className="text-right">
-                    <div className="text-sm font-medium text-red-600">
+                  <div className="text-left sm:text-right flex-shrink-0">
+                    <div className="text-xs sm:text-sm font-medium text-red-600">
                       {formatNumber(item.totalPcs)} pieces remaining
                     </div>
                     <div className="text-xs text-gray-500">
