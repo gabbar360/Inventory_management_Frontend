@@ -9,15 +9,12 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 });
 
-// Request interceptor to add auth token
+// Request interceptor
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
     return config;
   },
   (error) => {
@@ -32,13 +29,17 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      // Don't redirect on /auth/me failure
+      if (!error.config?.url?.includes('/auth/me')) {
+        window.location.href = '/login';
+      }
     }
 
-    const message = error.response?.data?.error || 'An error occurred';
-    toast.error(message);
+    // Don't show toast for /auth/me failures
+    if (!error.config?.url?.includes('/auth/me')) {
+      const message = error.response?.data?.error || 'An error occurred';
+      toast.error(message);
+    }
 
     return Promise.reject(error);
   }

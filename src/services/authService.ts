@@ -14,7 +14,6 @@ export interface RegisterData {
 
 export interface AuthResponse {
   user: User;
-  token: string;
 }
 
 export const authService = {
@@ -32,5 +31,14 @@ export const authService = {
       data
     );
     return response.data.data!;
+  },
+
+  async logout(): Promise<void> {
+    await api.post('/auth/logout');
+  },
+
+  async getCurrentUser(): Promise<User> {
+    const response = await api.get<ApiResponse<{ user: User }>>('/auth/me');
+    return response.data.data!.user;
   },
 };
