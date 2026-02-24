@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -81,6 +81,15 @@ const Login: React.FC = () => {
                 {showPassword ? <AiOutlineEyeInvisible size={20} /> : <AiOutlineEye size={20} />}
               </button>
             </div>
+          </div>
+
+          <div className="flex items-center justify-end">
+            <Link
+              to="/forgot-password"
+              className="text-sm font-medium text-primary-600 hover:text-primary-500"
+            >
+              Forgot your password?
+            </Link>
           </div>
 
           <div>
