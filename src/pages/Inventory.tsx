@@ -250,57 +250,59 @@ const Inventory: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Inventory</h1>
-            {viewMode === 'batches' && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setViewMode('summary');
-                  setSelectedProduct('');
-                  dispatch(clearAvailableStock());
-                }}
-              >
-                ← Back to Summary
-              </Button>
-            )}
-          </div>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-            <div className="flex bg-gray-100 rounded-lg p-1">
-              <button
-                onClick={() => setViewMode('summary')}
-                className={`flex-1 sm:flex-none px-3 py-1 rounded-md text-sm transition-colors ${
-                  viewMode === 'summary'
-                    ? 'bg-white shadow-sm text-blue-600'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Summary
-              </button>
-              <button
-                onClick={() => setViewMode('batches')}
-                className={`flex-1 sm:flex-none px-3 py-1 rounded-md text-sm transition-colors ${
-                  viewMode === 'batches'
-                    ? 'bg-white shadow-sm text-blue-600'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-                disabled={!selectedProduct}
-              >
-                Batches
-              </button>
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold text-gray-900">Inventory</h1>
+              {viewMode === 'batches' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setViewMode('summary');
+                    setSelectedProduct('');
+                    dispatch(clearAvailableStock());
+                  }}
+                >
+                  ← Back to Summary
+                </Button>
+              )}
             </div>
-            <Select
-              value={selectedLocation}
-              onChange={(e) => setSelectedLocation(e.target.value)}
-              options={locationOptions}
-              className="w-full sm:w-48"
-            />
-            <Button onClick={loadData} className="w-full sm:w-auto">Refresh</Button>
+            <div className="flex items-center gap-2">
+              <div className="flex bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setViewMode('summary')}
+                  className={`px-3 py-1 rounded-md text-sm transition-colors ${
+                    viewMode === 'summary'
+                      ? 'bg-white shadow-sm text-blue-600'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Summary
+                </button>
+                <button
+                  onClick={() => setViewMode('batches')}
+                  className={`px-3 py-1 rounded-md text-sm transition-colors ${
+                    viewMode === 'batches'
+                      ? 'bg-white shadow-sm text-blue-600'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                  disabled={!selectedProduct}
+                >
+                  Batches
+                </button>
+              </div>
+              <Select
+                value={selectedLocation}
+                onChange={(e) => setSelectedLocation(e.target.value)}
+                options={locationOptions}
+                className="w-full sm:w-48"
+              />
+              <Button onClick={loadData} className="w-full sm:w-auto">Refresh</Button>
+            </div>
           </div>
         </div>
       </div>

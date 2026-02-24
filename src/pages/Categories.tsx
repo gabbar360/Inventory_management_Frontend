@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Edit, Trash2, Search, Upload, Download } from 'lucide-react';
+import { Plus, Edit, Trash2, Upload, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
@@ -21,6 +21,7 @@ import Modal from '@/components/Modal';
 import Table from '@/components/Table';
 import BulkUpload from '@/components/BulkUpload';
 import Pagination from '@/components/Pagination';
+import PageHeader from '@/components/PageHeader';
 
 interface CategoryFormData {
   name: string;
@@ -71,10 +72,6 @@ const Categories: React.FC = () => {
     setSearch(value);
     setCurrentPage(1);
   });
-
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    debouncedSearch(e.target.value);
-  };
 
   const openModal = (category?: Category) => {
     if (category) {
@@ -194,40 +191,32 @@ const Categories: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold text-gray-900">Categories</h1>
-        <div className="flex flex-wrap gap-2 sm:gap-3">
-          <Button variant="outline" onClick={() => setBulkUploadOpen(true)} className="flex-1 sm:flex-none">
-            <Upload className="mr-2 h-4 w-4" />
-            <span className="hidden sm:inline">Bulk Upload</span>
-            <span className="sm:hidden">Upload</span>
-          </Button>
-          <Button variant="outline" onClick={handleExport} className="flex-1 sm:flex-none">
-            <Download className="mr-2 h-4 w-4" />
-            Export
-          </Button>
-          <Button onClick={() => openModal()} className="flex-1 sm:flex-none">
-            <Plus className="mr-2 h-4 w-4" />
-            <span className="hidden sm:inline">Add Category</span>
-            <span className="sm:hidden">Add</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* Search */}
-      <div className="flex items-center">
-        <div className="relative w-full sm:max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search categories..."
-            className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            onChange={handleSearch}
-          />
-        </div>
-      </div>
+    <div className="space-y-4">
+      <PageHeader
+        title="Categories"
+        searchPlaceholder="Search categories..."
+        onSearch={(value) => {
+          debouncedSearch(value);
+        }}
+        actions={[
+          {
+            label: 'Bulk Upload',
+            icon: <Upload className="h-4 w-4" />,
+            onClick: () => setBulkUploadOpen(true),
+          },
+          {
+            label: 'Export',
+            icon: <Download className="h-4 w-4" />,
+            onClick: handleExport,
+          },
+          {
+            label: 'Add Category',
+            icon: <Plus className="h-4 w-4" />,
+            onClick: () => openModal(),
+            variant: 'primary' as const,
+          },
+        ]}
+      />
 
       {/* Table */}
       <div className="card overflow-x-auto">

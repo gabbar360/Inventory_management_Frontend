@@ -4,6 +4,8 @@ import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { checkAuth } from '@/slices/authSlice';
 import Layout from '@/components/Layout';
 import Login from '@/pages/Login';
+import ForgotPassword from '@/pages/ForgotPassword';
+import ResetPassword from '@/pages/ResetPassword';
 import Dashboard from '@/pages/Dashboard';
 import Categories from '@/pages/Categories';
 import Products from '@/pages/Products';
@@ -56,6 +58,15 @@ function App() {
           </PublicRoute>
         }
       />
+      <Route
+        path="/forgot-password"
+        element={
+          <PublicRoute>
+            <ForgotPassword />
+          </PublicRoute>
+        }
+      />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route
         path="/"
         element={

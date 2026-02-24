@@ -64,44 +64,46 @@ const KPICard: React.FC<KPICardProps> = ({
   trend,
   subtitle,
 }) => (
-  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow overflow-hidden">
+  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow overflow-hidden">
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-start justify-between mb-2">
         <div
-          className={`w-12 h-12 rounded-lg ${color} flex items-center justify-center flex-shrink-0`}
+          className={`w-8 h-8 rounded-lg ${color} flex items-center justify-center flex-shrink-0`}
         >
           {React.cloneElement(icon as React.ReactElement, {
-            className: 'h-6 w-6 text-white',
+            className: 'h-4 w-4 text-white',
           })}
         </div>
-        {change !== undefined && (
-          <div className="flex items-center flex-shrink-0">
-            {trend === 'up' ? (
-              <ArrowUpRight className="h-4 w-4 text-green-500 mr-1" />
-            ) : trend === 'down' ? (
-              <ArrowDownRight className="h-4 w-4 text-red-500 mr-1" />
-            ) : (
-              <Activity className="h-4 w-4 text-gray-500 mr-1" />
-            )}
-            <span
-              className={`text-sm font-semibold ${
-                trend === 'up'
-                  ? 'text-green-600'
-                  : trend === 'down'
-                    ? 'text-red-600'
-                    : 'text-gray-600'
-              }`}
-            >
-              {change}%
-            </span>
-          </div>
-        )}
+        <div className="text-right flex-1 ml-2">
+          <p className="text-xs font-medium text-gray-500 truncate">
+            {title}
+          </p>
+          {change !== undefined && (
+            <div className="flex items-center justify-end mt-1">
+              {trend === 'up' ? (
+                <ArrowUpRight className="h-3 w-3 text-green-500 mr-1" />
+              ) : trend === 'down' ? (
+                <ArrowDownRight className="h-3 w-3 text-red-500 mr-1" />
+              ) : (
+                <Activity className="h-3 w-3 text-gray-500 mr-1" />
+              )}
+              <span
+                className={`text-xs font-semibold ${
+                  trend === 'up'
+                    ? 'text-green-600'
+                    : trend === 'down'
+                      ? 'text-red-600'
+                      : 'text-gray-600'
+                }`}
+              >
+                {change}%
+              </span>
+            </div>
+          )}
+        </div>
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-500 mb-1 truncate">
-          {title}
-        </p>
-        <p className="text-xl font-bold text-gray-900 mb-1 break-words leading-tight">
+        <p className="text-base font-bold text-gray-900 mb-0.5 break-words leading-tight">
           {value}
         </p>
         {subtitle && (
@@ -190,44 +192,38 @@ const Dashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-2 sm:p-4 lg:p-6">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-3 sm:p-4 lg:p-6">
         <div className="animate-pulse">
           {/* Header Skeleton */}
-          <div className="mb-6 lg:mb-8">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4">
-              <div className="flex-1">
-                <div className="h-6 sm:h-8 lg:h-10 bg-gray-200 rounded w-64 mb-2"></div>
-                <div className="h-4 bg-gray-200 rounded w-96"></div>
-              </div>
-              <div className="flex gap-2">
-                <div className="h-8 w-20 bg-gray-200 rounded"></div>
-                <div className="h-8 w-20 bg-gray-200 rounded"></div>
-                <div className="h-8 w-32 bg-gray-200 rounded"></div>
+          <div className="mb-4 sm:mb-6">
+            <div className="flex flex-col gap-3 mb-4">
+              <div className="h-8 sm:h-10 bg-gray-200 rounded w-48 sm:w-64"></div>
+              <div className="flex flex-wrap gap-2">
+                <div className="h-8 w-16 sm:w-20 bg-gray-200 rounded"></div>
+                <div className="h-8 w-16 sm:w-20 bg-gray-200 rounded"></div>
+                <div className="h-8 w-24 sm:w-32 bg-gray-200 rounded"></div>
               </div>
             </div>
           </div>
 
           {/* KPI Cards Skeleton */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-9 gap-2 sm:gap-4 lg:gap-6 mb-6 lg:mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-9 gap-3 sm:gap-4 mb-4 sm:mb-6">
             {[...Array(9)].map((_, i) => (
-              <div
-                key={i}
-                className="h-24 sm:h-32 bg-gray-200 rounded-2xl"
-              ></div>
+              <div key={i} className="h-32 bg-gray-200 rounded-xl"></div>
             ))}
           </div>
 
           {/* Charts Skeleton */}
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6 mb-6 lg:mb-8">
-            <div className="xl:col-span-2 h-80 bg-gray-200 rounded-2xl"></div>
-            <div className="h-80 bg-gray-200 rounded-2xl"></div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4 sm:mb-6">
+            <div className="lg:col-span-2 h-64 sm:h-80 bg-gray-200 rounded-xl"></div>
+            <div className="h-64 sm:h-80 bg-gray-200 rounded-xl"></div>
           </div>
 
           {/* Bottom Grid Skeleton */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
-            <div className="h-80 bg-gray-200 rounded-2xl"></div>
-            <div className="h-80 bg-gray-200 rounded-2xl"></div>
-            <div className="h-80 bg-gray-200 rounded-2xl"></div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="h-64 sm:h-80 bg-gray-200 rounded-xl"></div>
+            <div className="h-64 sm:h-80 bg-gray-200 rounded-xl"></div>
+            <div className="h-64 sm:h-80 bg-gray-200 rounded-xl"></div>
           </div>
         </div>
       </div>
@@ -235,18 +231,15 @@ const Dashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-2 sm:p-4 lg:p-6">
-      {/* Advanced Header */}
-      <div className="mb-4 sm:mb-6 lg:mb-8">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4">
-          <div className="flex-1">
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-1">
-              Analytics Dashboard
-            </h1>
-          </div>
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="card p-4">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <h1 className="text-2xl font-bold text-gray-900">
+            Analytics Dashboard
+          </h1>
 
-          {/* Action Buttons */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -254,7 +247,7 @@ const Dashboard: React.FC = () => {
               className="flex items-center gap-2"
             >
               <Filter className="h-4 w-4" />
-              <span className="hidden sm:inline">Filters</span>
+              Filters
             </Button>
 
             <Button
@@ -267,17 +260,17 @@ const Dashboard: React.FC = () => {
               <RefreshCw
                 className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`}
               />
-              <span className="hidden sm:inline">Refresh</span>
+              Refresh
             </Button>
 
-            <div className="flex bg-white rounded-lg p-1 shadow-sm border">
+            <div className="flex bg-gray-100 rounded-lg p-1">
               {(['week', 'month', 'year'] as const).map((p) => (
                 <Button
                   key={p}
                   variant={period === p ? 'primary' : 'ghost'}
                   size="sm"
                   onClick={() => setPeriod(p)}
-                  className={`text-xs sm:text-sm ${period === p ? 'shadow-sm' : ''}`}
+                  className={`${period === p ? 'shadow-sm' : ''}`}
                 >
                   {p.charAt(0).toUpperCase() + p.slice(1)}
                 </Button>
@@ -285,10 +278,11 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Advanced Filters Panel */}
-        {showFilters && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 mb-6 animate-in slide-in-from-top duration-200">
+      {/* Advanced Filters Panel */}
+      {showFilters && (
+        <div className="card p-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900 mb-2 sm:mb-0">
                 Advanced Filters
@@ -303,7 +297,7 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
               <Select
                 label="Location"
                 value={filters.location}
@@ -358,12 +352,11 @@ const Dashboard: React.FC = () => {
                 }
               />
             </div>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-9 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-9 gap-4">
         <KPICard
           title="Stock Value"
           value={formatCurrency(kpis?.totalStockValue || 0)}
@@ -430,10 +423,10 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Enhanced Revenue Chart */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6">
+        <div className="lg:col-span-2 card p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-1">
                 Revenue Analytics
@@ -478,7 +471,7 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={250}>
             {chartType === 'area' ? (
               <AreaChart data={revenueChart}>
                 <defs>
@@ -556,8 +549,8 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Enhanced Profit Breakdown */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
-          <div className="flex items-center justify-between mb-4 sm:mb-6">
+        <div className="card p-4">
+          <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-1">
                 Profit Analysis
@@ -643,10 +636,10 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Advanced Analytics Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
         {/* Enhanced Top Products */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
-          <div className="flex items-center justify-between mb-4 sm:mb-6">
+        <div className="card p-4">
+          <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-1">
                 Top Products
@@ -660,7 +653,7 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          <ResponsiveContainer width="100%" height={250}>
+          <ResponsiveContainer width="100%" height={200}>
             <BarChart data={topProducts.slice(0, 5)} layout="horizontal">
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
               <XAxis type="number" stroke="#64748b" fontSize={11} />
@@ -692,8 +685,8 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Enhanced Top Customers */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
-          <div className="flex items-center justify-between mb-4 sm:mb-6">
+        <div className="card p-4">
+          <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-1">
                 Top Customers
@@ -745,8 +738,8 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* New Performance Metrics */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
-          <div className="flex items-center justify-between mb-4 sm:mb-6">
+        <div className="card p-4">
+          <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-1">
                 Performance

@@ -3,6 +3,7 @@ import {
   authService,
   LoginCredentials,
   RegisterData,
+  UpdateProfileData,
 } from '@/services/authService';
 import { User } from '@/types';
 
@@ -46,6 +47,28 @@ export const checkAuth = createAsyncThunk('auth/checkAuth', async () => {
   const user = await authService.getCurrentUser();
   return user;
 });
+
+export const updateProfile = createAsyncThunk(
+  'auth/updateProfile',
+  async (data: UpdateProfileData) => {
+    const user = await authService.updateProfile(data);
+    return user;
+  }
+);
+
+export const forgotPassword = createAsyncThunk(
+  'auth/forgotPassword',
+  async (email: string) => {
+    await authService.forgotPassword(email);
+  }
+);
+
+export const resetPassword = createAsyncThunk(
+  'auth/resetPassword',
+  async ({ token, newPassword }: { token: string; newPassword: string }) => {
+    await authService.resetPassword(token, newPassword);
+  }
+);
 
 const authSlice = createSlice({
   name: 'auth',
@@ -102,6 +125,40 @@ const authSlice = createSlice({
         state.user = null;
         state.isAuthenticated = false;
         state.loading = false;
+      })
+      .addCase(updateProfile.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateProfile.fulfilled, (state, action) => {
+        state.loading = false;
+        state.user = action.payload;
+      })
+      .addCase(updateProfile.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Profile update failed';
+      })
+      .addCase(forgotPassword.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(forgotPassword.fulfilled, (state) => {
+        state.loading = false;
+      })
+      .addCase(forgotPassword.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to send reset email';
+      })
+      .addCase(resetPassword.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(resetPassword.fulfilled, (state) => {
+        state.loading = false;
+      })
+      .addCase(resetPassword.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to reset password';
       });
   },
 });
