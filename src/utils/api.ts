@@ -29,19 +29,17 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      // Don't redirect on /auth/me failure
-      if (!error.config?.url?.includes('/auth/me')) {
+      // Don't redirect on /auth/me or /auth/login failure
+      if (!error.config?.url?.includes('/auth/me') && !error.config?.url?.includes('/auth/login')) {
         window.location.href = '/login';
       }
     }
 
-    // Don't show toast for /auth/me failures
-    if (!error.config?.url?.includes('/auth/me')) {
-      const message = error.response?.data?.error || 'An error occurred';
-      toast.error(message);
-    }
-
-    return Promise.reject(error);
+    // Extract error message from response
+    const errorMessage = error.response?.data?.error || error.response?.data?.message || 'An error occurred';
+    
+    // Return error with message for handling in components
+    return Promise.reject(errorMessage);
   }
 );
 

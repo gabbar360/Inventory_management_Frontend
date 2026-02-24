@@ -36,8 +36,9 @@ const Login: React.FC = () => {
       await dispatch(loginUser(data)).unwrap();
       toast.success('Login successful!');
       navigate('/dashboard');
-    } catch (error) {
-      // Error is handled by Redux
+    } catch (error: any) {
+      const errorMessage = error?.message || error || 'Invalid email or password';
+      toast.error(errorMessage);
     }
   };
 
