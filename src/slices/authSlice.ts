@@ -25,9 +25,13 @@ const initialState: AuthState = {
 
 export const loginUser = createAsyncThunk(
   'auth/login',
-  async (credentials: LoginCredentials) => {
-    const response = await authService.login(credentials);
-    return response;
+  async (credentials: LoginCredentials, { rejectWithValue }) => {
+    try {
+      const response = await authService.login(credentials);
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(error);
+    }
   }
 );
 
@@ -92,7 +96,9 @@ const authSlice = createSlice({
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message || 'Login failed';
+        state.error = action.payload as string || 'Login failed';
+        state.isAuthenticated = false;
+        state.user = null;
       })
       .addCase(registerUser.pending, (state) => {
         state.loading = true;

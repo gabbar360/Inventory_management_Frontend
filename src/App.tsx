@@ -34,10 +34,13 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 function App() {
   const dispatch = useAppDispatch();
-  const { loading } = useAppSelector((state) => state.auth);
+  const { loading, isAuthenticated } = useAppSelector((state) => state.auth);
 
   useEffect(() => {
-    dispatch(checkAuth());
+    // Only check auth on initial load
+    if (!isAuthenticated) {
+      dispatch(checkAuth());
+    }
   }, [dispatch]);
 
   if (loading) {
