@@ -35,15 +35,16 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 function App() {
   const dispatch = useAppDispatch();
   const { loading, isAuthenticated } = useAppSelector((state) => state.auth);
+  const [authChecked, setAuthChecked] = React.useState(false);
 
   useEffect(() => {
-    // Only check auth on initial load
-    if (!isAuthenticated) {
-      dispatch(checkAuth());
+    // Only check auth once on initial load
+    if (!authChecked) {
+      dispatch(checkAuth()).finally(() => setAuthChecked(true));
     }
-  }, [dispatch]);
+  }, [dispatch, authChecked]);
 
-  if (loading) {
+  if (loading && !authChecked) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-lg">Loading...</div>
