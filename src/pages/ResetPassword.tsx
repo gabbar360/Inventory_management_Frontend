@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { Lock, Eye, EyeOff } from 'lucide-react';
 import { HiOutlineLockClosed } from 'react-icons/hi';
 import { AiOutlineEye, AiOutlineEyeInvisible } from 'react-icons/ai';
 import { useForm } from 'react-hook-form';
@@ -8,8 +7,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { resetPassword } from '@/slices/authSlice';
-import Button from '@/components/Button';
-import Input from '@/components/Input';
 import toast from 'react-hot-toast';
 
 const resetPasswordSchema = z.object({
@@ -65,7 +62,9 @@ const ResetPassword: React.FC = () => {
             This password reset link is invalid or has expired.
           </p>
           <Link to="/forgot-password">
-            <Button className="w-full">Request New Link</Button>
+            <button className="w-full flex justify-center items-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors">
+              Request New Link
+            </button>
           </Link>
         </div>
       </div>

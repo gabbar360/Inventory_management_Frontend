@@ -7,8 +7,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { forgotPassword } from '@/slices/authSlice';
-import Button from '@/components/Button';
-import Input from '@/components/Input';
 import toast from 'react-hot-toast';
 
 const emailSchema = z.object({

@@ -22,4 +22,4 @@ jobs:
             git reset --hard origin/main
             npm install --legacy-peer-deps
             npm run build
-            sudo systemctl reload nginx
+            systemctl reload nginx

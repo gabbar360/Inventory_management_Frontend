@@ -8,8 +8,6 @@ import { AiOutlineEye, AiOutlineEyeInvisible } from 'react-icons/ai';
 import { HiOutlineMail, HiOutlineLockClosed } from 'react-icons/hi';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { loginUser } from '@/slices/authSlice';
-import Button from '@/components/Button';
-import Input from '@/components/Input';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
