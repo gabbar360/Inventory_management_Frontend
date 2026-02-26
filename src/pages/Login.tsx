@@ -50,7 +50,7 @@ const Login: React.FC = () => {
               Inventory Management 
             </h2>
             <p className="mt-2 text-sm text-gray-600">
-              Sign in to your account
+              Sign in to your account...............
             </p>
           </div>
 
