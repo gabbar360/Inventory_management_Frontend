@@ -21,5 +21,6 @@ jobs:
             git fetch origin
             git reset --hard origin/main
             npm install --legacy-peer-deps
+            rm -rf dist
             npm run build
             systemctl reload nginx
