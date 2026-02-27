@@ -52,21 +52,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
     }
   };
 
-  const handleLogoutAll = async () => {
-    try {
-      await dispatch(logoutAllDevices()).unwrap();
-      // Force clear cookies and state
-      document.cookie = 'accessToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-      document.cookie = 'refreshToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-      toast.success('Logged out from all devices');
-      navigate('/login');
-    } catch (error) {
-      // Even on error, clear local state and redirect
-      document.cookie = 'accessToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-      document.cookie = 'refreshToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-      toast.success('Logged out from all devices');
-      navigate('/login');
-    }
+  const handleLogoutAll = () => {
+    // Immediately clear cookies and redirect (don't wait for API)
+    document.cookie = 'accessToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    document.cookie = 'refreshToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    toast.success('Logged out from all devices');
+    
+    // Call API in background (fire and forget)
+    dispatch(logoutAllDevices());
+    
+    // Immediate redirect
+    navigate('/login');
   };
 
   const handleLinkClick = () => {
