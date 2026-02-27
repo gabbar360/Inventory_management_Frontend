@@ -55,10 +55,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
   const handleLogoutAll = async () => {
     try {
       await dispatch(logoutAllDevices()).unwrap();
+      // Force clear cookies and state
+      document.cookie = 'accessToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+      document.cookie = 'refreshToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
       toast.success('Logged out from all devices');
       navigate('/login');
     } catch (error) {
-      toast.error('Logout failed');
+      // Even on error, clear local state and redirect
+      document.cookie = 'accessToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+      document.cookie = 'refreshToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+      toast.success('Logged out from all devices');
+      navigate('/login');
     }
   };
 
