@@ -38,7 +38,7 @@ function App() {
   const [authChecked, setAuthChecked] = React.useState(false);
 
   useEffect(() => {
-    // Only check auth once on initial load
+    // Check auth on initial load using /auth/me
     if (!authChecked) {
       dispatch(checkAuth()).finally(() => setAuthChecked(true));
     }

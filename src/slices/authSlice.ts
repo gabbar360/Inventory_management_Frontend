@@ -47,6 +47,10 @@ export const logoutUser = createAsyncThunk('auth/logout', async () => {
   await authService.logout();
 });
 
+export const logoutAllDevices = createAsyncThunk('auth/logoutAll', async () => {
+  await authService.logoutAllDevices();
+});
+
 export const checkAuth = createAsyncThunk('auth/checkAuth', async () => {
   const user = await authService.getCurrentUser();
   return user;
@@ -73,6 +77,22 @@ export const resetPassword = createAsyncThunk(
     await authService.resetPassword(token, newPassword);
   }
 );
+
+export const refreshToken = createAsyncThunk(
+  'auth/refreshToken',
+  async (_, { rejectWithValue }) => {
+    try {
+      await authService.refreshToken();
+    } catch (error: any) {
+      return rejectWithValue(error);
+    }
+  }
+);
+
+export const verifyToken = createAsyncThunk('auth/verifyToken', async () => {
+  const result = await authService.verifyToken();
+  return result.user;
+});
 
 const authSlice = createSlice({
   name: 'auth',
@@ -115,6 +135,11 @@ const authSlice = createSlice({
         state.error = action.error.message || 'Registration failed';
       })
       .addCase(logoutUser.fulfilled, (state) => {
+        state.user = null;
+        state.token = null;
+        state.isAuthenticated = false;
+      })
+      .addCase(logoutAllDevices.fulfilled, (state) => {
         state.user = null;
         state.token = null;
         state.isAuthenticated = false;
@@ -165,6 +190,31 @@ const authSlice = createSlice({
       .addCase(resetPassword.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to reset password';
+      })
+      .addCase(refreshToken.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(refreshToken.fulfilled, (state) => {
+        state.loading = false;
+      })
+      .addCase(refreshToken.rejected, (state) => {
+        state.loading = false;
+        state.isAuthenticated = false;
+        state.user = null;
+        state.token = null;
+      })
+      .addCase(verifyToken.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(verifyToken.fulfilled, (state, action) => {
+        state.loading = false;
+        state.user = action.payload;
+        state.isAuthenticated = true;
+      })
+      .addCase(verifyToken.rejected, (state) => {
+        state.loading = false;
+        state.isAuthenticated = false;
+        state.user = null;
       });
   },
 });

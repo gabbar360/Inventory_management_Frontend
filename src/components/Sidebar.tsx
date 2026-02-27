@@ -1,5 +1,5 @@
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Users,
@@ -11,11 +11,13 @@ import {
   Menu,
   FolderTree,
   Box,
+  Power,
 } from 'lucide-react';
 import { useAppDispatch } from '@/store/hooks';
-import { logoutUser } from '@/slices/authSlice';
+import { logoutUser, logoutAllDevices } from '@/slices/authSlice';
 import { cn } from '@/utils';
 import Button from '@/components/Button';
+import toast from 'react-hot-toast';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -37,9 +39,27 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
   const location = useLocation();
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+  const [showLogoutMenu, setShowLogoutMenu] = useState(false);
 
-  const handleLogout = () => {
-    dispatch(logoutUser());
+  const handleLogout = async () => {
+    try {
+      await dispatch(logoutUser()).unwrap();
+      toast.success('Logged out successfully');
+      navigate('/login');
+    } catch (error) {
+      toast.error('Logout failed');
+    }
+  };
+
+  const handleLogoutAll = async () => {
+    try {
+      await dispatch(logoutAllDevices()).unwrap();
+      toast.success('Logged out from all devices');
+      navigate('/login');
+    } catch (error) {
+      toast.error('Logout failed');
+    }
   };
 
   const handleLinkClick = () => {
@@ -132,24 +152,61 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
           {/* Logout Button */}
           <div className="border-t border-gray-200 p-4">
             {isOpen ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleLogout}
-                className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-              >
-                <LogOut className="mr-2 h-4 w-4 text-red-600" />
-                Logout
-              </Button>
+              <div className="space-y-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleLogout}
+                  className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleLogoutAll}
+                  className="w-full justify-start text-red-700 hover:text-red-800 hover:bg-red-50"
+                >
+                  <Power className="mr-2 h-4 w-4" />
+                  Logout All Devices
+                </Button>
+              </div>
             ) : (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleLogout}
-                className="w-full justify-center p-2 text-red-600 hover:text-red-700 hover:bg-red-50"
-              >
-                <LogOut className="h-5 w-5 text-red-600" />
-              </Button>
+              <div className="relative">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowLogoutMenu(!showLogoutMenu)}
+                  className="w-full justify-center p-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                >
+                  <LogOut className="h-5 w-5" />
+                </Button>
+                {showLogoutMenu && (
+                  <div className="absolute bottom-full left-full ml-2 mb-2 bg-white shadow-lg rounded-md border border-gray-200 py-1 min-w-[180px] z-50">
+                    <button
+                      onClick={() => {
+                        handleLogout();
+                        setShowLogoutMenu(false);
+                      }}
+                      className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center"
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Logout
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleLogoutAll();
+                        setShowLogoutMenu(false);
+                      }}
+                      className="w-full px-4 py-2 text-left text-sm text-red-700 hover:bg-red-50 flex items-center"
+                    >
+                      <Power className="mr-2 h-4 w-4" />
+                      Logout All
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>
