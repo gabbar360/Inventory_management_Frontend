@@ -42,6 +42,10 @@ export const authService = {
     await api.post('/auth/logout');
   },
 
+  async logoutAllDevices(): Promise<void> {
+    await api.post('/auth/logout-all');
+  },
+
   async getCurrentUser(): Promise<User> {
     const response = await api.get<ApiResponse<{ user: User }>>('/auth/me');
     return response.data.data!.user;
@@ -58,5 +62,14 @@ export const authService = {
 
   async resetPassword(token: string, newPassword: string): Promise<void> {
     await api.post('/auth/reset-password', { token, newPassword });
+  },
+
+  async refreshToken(): Promise<void> {
+    await api.post('/auth/refresh-token');
+  },
+
+  async verifyToken(): Promise<{ valid: boolean; user: User }> {
+    const response = await api.get<ApiResponse<{ valid: boolean; user: User }>>('/auth/verify-token');
+    return response.data.data!;
   },
 };
