@@ -94,6 +94,7 @@ export interface Location {
 export interface InwardItem {
   id: string;
   productId: string;
+  parentItemId?: string;
   boxes: number;
   packPerBox: number;
   packPerPiece: number;
@@ -106,6 +107,7 @@ export interface InwardItem {
   gstAmount: number;
   totalCost: number;
   product?: Product;
+  subItems?: InwardItem[];
   // Legacy fields for backward compatibility
   pcsPerBox?: number;
 }

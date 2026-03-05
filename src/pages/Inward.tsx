@@ -53,6 +53,13 @@ interface InwardInvoiceFormData {
     packPerPiece: number;
     unit: 'box' | 'pack' | 'piece';
     ratePerBox: number;
+    subItems?: {
+      boxes: number;
+      packPerBox: number;
+      packPerPiece: number;
+      unit: 'box' | 'pack' | 'piece';
+      ratePerBox: number;
+    }[];
   }[];
 }
 
@@ -71,6 +78,15 @@ const inwardSchema = z.object({
         packPerPiece: z.number().min(1, 'Pack per piece must be at least 1'),
         unit: z.enum(['box', 'pack', 'piece']).default('box'),
         ratePerBox: z.number().min(0, 'Rate must be positive'),
+        subItems: z.array(
+          z.object({
+            boxes: z.number().min(1, 'Boxes must be at least 1'),
+            packPerBox: z.number().min(1, 'Pack per box must be at least 1'),
+            packPerPiece: z.number().min(1, 'Pack per piece must be at least 1'),
+            unit: z.enum(['box', 'pack', 'piece']).default('box'),
+            ratePerBox: z.number().min(0, 'Rate must be positive'),
+          })
+        ).optional(),
       })
     )
     .min(1, 'At least one item is required'),
@@ -196,14 +212,40 @@ const Inward: React.FC = () => {
         vendorId: String(fullInvoice.vendorId),
         locationId: String(fullInvoice.locationId),
         expense: fullInvoice.expense || 0,
-        items: fullInvoice.items?.map((item) => ({
-          productId: String(item.productId),
-          boxes: item.boxes,
-          packPerBox: item.packPerBox || item.pcsPerBox,
-          packPerPiece: item.packPerPiece || 1,
-          unit: (item.unit || 'box') as 'box' | 'pack' | 'piece',
-          ratePerBox: item.ratePerBox,
-        })) || [
+        items: fullInvoice.items?.map((item) => {
+          // Determine the actual rate based on unit
+          let actualRate = item.ratePerBox;
+          if (item.unit === 'pack') {
+            actualRate = item.ratePerPack;
+          } else if (item.unit === 'piece') {
+            actualRate = item.ratePerPcs;
+          }
+          
+          return {
+            productId: String(item.productId),
+            boxes: item.boxes,
+            packPerBox: item.packPerBox || item.pcsPerBox,
+            packPerPiece: item.packPerPiece || 1,
+            unit: (item.unit || 'box') as 'box' | 'pack' | 'piece',
+            ratePerBox: actualRate,
+            subItems: item.subItems?.map((subItem) => {
+              let subActualRate = subItem.ratePerBox;
+              if (subItem.unit === 'pack') {
+                subActualRate = subItem.ratePerPack;
+              } else if (subItem.unit === 'piece') {
+                subActualRate = subItem.ratePerPcs;
+              }
+              
+              return {
+                boxes: subItem.boxes,
+                packPerBox: subItem.packPerBox,
+                packPerPiece: subItem.packPerPiece,
+                unit: (subItem.unit || 'box') as 'box' | 'pack' | 'piece',
+                ratePerBox: subActualRate,
+              };
+            }) || [],
+          };
+        }) || [
           {
             productId: '',
             boxes: 1,
@@ -281,7 +323,30 @@ const Inward: React.FC = () => {
     
     const gstRate = product.category?.gstRate || 0;
     const gstAmount = (baseAmount * gstRate) / 100;
-    return baseAmount + gstAmount;
+    let total = baseAmount + gstAmount;
+    
+    // Add sub-items total
+    if (item.subItems && item.subItems.length > 0) {
+      item.subItems.forEach((subItem: any) => {
+        const subTotalPacks = subItem.boxes * subItem.packPerBox;
+        const subTotalPcs = subTotalPacks * subItem.packPerPiece;
+        const subUnit = subItem.unit || 'box';
+        
+        let subBaseAmount;
+        if (subUnit === 'box') {
+          subBaseAmount = subItem.boxes * subItem.ratePerBox;
+        } else if (subUnit === 'pack') {
+          subBaseAmount = subTotalPacks * subItem.ratePerBox;
+        } else {
+          subBaseAmount = subTotalPcs * subItem.ratePerBox;
+        }
+        
+        const subGstAmount = (subBaseAmount * gstRate) / 100;
+        total += subBaseAmount + subGstAmount;
+      });
+    }
+    
+    return total;
   };
 
   const calculateGrandTotal = () => {
@@ -647,6 +712,133 @@ const Inward: React.FC = () => {
                         {formatCurrency(totalAmount)}
                       </div>
                     </div>
+                  </div>
+
+                  <div className="ml-4 border-l-2 border-gray-300 pl-4 space-y-2">
+                    <div className="flex items-center">
+                      <span className="text-sm font-medium text-gray-700">Sub Items</span>
+                    </div>
+
+                    {item?.subItems?.map((subItem: any, subIndex: number) => {
+                      const subTotalPacks = (subItem?.boxes || 0) * (subItem?.packPerBox || 0);
+                      const subTotalPcs = subTotalPacks * (subItem?.packPerPiece || 0);
+                      const subUnit = subItem?.unit || 'box';
+                      
+                      let subBaseAmount;
+                      if (subUnit === 'box') {
+                        subBaseAmount = (subItem?.boxes || 0) * (subItem?.ratePerBox || 0);
+                      } else if (subUnit === 'pack') {
+                        subBaseAmount = subTotalPacks * (subItem?.ratePerBox || 0);
+                      } else {
+                        subBaseAmount = subTotalPcs * (subItem?.ratePerBox || 0);
+                      }
+                      
+                      const subGstAmount = (subBaseAmount * gstRate) / 100;
+                      const subTotalAmount = subBaseAmount + subGstAmount;
+                      
+                      return (
+                      <div key={subIndex} className="bg-gray-50 p-3 rounded space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium">Sub Item {subIndex + 1}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              const updatedItems = [...watchedItems];
+                              const subItems = [...(updatedItems[index]?.subItems || [])];
+                              subItems.splice(subIndex, 1);
+                              updatedItems[index] = { ...updatedItems[index], subItems };
+                              reset({ ...watch(), items: updatedItems });
+                            }}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+
+                        <div className="grid grid-cols-5 gap-2">
+                          <Input
+                            label="Boxes"
+                            type="number"
+                            min="1"
+                            {...register(`items.${index}.subItems.${subIndex}.boxes`, { valueAsNumber: true })}
+                          />
+                          <Input
+                            label="Pack/Box"
+                            type="number"
+                            min="1"
+                            {...register(`items.${index}.subItems.${subIndex}.packPerBox`, { valueAsNumber: true })}
+                          />
+                          <Input
+                            label="Piece/Pack"
+                            type="number"
+                            min="1"
+                            {...register(`items.${index}.subItems.${subIndex}.packPerPiece`, { valueAsNumber: true })}
+                          />
+                          <Select
+                            label="Unit"
+                            options={[
+                              { value: 'box', label: 'Box' },
+                              { value: 'pack', label: 'Pack' },
+                              { value: 'piece', label: 'Piece' },
+                            ]}
+                            {...register(`items.${index}.subItems.${subIndex}.unit`)}
+                          />
+                          <Input
+                            label="Rate"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            {...register(`items.${index}.subItems.${subIndex}.ratePerBox`, { valueAsNumber: true })}
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2 text-xs bg-blue-50 p-2 rounded">
+                          <div>
+                            <span className="font-medium block">Base Amount</span>
+                            <div className="text-gray-900">{formatCurrency(subBaseAmount)}</div>
+                          </div>
+                          <div>
+                            <span className="font-medium block">GST ({gstRate}%)</span>
+                            <div className="text-gray-900">{formatCurrency(subGstAmount)}</div>
+                          </div>
+                          <div>
+                            <span className="font-medium block">Total</span>
+                            <div className="text-gray-900 font-semibold">{formatCurrency(subTotalAmount)}</div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                    })}
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        const currentSubItems = watchedItems[index]?.subItems || [];
+                        const updatedItems = [...watchedItems];
+                        updatedItems[index] = {
+                          ...updatedItems[index],
+                          subItems: [
+                            ...currentSubItems,
+                            {
+                              boxes: 1,
+                              packPerBox: 1,
+                              packPerPiece: 1,
+                              unit: 'box',
+                              ratePerBox: 0,
+                            },
+                          ],
+                        };
+                        reset({ ...watch(), items: updatedItems });
+                      }}
+                      className="bg-gray-100 hover:bg-gray-200"
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Add Sub Item
+                    </Button>
                   </div>
                 </div>
               );
