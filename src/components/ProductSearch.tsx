@@ -67,7 +67,7 @@ const ProductSearch: React.FC<ProductSearchProps> = ({
     setLoading(true);
     try {
       const response = await productService.getAll({
-        limit: 1000,
+        limit: 10000,
       });
       setAllProducts(response.data);
       setProducts(response.data);
