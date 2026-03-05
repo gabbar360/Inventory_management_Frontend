@@ -724,13 +724,22 @@ const Inward: React.FC = () => {
                       const subTotalPcs = subTotalPacks * (subItem?.packPerPiece || 0);
                       const subUnit = subItem?.unit || 'box';
                       
-                      let subBaseAmount;
+                      let subRatePerBox, subRatePerPack, subRatePerPcs, subBaseAmount;
                       if (subUnit === 'box') {
-                        subBaseAmount = (subItem?.boxes || 0) * (subItem?.ratePerBox || 0);
+                        subRatePerBox = subItem?.ratePerBox || 0;
+                        subRatePerPack = subRatePerBox / (subItem?.packPerBox || 1);
+                        subRatePerPcs = subRatePerPack / (subItem?.packPerPiece || 1);
+                        subBaseAmount = (subItem?.boxes || 0) * subRatePerBox;
                       } else if (subUnit === 'pack') {
-                        subBaseAmount = subTotalPacks * (subItem?.ratePerBox || 0);
+                        subRatePerPack = subItem?.ratePerBox || 0;
+                        subRatePerBox = subRatePerPack * (subItem?.packPerBox || 1);
+                        subRatePerPcs = subRatePerPack / (subItem?.packPerPiece || 1);
+                        subBaseAmount = subTotalPacks * subRatePerPack;
                       } else {
-                        subBaseAmount = subTotalPcs * (subItem?.ratePerBox || 0);
+                        subRatePerPcs = subItem?.ratePerBox || 0;
+                        subRatePerPack = subRatePerPcs * (subItem?.packPerPiece || 1);
+                        subRatePerBox = subRatePerPack * (subItem?.packPerBox || 1);
+                        subBaseAmount = subTotalPcs * subRatePerPcs;
                       }
                       
                       const subGstAmount = (subBaseAmount * gstRate) / 100;
@@ -792,6 +801,25 @@ const Inward: React.FC = () => {
                             min="0"
                             {...register(`items.${index}.subItems.${subIndex}.ratePerBox`, { valueAsNumber: true })}
                           />
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs bg-gray-50 p-2 rounded border border-gray-200">
+                          <div>
+                            <span className="font-medium block">Total Packs</span>
+                            <div className="text-gray-600">{subTotalPacks}</div>
+                          </div>
+                          <div>
+                            <span className="font-medium block">Total PCS</span>
+                            <div className="text-gray-600">{subTotalPcs}</div>
+                          </div>
+                          <div>
+                            <span className="font-medium block">Rate/Pack</span>
+                            <div className="text-gray-600">{formatCurrency(subRatePerPack)}</div>
+                          </div>
+                          <div>
+                            <span className="font-medium block">Rate/PCS</span>
+                            <div className="text-gray-600">{formatCurrency(subRatePerPcs)}</div>
+                          </div>
                         </div>
 
                         <div className="grid grid-cols-3 gap-2 text-xs bg-blue-50 p-2 rounded">

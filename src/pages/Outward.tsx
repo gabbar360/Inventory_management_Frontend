@@ -591,7 +591,7 @@ const Outward: React.FC = () => {
 
               const stockBatchOptions = stockBatches.map((batch) => ({
                 value: batch.id.toString(),
-                label: `${batch.vendor?.name} - ${formatDate(batch.inwardDate)} (${batch.remainingBoxes} boxes, ${batch.remainingPacks || 0} packs, ${batch.remainingPcs} pcs)`,
+                label: `${batch.vendor?.name} - ${formatDate(batch.inwardDate)} (${batch.remainingBoxes} boxes, ${batch.packPerBox} pack/box, ${batch.remainingPacks || 0} packs, ${batch.packPerPiece} pcs/pack, ${batch.remainingPcs} pcs)`,
               }));
 
               return (
@@ -688,6 +688,9 @@ const Outward: React.FC = () => {
                         <div>Vendor: {selectedBatch.vendor?.name}</div>
                         <div>
                           Inward: {formatDate(selectedBatch.inwardDate)}
+                        </div>
+                        <div>
+                          Pack/Box: {selectedBatch.packPerBox}, Pcs/Pack: {selectedBatch.packPerPiece}
                         </div>
                         <div>
                           Available: {selectedBatch.remainingBoxes} boxes,{' '}
