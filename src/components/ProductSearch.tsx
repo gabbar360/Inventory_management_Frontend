@@ -78,20 +78,7 @@ const ProductSearch: React.FC<ProductSearchProps> = ({
     }
   };
 
-  const loadProducts = async () => {
-    setLoading(true);
-    try {
-      const response = await productService.getAll({
-        search,
-        limit: 20,
-      });
-      setProducts(response.data);
-    } catch (error) {
-      console.error('Failed to load products:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+ 
 
   const loadSelectedProduct = async () => {
     if (!value) return;
