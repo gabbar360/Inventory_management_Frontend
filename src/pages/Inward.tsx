@@ -51,6 +51,7 @@ interface InwardInvoiceFormData {
     boxes: number;
     packPerBox: number;
     packPerPiece: number;
+    unit: 'box' | 'pack' | 'piece';
     ratePerBox: number;
   }[];
 }
@@ -68,7 +69,8 @@ const inwardSchema = z.object({
         boxes: z.number().min(1, 'Boxes must be at least 1'),
         packPerBox: z.number().min(1, 'Pack per box must be at least 1'),
         packPerPiece: z.number().min(1, 'Pack per piece must be at least 1'),
-        ratePerBox: z.number().min(0, 'Rate per box must be positive'),
+        unit: z.enum(['box', 'pack', 'piece']).default('box'),
+        ratePerBox: z.number().min(0, 'Rate must be positive'),
       })
     )
     .min(1, 'At least one item is required'),
@@ -111,6 +113,7 @@ const Inward: React.FC = () => {
           boxes: 1,
           packPerBox: 1,
           packPerPiece: 1,
+          unit: 'box' as const,
           ratePerBox: 0,
         },
       ],
@@ -164,6 +167,7 @@ const Inward: React.FC = () => {
           boxes: 1,
           packPerBox: 1,
           packPerPiece: 1,
+          unit: 'box' as const,
           ratePerBox: 0,
         },
       ],
@@ -197,6 +201,7 @@ const Inward: React.FC = () => {
           boxes: item.boxes,
           packPerBox: item.packPerBox || item.pcsPerBox,
           packPerPiece: item.packPerPiece || 1,
+          unit: (item.unit || 'box') as 'box' | 'pack' | 'piece',
           ratePerBox: item.ratePerBox,
         })) || [
           {
@@ -204,6 +209,7 @@ const Inward: React.FC = () => {
             boxes: 1,
             packPerBox: 1,
             packPerPiece: 1,
+            unit: 'box' as const,
             ratePerBox: 0,
           },
         ],
@@ -260,7 +266,19 @@ const Inward: React.FC = () => {
     const product = products.find((p) => String(p.id) === String(item.productId));
     if (!product || !item.boxes || !item.ratePerBox) return 0;
 
-    const baseAmount = item.boxes * item.ratePerBox;
+    const totalPacks = item.boxes * item.packPerBox;
+    const totalPcs = totalPacks * item.packPerPiece;
+    const unit = item.unit || 'box';
+    
+    let baseAmount;
+    if (unit === 'box') {
+      baseAmount = item.boxes * item.ratePerBox;
+    } else if (unit === 'pack') {
+      baseAmount = totalPacks * item.ratePerBox;
+    } else {
+      baseAmount = totalPcs * item.ratePerBox;
+    }
+    
     const gstRate = product.category?.gstRate || 0;
     const gstAmount = (baseAmount * gstRate) / 100;
     return baseAmount + gstAmount;
@@ -465,35 +483,34 @@ const Inward: React.FC = () => {
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <h3 className="text-lg font-medium">Items</h3>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  append({
-                    productId: '',
-                    boxes: 1,
-                    packPerBox: 1,
-                    packPerPiece: 1,
-                    ratePerBox: 0,
-                  })
-                }
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                Add Item
-              </Button>
             </div>
 
             {fields.map((field, index) => {
               const item = watchedItems[index];
               const product = products.find((p) => String(p.id) === String(item?.productId));
+              const unit = item?.unit || 'box';
               
               const totalPacks = (item?.boxes || 0) * (item?.packPerBox || 0);
               const totalPcs = totalPacks * (item?.packPerPiece || 0);
-              const ratePerPack =
-                (item?.ratePerBox || 0) / (item?.packPerBox || 1);
-              const ratePerPcs = ratePerPack / (item?.packPerPiece || 1);
-              const baseAmount = (item?.boxes || 0) * (item?.ratePerBox || 0);
+              
+              let ratePerBox, ratePerPack, ratePerPcs, baseAmount;
+              if (unit === 'box') {
+                ratePerBox = item?.ratePerBox || 0;
+                ratePerPack = ratePerBox / (item?.packPerBox || 1);
+                ratePerPcs = ratePerPack / (item?.packPerPiece || 1);
+                baseAmount = (item?.boxes || 0) * ratePerBox;
+              } else if (unit === 'pack') {
+                ratePerPack = item?.ratePerBox || 0;
+                ratePerBox = ratePerPack * (item?.packPerBox || 1);
+                ratePerPcs = ratePerPack / (item?.packPerPiece || 1);
+                baseAmount = totalPacks * ratePerPack;
+              } else {
+                ratePerPcs = item?.ratePerBox || 0;
+                ratePerPack = ratePerPcs * (item?.packPerPiece || 1);
+                ratePerBox = ratePerPack * (item?.packPerBox || 1);
+                baseAmount = totalPcs * ratePerPcs;
+              }
+              
               const gstRate = product?.category?.gstRate || 0;
               const gstAmount = (baseAmount * gstRate) / 100;
               const totalAmount = baseAmount + gstAmount;
@@ -538,7 +555,7 @@ const Inward: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                     <Input
                       label="Boxes"
                       type="number"
@@ -558,7 +575,7 @@ const Inward: React.FC = () => {
                       })}
                     />
                     <Input
-                      label="Pack/Piece"
+                      label="Piece/Pack"
                       type="number"
                       min="1"
                       error={errors.items?.[index]?.packPerPiece?.message}
@@ -566,8 +583,18 @@ const Inward: React.FC = () => {
                         valueAsNumber: true,
                       })}
                     />
+                    <Select
+                      label="Select Unit"
+                      options={[
+                        { value: 'box', label: 'Per Box' },
+                        { value: 'pack', label: 'Per Pack' },
+                        { value: 'piece', label: 'Per Piece' },
+                      ]}
+                      error={errors.items?.[index]?.unit?.message}
+                      {...register(`items.${index}.unit`)}
+                    />
                     <Input
-                      label="Rate/Box"
+                      label={`Rate (${unit === 'box' ? 'Box' : unit === 'pack' ? 'Pack' : 'Piece'})`}
                       type="number"
                       step="0.01"
                       min="0"
@@ -624,6 +651,26 @@ const Inward: React.FC = () => {
                 </div>
               );
             })}
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                append({
+                  productId: '',
+                  boxes: 1,
+                  packPerBox: 1,
+                  packPerPiece: 1,
+                  unit: 'box' as const,
+                  ratePerBox: 0,
+                })
+              }
+              className="w-full sm:w-auto"
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Add Item
+            </Button>
           </div>
 
           {/* Grand Total */}
@@ -718,7 +765,7 @@ const Inward: React.FC = () => {
                         Pack/Box
                       </th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                        Pack/Piece
+                        Piece/Pack
                       </th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                         Total Packs
@@ -727,14 +774,14 @@ const Inward: React.FC = () => {
                         Total PCS
                       </th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                        Rate/Box
+                        Rate
                       </th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                         GST
                       </th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                         Total
-                      </th>
+                      </th>   
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
