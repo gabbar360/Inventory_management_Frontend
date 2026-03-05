@@ -9,6 +9,8 @@ import {
   Upload,
   Download,
   Edit,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -35,6 +37,7 @@ import Button from '@/components/Button';
 import Input from '@/components/Input';
 import Select from '@/components/Select';
 import Modal from '@/components/Modal';
+import ConfirmModal from '@/components/ConfirmModal';
 import Table from '@/components/Table';
 import BulkUpload from '@/components/BulkUpload';
 import Pagination from '@/components/Pagination';
@@ -103,6 +106,9 @@ const Inward: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ itemIndex: number; subIndex: number } | null>(null);
+  const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
   const [selectedInvoice, setSelectedInvoice] = useState<InwardInvoice | null>(
     null
   );
@@ -161,6 +167,34 @@ const Inward: React.FC = () => {
       dispatch(fetchVendors({ limit: 100 })),
       dispatch(fetchLocations({ limit: 100 }))
     ]);
+  };
+
+  const handleDeleteSubItem = () => {
+    if (!deleteTarget) return;
+    const { itemIndex, subIndex } = deleteTarget;
+    const updatedItems = [...watchedItems];
+    const subItems = [...(updatedItems[itemIndex]?.subItems || [])];
+    subItems.splice(subIndex, 1);
+    updatedItems[itemIndex] = { ...updatedItems[itemIndex], subItems };
+    reset({ ...watch(), items: updatedItems });
+    setDeleteTarget(null);
+  };
+
+  const openDeleteConfirm = (itemIndex: number, subIndex: number) => {
+    setDeleteTarget({ itemIndex, subIndex });
+    setConfirmDeleteOpen(true);
+  };
+
+  const toggleSubItems = (itemIndex: number) => {
+    setExpandedItems(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(itemIndex)) {
+        newSet.delete(itemIndex);
+      } else {
+        newSet.add(itemIndex);
+      }
+      return newSet;
+    });
   };
 
   const debouncedSearch = debounce((value: string) => {
@@ -715,11 +749,31 @@ const Inward: React.FC = () => {
                   </div>
 
                   <div className="ml-4 border-l-2 border-gray-300 pl-4 space-y-2">
-                    <div className="flex items-center">
-                      <span className="text-sm font-medium text-gray-700">Sub Items</span>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          toggleSubItems(index);
+                        }}
+                        className="flex items-center gap-1 p-1 h-auto"
+                      >
+                        {expandedItems.has(index) ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                      </Button>
+                      <span className="text-sm font-medium text-gray-700">
+                        Sub Items {item?.subItems && item.subItems.length > 0 && `(${item.subItems.length})`}
+                      </span>
                     </div>
 
-                    {item?.subItems?.map((subItem: any, subIndex: number) => {
+                    {expandedItems.has(index) && (
+                      <div className="space-y-2 mt-2">
+                        {item?.subItems?.map((subItem: any, subIndex: number) => {
                       const subTotalPacks = (subItem?.boxes || 0) * (subItem?.packPerBox || 0);
                       const subTotalPcs = subTotalPacks * (subItem?.packPerPiece || 0);
                       const subUnit = subItem?.unit || 'box';
@@ -753,12 +807,9 @@ const Inward: React.FC = () => {
                             type="button"
                             variant="ghost"
                             size="sm"
-                            onClick={() => {
-                              const updatedItems = [...watchedItems];
-                              const subItems = [...(updatedItems[index]?.subItems || [])];
-                              subItems.splice(subIndex, 1);
-                              updatedItems[index] = { ...updatedItems[index], subItems };
-                              reset({ ...watch(), items: updatedItems });
+                            onClick={(e) => {
+                              e.preventDefault();
+                              openDeleteConfirm(index, subIndex);
                             }}
                             className="text-red-600"
                           >
@@ -838,59 +889,74 @@ const Inward: React.FC = () => {
                         </div>
                       </div>
                     );
-                    })}
-
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        const currentSubItems = watchedItems[index]?.subItems || [];
-                        const updatedItems = [...watchedItems];
-                        updatedItems[index] = {
-                          ...updatedItems[index],
-                          subItems: [
-                            ...currentSubItems,
-                            {
-                              boxes: 1,
-                              packPerBox: 1,
-                              packPerPiece: 1,
-                              unit: 'box',
-                              ratePerBox: 0,
-                            },
-                          ],
-                        };
-                        reset({ ...watch(), items: updatedItems });
-                      }}
-                      className="bg-gray-100 hover:bg-gray-200"
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      Add Sub Item
-                    </Button>
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
               );
             })}
 
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                append({
-                  productId: '',
-                  boxes: 1,
-                  packPerBox: 1,
-                  packPerPiece: 1,
-                  unit: 'box' as const,
-                  ratePerBox: 0,
-                })
-              }
-              className="w-full sm:w-auto"
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              Add Item
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={(e) => {
+                  e.preventDefault();
+                  append({
+                    productId: '',
+                    boxes: 1,
+                    packPerBox: 1,
+                    packPerPiece: 1,
+                    unit: 'box' as const,
+                    ratePerBox: 0,
+                  });
+                }}
+                className="w-full sm:w-auto"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Add Item
+              </Button>
+              {fields.length > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    const lastIndex = fields.length - 1;
+                    const currentSubItems = watchedItems[lastIndex]?.subItems || [];
+                    const updatedItems = [...watchedItems];
+                    updatedItems[lastIndex] = {
+                      ...updatedItems[lastIndex],
+                      subItems: [
+                        ...currentSubItems,
+                        {
+                          boxes: 1,
+                          packPerBox: 1,
+                          packPerPiece: 1,
+                          unit: 'box',
+                          ratePerBox: 0,
+                        },
+                      ],
+                    };
+                    reset({ ...watch(), items: updatedItems });
+                    if (!expandedItems.has(lastIndex)) {
+                      setExpandedItems(prev => {
+                        const newSet = new Set(prev);
+                        newSet.add(lastIndex);
+                        return newSet;
+                      });
+                    }
+                  }}
+                  className="w-full sm:w-auto bg-blue-50 hover:bg-blue-100 text-blue-700"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Sub Item
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Grand Total */}
@@ -1057,6 +1123,21 @@ const Inward: React.FC = () => {
             fetchInwardInvoices({ page: currentPage, limit: 10, search })
           )
         }
+      />
+
+      {/* Confirm Delete Sub Item Modal */}
+      <ConfirmModal
+        isOpen={confirmDeleteOpen}
+        onClose={() => {
+          setConfirmDeleteOpen(false);
+          setDeleteTarget(null);
+        }}
+        onConfirm={handleDeleteSubItem}
+        title="Delete Sub Item"
+        message="Are you sure you want to delete this sub item? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
       />
     </div>
   );
