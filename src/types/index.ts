@@ -99,6 +99,7 @@ export interface InwardItem {
   packPerPiece: number;
   totalPacks: number;
   totalPcs: number;
+  unit?: string;
   ratePerBox: number;
   ratePerPack: number;
   ratePerPcs: number;
