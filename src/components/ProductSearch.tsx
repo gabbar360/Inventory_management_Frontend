@@ -21,18 +21,26 @@ const ProductSearch: React.FC<ProductSearchProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (search.length >= 2) {
-      loadProducts();
+    loadAllProducts();
+  }, []);
+
+  useEffect(() => {
+    if (search) {
+      const filtered = allProducts.filter((p) =>
+        `${p.name} ${p.grade || ''}`.toLowerCase().includes(search.toLowerCase())
+      );
+      setProducts(filtered);
     } else {
-      setProducts([]);
+      setProducts(allProducts);
     }
-  }, [search]);
+  }, [search, allProducts]);
 
   useEffect(() => {
     if (value && !selectedProduct) {
@@ -55,13 +63,13 @@ const ProductSearch: React.FC<ProductSearchProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const loadProducts = async () => {
+  const loadAllProducts = async () => {
     setLoading(true);
     try {
       const response = await productService.getAll({
-        search,
-        limit: 20,
+        limit: 1000,
       });
+      setAllProducts(response.data);
       setProducts(response.data);
     } catch (error) {
       console.error('Failed to load products:', error);
@@ -69,6 +77,8 @@ const ProductSearch: React.FC<ProductSearchProps> = ({
       setLoading(false);
     }
   };
+
+ 
 
   const loadSelectedProduct = async () => {
     if (!value) return;
@@ -100,8 +110,12 @@ const ProductSearch: React.FC<ProductSearchProps> = ({
 
   const handleInputFocus = () => {
     setIsOpen(true);
-    if (products.length === 0 && search.length >= 2) {
-      loadProducts();
+  };
+
+  const handleChevronClick = () => {
+    setIsOpen(!isOpen);
+    if (!isOpen) {
+      inputRef.current?.focus();
     }
   };
 
@@ -128,7 +142,10 @@ const ProductSearch: React.FC<ProductSearchProps> = ({
           } ${disabled ? 'bg-gray-100 cursor-not-allowed' : ''}`}
         />
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-        <ChevronDown className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        <ChevronDown 
+          className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 cursor-pointer" 
+          onClick={handleChevronClick}
+        />
       </div>
 
       {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
@@ -159,13 +176,9 @@ const ProductSearch: React.FC<ProductSearchProps> = ({
                 )}
               </div>
             ))
-          ) : search.length >= 2 ? (
-            <div className="px-4 py-2 text-sm text-gray-500">
-              No products found
-            </div>
           ) : (
             <div className="px-4 py-2 text-sm text-gray-500">
-              Type at least 2 characters to search
+              No products found
             </div>
           )}
         </div>
