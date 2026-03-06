@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -9,6 +9,7 @@ import {
   Upload,
   Download,
   Edit,
+  ChevronDown,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -30,6 +31,7 @@ import {
   formatCurrency,
   generateInvoiceNumber,
   debounce,
+  cn,
 } from '@/utils';
 import Button from '@/components/Button';
 import Input from '@/components/Input';
@@ -80,6 +82,104 @@ const outwardSchema = z.object({
     )
     .min(1, 'At least one item is required'),
 });
+
+// Multi-line Select Component
+interface MultiLineOption {
+  value: string;
+  line1: string;
+  line2: string;
+}
+
+interface MultiLineSelectProps {
+  label?: string;
+  options: MultiLineOption[];
+  value?: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  error?: string;
+}
+
+const MultiLineSelect: React.FC<MultiLineSelectProps> = ({
+  label,
+  options,
+  value,
+  onChange,
+  placeholder = 'Select option',
+  disabled = false,
+  error,
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const selectedOption = options.find((opt) => opt.value === value);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="space-y-1">
+      {label && (
+        <label className="block text-sm font-medium text-gray-700">
+          {label}
+        </label>
+      )}
+      <div ref={dropdownRef} className="relative">
+        <button
+          type="button"
+          onClick={() => !disabled && setIsOpen(!isOpen)}
+          disabled={disabled}
+          className={cn(
+            'flex w-full items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50',
+            error && 'border-red-500 focus:ring-red-500'
+          )}
+        >
+          <div className="text-left flex-1 min-w-0">
+            {selectedOption ? (
+              <div className="space-y-0.5">
+                <div className="font-medium truncate">{selectedOption.line1}</div>
+                <div className="text-xs text-gray-600 truncate">{selectedOption.line2}</div>
+              </div>
+            ) : (
+              <span className="text-gray-500">{placeholder}</span>
+            )}
+          </div>
+          <ChevronDown className={cn('h-4 w-4 ml-2 flex-shrink-0 transition-transform', isOpen && 'rotate-180')} />
+        </button>
+        {isOpen && (
+          <div className="absolute z-50 mt-1 w-full max-h-60 overflow-auto rounded-md bg-white border border-gray-300 shadow-lg">
+            {options.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => {
+                  onChange(option.value);
+                  setIsOpen(false);
+                }}
+                className={cn(
+                  'w-full text-left px-3 py-2 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none border-b border-gray-100 last:border-b-0',
+                  value === option.value && 'bg-primary-50'
+                )}
+              >
+                <div className="space-y-0.5">
+                  <div className="font-medium text-sm">{option.line1}</div>
+                  <div className="text-xs text-gray-600">{option.line2}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {error && <p className="text-sm text-red-600">{error}</p>}
+    </div>
+  );
+};
 
 const Outward: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -591,7 +691,8 @@ const Outward: React.FC = () => {
 
               const stockBatchOptions = stockBatches.map((batch) => ({
                 value: batch.id.toString(),
-                label: `${batch.vendor?.name} - ${formatDate(batch.inwardDate)} (${batch.remainingBoxes} boxes, ${batch.packPerBox} pack/box, ${batch.remainingPacks || 0} packs, ${batch.packPerPiece} pcs/pack, ${batch.remainingPcs} pcs)`,
+                line1: `${batch.vendor?.name} - ${formatDate(batch.inwardDate)}`,
+                line2: `${batch.remainingBoxes} boxes, ${batch.packPerBox} pack/box, ${batch.remainingPacks || 0} packs, ${batch.packPerPiece} pcs/pack, ${batch.remainingPcs} pcs`,
               }));
 
               return (
@@ -622,9 +723,14 @@ const Outward: React.FC = () => {
                       }
                       error={errors.items?.[index]?.productId?.message}
                     />
-                    <Select
+                    <MultiLineSelect
                       label="Stock Batch"
                       options={stockBatchOptions}
+                      value={item?.stockBatchId?.toString()}
+                      onChange={(value) => {
+                        setValue(`items.${index}.stockBatchId`, value);
+                        handleStockBatchChange(index, value);
+                      }}
                       placeholder={
                         item?.productId
                           ? 'Select stock batch'
@@ -634,11 +740,6 @@ const Outward: React.FC = () => {
                         !item?.productId || stockBatchOptions.length === 0
                       }
                       error={errors.items?.[index]?.stockBatchId?.message}
-                      {...register(`items.${index}.stockBatchId`)}
-                      onChange={(e) => {
-                        register(`items.${index}.stockBatchId`).onChange(e);
-                        handleStockBatchChange(index, e.target.value);
-                      }}
                     />
                   </div>
 

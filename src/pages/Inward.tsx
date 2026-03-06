@@ -706,45 +706,35 @@ const Inward: React.FC = () => {
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs sm:text-sm bg-gray-50 p-3 rounded">
                     <div>
-                      <span className="font-medium block">Total Packs</span>
-                      <div className="text-gray-600">{totalPacks}</div>
+                      <span className="font-medium">Total Packs: </span>
+                      <span className="text-gray-600">{totalPacks}</span>
                     </div>
                     <div>
-                      <span className="font-medium block">Total PCS</span>
-                      <div className="text-gray-600">{totalPcs}</div>
+                      <span className="font-medium">Total PCS: </span>
+                      <span className="text-gray-600">{totalPcs}</span>
                     </div>
                     <div>
-                      <span className="font-medium block">Rate/Pack</span>
-                      <div className="text-gray-600">
-                        {formatCurrency(ratePerPack)}
-                      </div>
+                      <span className="font-medium">Rate/Pack: </span>
+                      <span className="text-gray-600">{formatCurrency(ratePerPack)}</span>
                     </div>
                     <div>
-                      <span className="font-medium block">Rate/PCS</span>
-                      <div className="text-gray-600">
-                        {formatCurrency(ratePerPcs)}
-                      </div>
+                      <span className="font-medium">Rate/PCS: </span>
+                      <span className="text-gray-600">{formatCurrency(ratePerPcs)}</span>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs sm:text-sm bg-blue-50 p-3 rounded">
                     <div>
-                      <span className="font-medium block">Base Amount</span>
-                      <div className="text-gray-900">
-                        {formatCurrency(baseAmount)}
-                      </div>
+                      <span className="font-medium">Base Amount: </span>
+                      <span className="text-gray-900">{formatCurrency(baseAmount)}</span>
                     </div>
                     <div>
-                      <span className="font-medium block">GST ({gstRate}%)</span>
-                      <div className="text-gray-900">
-                        {formatCurrency(gstAmount)}
-                      </div>
+                      <span className="font-medium">GST ({gstRate}%): </span>
+                      <span className="text-gray-900">{formatCurrency(gstAmount)}</span>
                     </div>
                     <div>
-                      <span className="font-medium block">Total</span>
-                      <div className="text-gray-900 font-semibold text-base">
-                        {formatCurrency(totalAmount)}
-                      </div>
+                      <span className="font-medium">Total: </span>
+                      <span className="text-gray-900 font-semibold text-base">{formatCurrency(totalAmount)}</span>
                     </div>
                   </div>
 
@@ -856,35 +846,35 @@ const Inward: React.FC = () => {
 
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs bg-gray-50 p-2 rounded border border-gray-200">
                           <div>
-                            <span className="font-medium block">Total Packs</span>
-                            <div className="text-gray-600">{subTotalPacks}</div>
+                            <span className="font-medium">Total Packs: </span>
+                            <span className="text-gray-600">{subTotalPacks}</span>
                           </div>
                           <div>
-                            <span className="font-medium block">Total PCS</span>
-                            <div className="text-gray-600">{subTotalPcs}</div>
+                            <span className="font-medium">Total PCS: </span>
+                            <span className="text-gray-600">{subTotalPcs}</span>
                           </div>
                           <div>
-                            <span className="font-medium block">Rate/Pack</span>
-                            <div className="text-gray-600">{formatCurrency(subRatePerPack)}</div>
+                            <span className="font-medium">Rate/Pack: </span>
+                            <span className="text-gray-600">{formatCurrency(subRatePerPack)}</span>
                           </div>
                           <div>
-                            <span className="font-medium block">Rate/PCS</span>
-                            <div className="text-gray-600">{formatCurrency(subRatePerPcs)}</div>
+                            <span className="font-medium">Rate/PCS: </span>
+                            <span className="text-gray-600">{formatCurrency(subRatePerPcs)}</span>
                           </div>
                         </div>
 
                         <div className="grid grid-cols-3 gap-2 text-xs bg-blue-50 p-2 rounded">
                           <div>
-                            <span className="font-medium block">Base Amount</span>
-                            <div className="text-gray-900">{formatCurrency(subBaseAmount)}</div>
+                            <span className="font-medium">Base Amount: </span>
+                            <span className="text-gray-900">{formatCurrency(subBaseAmount)}</span>
                           </div>
                           <div>
-                            <span className="font-medium block">GST ({gstRate}%)</span>
-                            <div className="text-gray-900">{formatCurrency(subGstAmount)}</div>
+                            <span className="font-medium">GST ({gstRate}%): </span>
+                            <span className="text-gray-900">{formatCurrency(subGstAmount)}</span>
                           </div>
                           <div>
-                            <span className="font-medium block">Total</span>
-                            <div className="text-gray-900 font-semibold">{formatCurrency(subTotalAmount)}</div>
+                            <span className="font-medium">Total: </span>
+                            <span className="text-gray-900 font-semibold">{formatCurrency(subTotalAmount)}</span>
                           </div>
                         </div>
                       </div>
@@ -892,71 +882,67 @@ const Inward: React.FC = () => {
                         })}
                       </div>
                     )}
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        const currentSubItems = watchedItems[index]?.subItems || [];
+                        const updatedItems = [...watchedItems];
+                        updatedItems[index] = {
+                          ...updatedItems[index],
+                          subItems: [
+                            ...currentSubItems,
+                            {
+                              boxes: 1,
+                              packPerBox: 1,
+                              packPerPiece: 1,
+                              unit: 'box',
+                              ratePerBox: 0,
+                            },
+                          ],
+                        };
+                        reset({ ...watch(), items: updatedItems });
+                        if (!expandedItems.has(index)) {
+                          setExpandedItems(prev => {
+                            const newSet = new Set(prev);
+                            newSet.add(index);
+                            return newSet;
+                          });
+                        }
+                      }}
+                      className="w-full sm:w-auto bg-blue-50 hover:bg-blue-100 text-blue-700"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Sub Item
+                    </Button>
                   </div>
                 </div>
               );
             })}
 
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={(e) => {
-                  e.preventDefault();
-                  append({
-                    productId: '',
-                    boxes: 1,
-                    packPerBox: 1,
-                    packPerPiece: 1,
-                    unit: 'box' as const,
-                    ratePerBox: 0,
-                  });
-                }}
-                className="w-full sm:w-auto"
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                Add Item
-              </Button>
-              {fields.length > 0 && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    const lastIndex = fields.length - 1;
-                    const currentSubItems = watchedItems[lastIndex]?.subItems || [];
-                    const updatedItems = [...watchedItems];
-                    updatedItems[lastIndex] = {
-                      ...updatedItems[lastIndex],
-                      subItems: [
-                        ...currentSubItems,
-                        {
-                          boxes: 1,
-                          packPerBox: 1,
-                          packPerPiece: 1,
-                          unit: 'box',
-                          ratePerBox: 0,
-                        },
-                      ],
-                    };
-                    reset({ ...watch(), items: updatedItems });
-                    if (!expandedItems.has(lastIndex)) {
-                      setExpandedItems(prev => {
-                        const newSet = new Set(prev);
-                        newSet.add(lastIndex);
-                        return newSet;
-                      });
-                    }
-                  }}
-                  className="w-full sm:w-auto bg-blue-50 hover:bg-blue-100 text-blue-700"
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Sub Item
-                </Button>
-              )}
-            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.preventDefault();
+                append({
+                  productId: '',
+                  boxes: 1,
+                  packPerBox: 1,
+                  packPerPiece: 1,
+                  unit: 'box' as const,
+                  ratePerBox: 0,
+                });
+              }}
+              className="w-full sm:w-auto"
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Add Item
+            </Button>
           </div>
 
           {/* Grand Total */}
