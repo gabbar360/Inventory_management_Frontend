@@ -460,7 +460,7 @@ const Inward: React.FC = () => {
     {
       key: 'items',
       title: 'Items',
-      render: (items: any[]) => items?.length || 0,
+      render: (items: any[]) => items?.filter((item: any) => !item.parentItemId).length || 0,
     },
     {
       key: 'actions',

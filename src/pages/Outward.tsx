@@ -10,6 +10,7 @@ import {
   Download,
   Edit,
   ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -25,7 +26,7 @@ import { fetchAvailableStock } from '@/slices/inventorySlice';
 import { fetchCustomers } from '@/slices/customerSlice';
 import { fetchLocations } from '@/slices/locationSlice';
 import { bulkUploadService } from '@/services/bulkUploadService';
-import { OutwardInvoice, StockBatch } from '@/types';
+import { OutwardInvoice, StockBatch, Product } from '@/types';
 import {
   formatDate,
   formatCurrency,
@@ -190,6 +191,9 @@ const Outward: React.FC = () => {
   const [availableStockCache, setAvailableStockCache] = useState<{
     [key: string]: StockBatch[];
   }>({});
+  const [productsCache, setProductsCache] = useState<{
+    [key: string]: Product;
+  }>({});
   const [modalOpen, setModalOpen] = useState(false);
   const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
@@ -201,6 +205,7 @@ const Outward: React.FC = () => {
   );
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
 
   const {
     register,
@@ -233,6 +238,30 @@ const Outward: React.FC = () => {
 
   const watchedItems = watch('items');
   const watchedLocationId = watch('locationId');
+
+  const calculateGrandTotal = () => {
+    let totalBase = 0;
+    let totalGst = 0;
+
+    watchedItems.forEach((item) => {
+      if (!item?.productId || !item?.quantity || !item?.ratePerUnit) return;
+      
+      const stockKey = `${item.productId}-${watchedLocationId || 'all'}`;
+      const stockBatches = availableStockCache[stockKey] || [];
+      const selectedBatch = stockBatches.find(
+        (b) => b.id.toString() === item.stockBatchId?.toString()
+      );
+      const product = productsCache[item.productId] || selectedBatch?.product;
+      const gstRate = product?.category?.gstRate || 0;
+      const baseAmount = item.quantity * item.ratePerUnit;
+      const gstAmount = (baseAmount * gstRate) / 100;
+      
+      totalBase += baseAmount;
+      totalGst += gstAmount;
+    });
+
+    return { totalBase, totalGst, grandTotal: totalBase + totalGst };
+  };
 
   useEffect(() => {
     dispatch(fetchOutwardInvoices({ page: currentPage, limit: 10, search }));
@@ -271,6 +300,18 @@ const Outward: React.FC = () => {
     setSearch(value);
     setCurrentPage(1);
   });
+
+  const toggleItem = (index: number) => {
+    setExpandedItems(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(index)) {
+        newSet.delete(index);
+      } else {
+        newSet.add(index);
+      }
+      return newSet;
+    });
+  };
 
 
   const openModal = () => {
@@ -378,8 +419,8 @@ const Outward: React.FC = () => {
         toast.success('Outward invoice created successfully');
       }
       closeModal();
-    } catch (error) {
-      // Error handled by Redux
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to save invoice');
     }
   };
 
@@ -396,11 +437,16 @@ const Outward: React.FC = () => {
 
   const handleProductChange = (
     index: number,
-    productId: string
+    productId: string,
+    product?: Product
   ) => {
     setValue(`items.${index}.productId`, productId);
     setValue(`items.${index}.stockBatchId`, '');
     setValue(`items.${index}.ratePerUnit`, 0);
+
+    if (product) {
+      setProductsCache(prev => ({ ...prev, [productId]: product }));
+    }
 
     if (productId && watchedLocationId) {
       loadAvailableStock(productId.toString(), watchedLocationId.toString());
@@ -432,11 +478,22 @@ const Outward: React.FC = () => {
     }
   };
 
-  const calculateGrandTotal = () => {
-    const itemsTotal = watchedItems.reduce((total, item) => {
-      return total + item.quantity * item.ratePerUnit;
-    }, 0);
-    return itemsTotal;
+
+
+  const calculateInvoiceBreakdown = (invoice: OutwardInvoice) => {
+    let baseCost = 0;
+    let gstCost = 0;
+
+    invoice.items?.forEach((item) => {
+      // Get GST rate from item's product category
+      const gstRate = item.product?.category?.gstRate || 0;
+      const itemBase = item.quantity * item.ratePerUnit;
+      const itemGst = (itemBase * gstRate) / 100;
+      baseCost += itemBase;
+      gstCost += itemGst;
+    });
+
+    return { baseCost, gstCost, grandTotal: baseCost + gstCost };
   };
 
   const handleExport = async () => {
@@ -519,9 +576,21 @@ const Outward: React.FC = () => {
       ),
     },
     {
+      key: 'baseCost',
+      title: 'Base Cost',
+      render: (_: any, record: OutwardInvoice) => formatCurrency(calculateInvoiceBreakdown(record).baseCost),
+    },
+    {
+      key: 'gstCost',
+      title: 'GST',
+      render: (_: any, record: OutwardInvoice) => formatCurrency(calculateInvoiceBreakdown(record).gstCost),
+    },
+    {
       key: 'totalCost',
-      title: 'Total Cost',
-      render: (value: number) => formatCurrency(value),
+      title: 'Grand Total',
+      render: (_: any, record: OutwardInvoice) => (
+        <span className="font-semibold">{formatCurrency(calculateInvoiceBreakdown(record).grandTotal)}</span>
+      ),
     },
     {
       key: 'items',
@@ -652,26 +721,7 @@ const Outward: React.FC = () => {
 
           {/* Items */}
           <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <h3 className="text-lg font-medium">Items</h3>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  append({
-                    productId: '',
-                    stockBatchId: '',
-                    saleUnit: 'box',
-                    quantity: 1,
-                    ratePerUnit: 0,
-                  })
-                }
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                Add Item
-              </Button>
-            </div>
+            <h3 className="text-lg font-medium">Items</h3>
 
             {fields.map((field, index) => {
               const item = watchedItems[index];
@@ -680,14 +730,18 @@ const Outward: React.FC = () => {
               const selectedBatch = stockBatches.find(
                 (b) => b.id.toString() === item?.stockBatchId?.toString()
               );
+              const product = productsCache[item?.productId] || selectedBatch?.product;
               const maxQuantity =
                 item?.saleUnit === 'box'
                   ? selectedBatch?.remainingBoxes || 0
                   : item?.saleUnit === 'pack'
                     ? selectedBatch?.remainingPacks || 0
                     : selectedBatch?.remainingPcs || 0;
-              const totalAmount =
-                (item?.quantity || 0) * (item?.ratePerUnit || 0);
+              
+              const gstRate = product?.category?.gstRate || 0;
+              const baseAmount = (item?.quantity || 0) * (item?.ratePerUnit || 0);
+              const gstAmount = (baseAmount * gstRate) / 100;
+              const totalAmount = baseAmount + gstAmount;
 
               const stockBatchOptions = stockBatches.map((batch) => ({
                 value: batch.id.toString(),
@@ -695,13 +749,33 @@ const Outward: React.FC = () => {
                 line2: `${batch.remainingBoxes} boxes, ${batch.packPerBox} pack/box, ${batch.remainingPacks || 0} packs, ${batch.packPerPiece} pcs/pack, ${batch.remainingPcs} pcs`,
               }));
 
+              const isExpanded = expandedItems.has(index);
+
               return (
                 <div
                   key={field.id}
                   className="border border-gray-200 rounded-lg p-3 sm:p-4 space-y-4"
                 >
                   <div className="flex items-center justify-between">
-                    <h4 className="font-medium text-sm sm:text-base">Item {index + 1}</h4>
+                    <div className="flex items-center gap-2 flex-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleItem(index)}
+                        className="p-1 h-auto"
+                      >
+                        {isExpanded ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                      </Button>
+                      <h4 className="font-medium text-sm sm:text-base">Item {index + 1}</h4>
+                      {!isExpanded && product && (
+                        <span className="text-sm text-gray-600">- {product.name}{product.grade ? ` (${product.grade})` : ''}</span>
+                      )}
+                    </div>
                     {fields.length > 1 && (
                       <Button
                         type="button"
@@ -715,11 +789,30 @@ const Outward: React.FC = () => {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {!isExpanded && (
+                    <div className="grid grid-cols-3 gap-3 text-sm bg-gray-50 p-3 rounded">
+                      <div>
+                        <span className="font-medium">Base: </span>
+                        <span className="text-gray-900">{formatCurrency(baseAmount)}</span>
+                      </div>
+                      <div>
+                        <span className="font-medium">GST ({gstRate}%): </span>
+                        <span className="text-gray-900">{formatCurrency(gstAmount)}</span>
+                      </div>
+                      <div>
+                        <span className="font-medium">Total: </span>
+                        <span className="text-gray-900 font-semibold">{formatCurrency(totalAmount)}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {isExpanded && (
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <ProductSearch
                       value={item?.productId}
-                      onChange={(productId) =>
-                        handleProductChange(index, productId)
+                      onChange={(productId, product) =>
+                        handleProductChange(index, productId, product)
                       }
                       error={errors.items?.[index]?.productId?.message}
                     />
@@ -772,11 +865,26 @@ const Outward: React.FC = () => {
                     />
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Total
+                        GST ({gstRate}%)
                       </label>
-                      <div className="text-xs sm:text-sm text-gray-900 bg-gray-50 p-2 rounded h-10 flex items-center font-semibold">
-                        {formatCurrency(totalAmount)}
+                      <div className="text-xs sm:text-sm text-gray-900 bg-gray-50 p-2 rounded h-10 flex items-center">
+                        {formatCurrency(gstAmount)}
                       </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3 text-sm bg-blue-50 p-3 rounded">
+                    <div>
+                      <span className="font-medium">Base Amount: </span>
+                      <span className="text-gray-900">{formatCurrency(baseAmount)}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium">GST ({gstRate}%): </span>
+                      <span className="text-gray-900">{formatCurrency(gstAmount)}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium">Total: </span>
+                      <span className="text-gray-900 font-semibold">{formatCurrency(totalAmount)}</span>
                     </div>
                   </div>
 
@@ -822,18 +930,53 @@ const Outward: React.FC = () => {
                       </div>
                     </div>
                   )}
+                    </>
+                  )}
                 </div>
               );
             })}
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const newIndex = fields.length;
+                append({
+                  productId: '',
+                  stockBatchId: '',
+                  saleUnit: 'box',
+                  quantity: 1,
+                  ratePerUnit: 0,
+                });
+                setExpandedItems(new Set([newIndex]));
+              }}
+              className="w-full sm:w-auto"
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Add Item
+            </Button>
           </div>
 
           {/* Grand Total */}
           <div className="border-t pt-4">
             <div className="flex justify-end">
-              <div className="text-right bg-green-50 p-4 rounded-lg">
-                <div className="text-sm text-gray-600 mb-1">Grand Total</div>
-                <div className="text-xl sm:text-2xl font-bold text-green-700">
-                  {formatCurrency(calculateGrandTotal())}
+              <div className="text-right bg-green-50 p-4 rounded-lg min-w-[300px]">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Total Cost:</span>
+                    <span className="font-semibold text-gray-900">{formatCurrency(calculateGrandTotal().totalBase)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Total GST:</span>
+                    <span className="font-semibold text-gray-900">{formatCurrency(calculateGrandTotal().totalGst)}</span>
+                  </div>
+                  <div className="border-t border-green-200 pt-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Grand Total:</span>
+                      <span className="text-xl font-bold text-green-700">{formatCurrency(calculateGrandTotal().grandTotal)}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
