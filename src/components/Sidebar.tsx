@@ -12,6 +12,7 @@ import {
   FolderTree,
   Box,
   Power,
+  FlaskConical,
 } from 'lucide-react';
 import { useAppDispatch } from '@/store/hooks';
 import { logoutUser, logoutAllDevices } from '@/slices/authSlice';
@@ -29,6 +30,7 @@ const navigation = [
   { name: 'Inward', href: '/inward', icon: ArrowDownToLine },
   { name: 'Outward', href: '/outward', icon: ArrowUpFromLine },
   { name: 'Inventory', href: '/inventory', icon: Warehouse },
+  { name: 'Samples', href: '/samples', icon: FlaskConical },
 ];
 
 interface SidebarProps {

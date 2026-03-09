@@ -225,6 +225,38 @@ export interface StockSummary {
   lastInwardDate?: string;
 }
 
+export interface Sample {
+  id: string;
+  sampleNo: string;
+  customerName: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  customerAddress?: string;
+  sentBy: string;
+  sampleType: 'domestic' | 'export';
+  kitPrice: number;
+  trackingNumber?: string;
+  dispatchMethod: 'courier' | 'hand_delivery' | 'transport';
+  sentDate: string;
+  status: 'pending' | 'approved' | 'rejected';
+  remarks?: string;
+  createdAt: string;
+  updatedAt: string;
+  items?: SampleItem[];
+}
+
+export interface SampleItem {
+  id: string;
+  sampleId: string;
+  productId: string;
+  quantity: number;
+  unit: 'box' | 'pack' | 'piece';
+  product?: {
+    name: string;
+    grade?: string;
+  };
+}
+
 export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;

@@ -9,6 +9,7 @@ import inventorySlice from '../slices/inventorySlice';
 import inwardSlice from '../slices/inwardSlice';
 import outwardSlice from '../slices/outwardSlice';
 import dashboardSlice from '../slices/dashboardSlice';
+import sampleSlice from '../slices/sampleSlice';
 
 export const store = configureStore({
   reducer: {
@@ -22,6 +23,7 @@ export const store = configureStore({
     inward: inwardSlice,
     outward: outwardSlice,
     dashboard: dashboardSlice,
+    samples: sampleSlice,
   },
 });
 
