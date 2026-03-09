@@ -21,11 +21,11 @@ export interface StockSummary {
 }
 
 export const inventoryService = {
-  async getStockSummary(locationId?: string): Promise<StockSummary[]> {
+  async getStockSummary(locationId?: string, search?: string): Promise<StockSummary[]> {
     const response = await api.get<ApiResponse<StockSummary[]>>(
       '/inventory/stock-summary',
       {
-        params: { locationId },
+        params: { locationId, search },
       }
     );
     return response.data.data!;

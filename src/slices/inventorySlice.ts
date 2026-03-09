@@ -18,8 +18,8 @@ const initialState: InventoryState = {
 
 export const fetchStockSummary = createAsyncThunk(
   'inventory/fetchStockSummary',
-  async (locationId?: string) => {
-    return await inventoryService.getStockSummary(locationId);
+  async ({ locationId, search }: { locationId?: string; search?: string } = {}) => {
+    return await inventoryService.getStockSummary(locationId, search);
   }
 );
 

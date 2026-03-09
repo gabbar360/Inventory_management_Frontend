@@ -33,14 +33,23 @@ const Inventory: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = useState<string>('');
   const [viewMode, setViewMode] = useState<'summary' | 'batches'>('summary');
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const itemsPerPage = 10;
 
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
     loadData();
-  }, [selectedLocation]);
+  }, [selectedLocation, debouncedSearch]);
 
   const loadData = async () => {
-    dispatch(fetchStockSummary(selectedLocation || undefined));
+    dispatch(fetchStockSummary({ locationId: selectedLocation || undefined, search: debouncedSearch || undefined }));
     dispatch(fetchLocations({ limit: 100 }));
   };
 
@@ -69,7 +78,7 @@ const Inventory: React.FC = () => {
     0
   );
   const totalProducts = stockSummary.length;
-  const lowStockItems = stockSummary.filter((item) => item.totalPcs < 100); // Assuming low stock threshold
+  const lowStockItems = stockSummary.filter((item) => item.totalPcs < 100);
 
   const summaryColumns = [
     {
@@ -203,19 +212,23 @@ const Inventory: React.FC = () => {
     {
       key: 'remainingBoxes',
       title: 'Remaining Stock',
-      render: (_: any, record: StockBatch) => (
-        <div>
-          <div className="font-medium text-gray-900">
-            {formatNumber(record.remainingBoxes)} boxes
+      render: (_: any, record: StockBatch) => {
+        const packsPerBox = record.packPerBox || 1;
+        const pcsPerPack = record.packPerPiece || 1;
+        return (
+          <div>
+            <div className="font-medium text-gray-900">
+              {formatNumber(record.remainingBoxes)} boxes ({formatNumber(packsPerBox)} packs/box)
+            </div>
+            <div className="text-sm text-gray-500">
+              {formatNumber(record.remainingPacks || 0)} packs ({formatNumber(pcsPerPack)} pcs/pack)
+            </div>
+            <div className="text-sm text-gray-500">
+              {formatNumber(record.remainingPcs)} pieces
+            </div>
           </div>
-          <div className="text-sm text-gray-500">
-            {formatNumber(record.remainingPacks || 0)} packs
-          </div>
-          <div className="text-sm text-gray-500">
-            {formatNumber(record.remainingPcs)} pieces
-          </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       key: 'costPerBox',
@@ -253,56 +266,35 @@ const Inventory: React.FC = () => {
     <div className="space-y-4">
       {/* Header */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-gray-900">Inventory</h1>
-              {viewMode === 'batches' && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setViewMode('summary');
-                    setSelectedProduct('');
-                    dispatch(clearAvailableStock());
-                  }}
-                >
-                  ← Back to Summary
-                </Button>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex bg-gray-100 rounded-lg p-1">
-                <button
-                  onClick={() => setViewMode('summary')}
-                  className={`px-3 py-1 rounded-md text-sm transition-colors ${
-                    viewMode === 'summary'
-                      ? 'bg-white shadow-sm text-blue-600'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  Summary
-                </button>
-                <button
-                  onClick={() => setViewMode('batches')}
-                  className={`px-3 py-1 rounded-md text-sm transition-colors ${
-                    viewMode === 'batches'
-                      ? 'bg-white shadow-sm text-blue-600'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                  disabled={!selectedProduct}
-                >
-                  Batches
-                </button>
-              </div>
-              <Select
-                value={selectedLocation}
-                onChange={(e) => setSelectedLocation(e.target.value)}
-                options={locationOptions}
-                className="w-full sm:w-48"
-              />
-              <Button onClick={loadData} className="w-full sm:w-auto">Refresh</Button>
-            </div>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Inventory</h1>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            {viewMode === 'batches' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setViewMode('summary');
+                  setSelectedProduct('');
+                  dispatch(clearAvailableStock());
+                }}
+              >
+                ← Back
+              </Button>
+            )}
+            <input
+              type="text"
+              placeholder="Search products..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-64"
+            />
+            <Select
+              value={selectedLocation}
+              onChange={(e) => setSelectedLocation(e.target.value)}
+              options={locationOptions}
+              className="sm:w-48"
+            />
           </div>
         </div>
       </div>
