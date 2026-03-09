@@ -419,6 +419,7 @@ const Outward: React.FC = () => {
         toast.success('Outward invoice created successfully');
       }
       closeModal();
+      dispatch(fetchOutwardInvoices({ page: currentPage, limit: 10, search }));
     } catch (error: any) {
       toast.error(error?.message || 'Failed to save invoice');
     }
@@ -429,6 +430,7 @@ const Outward: React.FC = () => {
       try {
         await dispatch(deleteOutwardInvoice(invoice.id)).unwrap();
         toast.success('Outward invoice deleted successfully');
+        dispatch(fetchOutwardInvoices({ page: currentPage, limit: 10, search }));
       } catch (error) {
         // Error handled by Redux
       }
@@ -508,8 +510,9 @@ const Outward: React.FC = () => {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       toast.success('Outward invoices exported successfully');
-    } catch (error) {
-      toast.error('Failed to export outward invoices');
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to export outward invoices');
+      console.error('Export error:', error);
     }
   };
 
@@ -576,6 +579,16 @@ const Outward: React.FC = () => {
       ),
     },
     {
+      key: 'totalQty',
+      title: 'Qty',
+      render: (_: any, record: any) => record.totalQty || 0,
+    },
+    {
+      key: 'totalBoxes',
+      title: 'Boxes',
+      render: (_: any, record: any) => record.totalBoxes || 0,
+    },
+    {
       key: 'baseCost',
       title: 'Base Cost',
       render: (_: any, record: OutwardInvoice) => formatCurrency(calculateInvoiceBreakdown(record).baseCost),
@@ -590,6 +603,24 @@ const Outward: React.FC = () => {
       title: 'Grand Total',
       render: (_: any, record: OutwardInvoice) => (
         <span className="font-semibold">{formatCurrency(calculateInvoiceBreakdown(record).grandTotal)}</span>
+      ),
+    },
+    {
+      key: 'grossProfit',
+      title: 'Gross Profit',
+      render: (_: any, record: any) => (
+        <span className={record.grossProfit >= 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
+          {formatCurrency(record.grossProfit || 0)}
+        </span>
+      ),
+    },
+    {
+      key: 'grossProfitMargin',
+      title: 'Profit Margin',
+      render: (_: any, record: any) => (
+        <span className={record.grossProfitMargin >= 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
+          {record.grossProfitMargin?.toFixed(2) || '0.00'}%
+        </span>
       ),
     },
     {

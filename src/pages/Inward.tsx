@@ -401,8 +401,9 @@ const Inward: React.FC = () => {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       toast.success('Inward invoices exported successfully');
-    } catch (error) {
-      toast.error('Failed to export inward invoices');
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to export inward invoices');
+      console.error('Export error:', error);
     }
   };
 
