@@ -961,7 +961,7 @@ const Outward: React.FC = () => {
           {/* Grand Total */}
           <div className="border-t pt-4">
             <div className="flex justify-end">
-              <div className="text-right bg-green-50 p-4 rounded-lg min-w-[300px]">
+              <div className="w-full sm:w-auto sm:min-w-[300px] bg-green-50 p-4 rounded-lg">
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Total Cost:</span>
@@ -974,7 +974,7 @@ const Outward: React.FC = () => {
                   <div className="border-t border-green-200 pt-2">
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600">Grand Total:</span>
-                      <span className="text-xl font-bold text-green-700">{formatCurrency(calculateGrandTotal().grandTotal)}</span>
+                      <span className="text-lg sm:text-xl font-bold text-green-700">{formatCurrency(calculateGrandTotal().grandTotal)}</span>
                     </div>
                   </div>
                 </div>
