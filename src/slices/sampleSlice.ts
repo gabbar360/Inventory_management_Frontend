@@ -99,10 +99,11 @@ const sampleSlice = createSlice({
       })
       .addCase(updateSample.fulfilled, (state, action) => {
         state.loading = false;
-        if (action.payload.data) {
-          const index = state.samples.findIndex(s => s.id === action.payload.data.id);
+        const data = action.payload?.data;
+        if (data?.id) {
+          const index = state.samples.findIndex(s => s.id === data.id);
           if (index !== -1) {
-            state.samples[index] = action.payload.data;
+            state.samples[index] = data;
           }
         }
       })

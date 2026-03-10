@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, ArrowRight } from 'lucide-react';
+import { X } from 'lucide-react';
 import Button from './Button';
 import Select from './Select';
 import { StockBatch } from '@/types';
@@ -46,7 +46,7 @@ const StockTransferModal: React.FC<StockTransferModalProps> = ({
     setLoading(true);
     try {
       await onTransfer({
-        stockBatchId: batch.id,
+        stockBatchId: parseInt(batch.id.toString()),
         toLocationId: parseInt(toLocationId),
         boxes,
         packs,
