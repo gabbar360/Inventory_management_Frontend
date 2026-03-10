@@ -22,9 +22,9 @@ export interface Product {
   name: string;
   code: string;
   grade?: string;
+  description?: string;
   categoryId: string;
   unit: string;
-  description?: string;
   specifications?: string;
   minStockLevel?: number;
   maxStockLevel?: number;
@@ -71,6 +71,7 @@ export interface Customer {
   email?: string;
   phone?: string;
   address?: string;
+  gstNumber?: string;
   createdAt: string;
   updatedAt: string;
   _count?: {

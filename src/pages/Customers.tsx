@@ -28,6 +28,7 @@ interface CustomerFormData {
   email?: string;
   phone?: string;
   address?: string;
+  gstNumber?: string;
 }
 
 const customerSchema = z.object({
@@ -35,6 +36,7 @@ const customerSchema = z.object({
   email: z.string().email().optional().or(z.literal('')),
   phone: z.string().optional(),
   address: z.string().optional(),
+  gstNumber: z.string().optional(),
 });
 
 const Customers: React.FC = () => {
@@ -83,6 +85,7 @@ const Customers: React.FC = () => {
       setValue('email', customer.email || '');
       setValue('phone', customer.phone || '');
       setValue('address', customer.address || '');
+      setValue('gstNumber', customer.gstNumber || '');
     } else {
       setEditingCustomer(null);
       reset();
@@ -267,6 +270,13 @@ const Customers: React.FC = () => {
             placeholder="Enter address"
             error={errors.address?.message}
             {...register('address')}
+          />
+
+          <Input
+            label="GST Number (Optional)"
+            placeholder="Enter GST number"
+            error={errors.gstNumber?.message}
+            {...register('gstNumber')}
           />
 
           <div className="form-actions">
