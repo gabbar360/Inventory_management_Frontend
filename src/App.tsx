@@ -17,6 +17,7 @@ import Outward from '@/pages/Outward';
 import Inventory from '@/pages/Inventory';
 import Samples from '@/pages/Samples';
 import Quotes from '@/pages/Quotes';
+import Settings from '@/pages/Settings';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -93,6 +94,7 @@ function App() {
         <Route path="inventory" element={<Inventory />} />
         <Route path="samples" element={<Samples />} />
         <Route path="quotes" element={<Quotes />} />
+        <Route path="settings" element={<Settings />} />
       </Route>
     </Routes>
   );
