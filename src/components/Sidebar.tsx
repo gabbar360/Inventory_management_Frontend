@@ -13,6 +13,7 @@ import {
   Box,
   Power,
   FlaskConical,
+  FileText,
 } from 'lucide-react';
 import { useAppDispatch } from '@/store/hooks';
 import { logoutUser, logoutAllDevices } from '@/slices/authSlice';
@@ -26,6 +27,7 @@ const navigation = [
   { name: 'Products', href: '/products', icon: Box },
   { name: 'Vendors', href: '/vendors', icon: Users },
   { name: 'Customers', href: '/customers', icon: Users },
+  { name: 'Quotes', href: '/quotes', icon: FileText },
   { name: 'Warehouse', href: '/locations', icon: MapPin },
   { name: 'Inward', href: '/inward', icon: ArrowDownToLine },
   { name: 'Outward', href: '/outward', icon: ArrowUpFromLine },
