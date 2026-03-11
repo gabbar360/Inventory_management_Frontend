@@ -3,27 +3,27 @@ import api from '@/utils/api';
 export const quoteService = {
   createQuote: async (data: any) => {
     const response = await api.post('/quotes', data);
-    return response.data;
+    return response.data.data || response.data;
   },
 
   getQuotes: async (filters?: any) => {
     const response = await api.get('/quotes', { params: filters });
-    return response.data;
+    return response.data.data || response.data;
   },
 
   getQuoteById: async (id: number) => {
     const response = await api.get(`/quotes/${id}`);
-    return response.data;
+    return response.data.data || response.data;
   },
 
   updateQuote: async (id: number, data: any) => {
     const response = await api.put(`/quotes/${id}`, data);
-    return response.data;
+    return response.data.data || response.data;
   },
 
   updateQuoteItems: async (id: number, items: any[]) => {
     const response = await api.put(`/quotes/${id}/items`, { items });
-    return response.data;
+    return response.data.data || response.data;
   },
 
   deleteQuote: async (id: number) => {

@@ -11,7 +11,8 @@ export const fetchQuotes = createAsyncThunk(
 export const fetchQuoteById = createAsyncThunk(
   'quotes/fetchQuoteById',
   async (id: number) => {
-    return await quoteService.getQuoteById(id);
+    const response = await quoteService.getQuoteById(id);
+    return response.data || response;
   }
 );
 
@@ -42,7 +43,6 @@ export const downloadQuotePDF = createAsyncThunk(
   async (id: number) => {
     const blob = await quoteService.downloadQuotePDF(id);
     
-    // Create download link
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -89,10 +89,15 @@ const quoteSlice = createSlice({
       })
       .addCase(fetchQuoteById.pending, (state) => {
         state.loading = true;
+        state.error = null;
       })
       .addCase(fetchQuoteById.fulfilled, (state, action) => {
         state.loading = false;
         state.currentQuote = action.payload;
+      })
+      .addCase(fetchQuoteById.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to fetch quote';
       })
       .addCase(createQuote.fulfilled, (state, action) => {
         state.quotes.push(action.payload);

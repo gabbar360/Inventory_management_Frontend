@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { createQuote, updateQuote, fetchQuotes } from '@/slices/quoteSlice';
+import { createQuote, updateQuote, fetchQuotes, fetchQuoteById, clearCurrentQuote } from '@/slices/quoteSlice';
 import { fetchCustomers } from '@/slices/customerSlice';
 import { fetchProducts } from '@/slices/productSlice';
 import Input from '@/components/Input';
@@ -8,28 +8,32 @@ import Select from '@/components/Select';
 import Button from '@/components/Button';
 
 interface QuoteItem {
+  id?: number;
   productId: number;
   quantity: number;
   unit: string;
   rate: number;
   description?: string;
+  product?: any;
 }
 
 export default function QuoteForm({ quote, onClose }: { quote?: any; onClose: () => void }) {
   const dispatch = useAppDispatch();
   const { customers } = useAppSelector((state) => state.customers);
   const { products } = useAppSelector((state) => state.products);
+  const { currentQuote, loading } = useAppSelector((state) => state.quotes);
   
   const [formData, setFormData] = useState({
-    customerId: quote?.customerId || '',
-    quoteDate: quote?.quoteDate?.split('T')[0] || new Date().toISOString().split('T')[0],
-    expiryDate: quote?.expiryDate?.split('T')[0] || '',
-    discount: quote?.discount || 0,
-    taxRate: quote?.taxRate || 0,
-    notes: quote?.notes || '',
+    customerId: '',
+    quoteDate: new Date().toISOString().split('T')[0],
+    expiryDate: '',
+    discount: 0,
+    taxRate: 0,
+    notes: '',
+    termsAndConditions: '',
   });
 
-  const [items, setItems] = useState<QuoteItem[]>(quote?.items || []);
+  const [items, setItems] = useState<QuoteItem[]>([]);
   const [newItem, setNewItem] = useState<QuoteItem>({
     productId: 0,
     quantity: 1,
@@ -44,12 +48,68 @@ export default function QuoteForm({ quote, onClose }: { quote?: any; onClose: ()
     dispatch(fetchProducts());
   }, [dispatch]);
 
+  // Clear currentQuote when form opens for creating new quote
+  useEffect(() => {
+    if (!quote?.id) {
+      dispatch(clearCurrentQuote());
+      setFormData({
+        customerId: '',
+        quoteDate: new Date().toISOString().split('T')[0],
+        expiryDate: '',
+        discount: 0,
+        taxRate: 0,
+        notes: '',
+        termsAndConditions: '',
+      });
+      setItems([]);
+      setNewItem({
+        productId: 0,
+        quantity: 1,
+        unit: 'box',
+        rate: 0,
+        description: '',
+      });
+    }
+  }, [quote?.id, dispatch]);
+
+  // Fetch quote data when editing
+  useEffect(() => {
+    if (quote?.id) {
+      dispatch(fetchQuoteById(quote.id));
+    }
+  }, [quote?.id, dispatch]);
+
+  // Populate form when currentQuote is loaded
+  useEffect(() => {
+    if (currentQuote && quote?.id) {
+      setFormData({
+        customerId: currentQuote.customerId || '',
+        quoteDate: currentQuote.quoteDate?.split('T')[0] || '',
+        expiryDate: currentQuote.expiryDate?.split('T')[0] || '',
+        discount: currentQuote.discount || 0,
+        taxRate: currentQuote.tax || 0,
+        notes: currentQuote.notes || '',
+        termsAndConditions: currentQuote.termsAndConditions || '',
+      });
+      
+      const mappedItems = (currentQuote.items || []).map((item: any) => ({
+        id: item.id,
+        productId: item.productId,
+        quantity: item.quantity,
+        unit: item.unit,
+        rate: item.rate,
+        description: item.product?.description || item.description || '',
+        product: item.product,
+      }));
+      setItems(mappedItems);
+    }
+  }, [currentQuote, quote?.id]);
+
   const handleAddItem = () => {
     if (newItem.productId && newItem.quantity && newItem.rate) {
       const selectedProduct = products.find((p: any) => p.id === newItem.productId);
       const gstRate = selectedProduct?.category?.gstRate || 0;
       
-      // Auto-set tax rate from product's category if not already set
       if (formData.taxRate === 0 && gstRate > 0) {
         setFormData(prev => ({ ...prev, taxRate: gstRate }));
       }
@@ -74,20 +134,28 @@ export default function QuoteForm({ quote, onClose }: { quote?: any; onClose: ()
       customerId: parseInt(formData.customerId),
       quoteDate: formData.quoteDate,
       expiryDate: formData.expiryDate,
-      items,
+      items: items.map(item => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        unit: item.unit,
+        rate: item.rate,
+        description: item.description,
+      })),
       totalAmount,
       discount: formData.discount,
-      taxRate: formData.taxRate,
+      tax: formData.taxRate,
       notes: formData.notes,
+      termsAndConditions: formData.termsAndConditions,
     };
 
     if (quote?.id) {
-      await dispatch(updateQuote({ id: quote.id, data: { ...formData, totalAmount } }));
+      await dispatch(updateQuote({ id: quote.id, data }));
     } else {
       await dispatch(createQuote(data));
     }
     
     dispatch(fetchQuotes());
+    dispatch(clearCurrentQuote());
     onClose();
   };
 
@@ -95,6 +163,21 @@ export default function QuoteForm({ quote, onClose }: { quote?: any; onClose: ()
     if (e.key === 'Escape') {
       e.stopPropagation();
     }
+  };
+
+  if (quote?.id && loading) {
+    return <div className="text-center py-4">Loading quote data...</div>;
+  }
+
+  const getProductName = (item: QuoteItem) => {
+    if (item.product?.name) return item.product.name;
+    return products.find((p: any) => p.id === item.productId)?.name || 'Unknown Product';
+  };
+
+  const getProductDescription = (item: QuoteItem) => {
+    if (item.description) return item.description;
+    if (item.product?.description) return item.product.description;
+    return products.find((p: any) => p.id === item.productId)?.description || '';
   };
 
   return (
@@ -191,50 +274,52 @@ export default function QuoteForm({ quote, onClose }: { quote?: any; onClose: ()
 
         <Button type="button" onClick={handleAddItem}>Add Item</Button>
 
-        <table className="w-full text-sm border mt-4">
-          <thead>
-            <tr className="bg-gray-100">
-              <th className="p-2 text-left">Product</th>
-              <th className="p-2 text-right">Qty</th>
-              <th className="p-2 text-right">Rate</th>
-              <th className="p-2 text-right">Amount</th>
-              <th className="p-2">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item, idx) => (
-              <tr key={idx} className="border-t">
-                <td className="p-2">
-                  <div className="font-medium">{products.find((p: any) => p.id === item.productId)?.name}</div>
-                  <div className="text-xs text-gray-600 mt-1">{item.description}</div>
-                </td>
-                <td className="p-2 text-right">{item.quantity} {item.unit}</td>
-                <td className="p-2 text-right">₹{item.rate.toFixed(2)}</td>
-                <td className="p-2 text-right">₹{(item.quantity * item.rate).toFixed(2)}</td>
-                <td className="p-2 text-center">
-                  <div className="flex gap-1 justify-center">
-                    <button 
-                      type="button" 
-                      onClick={() => setEditingItem(idx)} 
-                      className="text-blue-600 hover:text-blue-800"
-                      title="Edit"
-                    >
-                      ✏️
-                    </button>
-                    <button 
-                      type="button" 
-                      onClick={() => handleRemoveItem(idx)} 
-                      className="text-red-600 hover:text-red-800"
-                      title="Delete"
-                    >
-                      ×
-                    </button>
-                  </div>
-                </td>
+        {items.length > 0 && (
+          <table className="w-full text-sm border mt-4">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="p-2 text-left">Product</th>
+                <th className="p-2 text-right">Qty</th>
+                <th className="p-2 text-right">Rate</th>
+                <th className="p-2 text-right">Amount</th>
+                <th className="p-2">Action</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {items.map((item, idx) => (
+                <tr key={idx} className="border-t">
+                  <td className="p-2">
+                    <div className="font-medium">{getProductName(item)}</div>
+                    <div className="text-xs text-gray-600 mt-1">{getProductDescription(item)}</div>
+                  </td>
+                  <td className="p-2 text-right">{item.quantity} {item.unit}</td>
+                  <td className="p-2 text-right">₹{item.rate.toFixed(2)}</td>
+                  <td className="p-2 text-right">₹{(item.quantity * item.rate).toFixed(2)}</td>
+                  <td className="p-2 text-center">
+                    <div className="flex gap-1 justify-center">
+                      <button 
+                        type="button" 
+                        onClick={() => setEditingItem(idx)} 
+                        className="text-blue-600 hover:text-blue-800"
+                        title="Edit"
+                      >
+                        ✏️
+                      </button>
+                      <button 
+                        type="button" 
+                        onClick={() => handleRemoveItem(idx)} 
+                        className="text-red-600 hover:text-red-800"
+                        title="Delete"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
       <div className="border-t pt-4 space-y-2">
@@ -282,8 +367,19 @@ export default function QuoteForm({ quote, onClose }: { quote?: any; onClose: ()
           label="Notes"
           value={formData.notes}
           onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-          placeholder="Terms & conditions, payment terms, etc."
+          placeholder="Additional notes"
         />
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Terms & Conditions</label>
+          <textarea
+            value={formData.termsAndConditions}
+            onChange={(e) => setFormData({ ...formData, termsAndConditions: e.target.value })}
+            placeholder="Enter terms and conditions for this quote"
+            rows={4}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
       </div>
 
       <div className="flex gap-2 justify-end">
@@ -291,7 +387,6 @@ export default function QuoteForm({ quote, onClose }: { quote?: any; onClose: ()
         <Button type="submit">{quote ? 'Update' : 'Create'} Quote</Button>
       </div>
 
-      {/* Edit Item Modal */}
       {editingItem !== null && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg w-96">
