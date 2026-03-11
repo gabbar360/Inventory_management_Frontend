@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useNavigate } from 'react-router-dom';
 import { Menu, User, Settings, ChevronDown } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
 import Sidebar from '@/components/Sidebar';
@@ -7,6 +7,7 @@ import ProfileModal from '@/components/ProfileModal';
 
 const Layout: React.FC = () => {
   const { user } = useAppSelector((state) => state.auth);
+  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -76,6 +77,16 @@ const Layout: React.FC = () => {
                     >
                       <Settings className="h-4 w-4" />
                       Profile Settings
+                    </button>
+                    <button
+                      onClick={() => {
+                        setDropdownOpen(false);
+                        navigate('/settings');
+                      }}
+                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      <Settings className="h-4 w-4" />
+                      Company Settings
                     </button>
                   </div>
                 </>

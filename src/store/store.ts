@@ -11,6 +11,7 @@ import outwardSlice from '../slices/outwardSlice';
 import dashboardSlice from '../slices/dashboardSlice';
 import sampleSlice from '../slices/sampleSlice';
 import quoteSlice from '../slices/quoteSlice';
+import settingsSlice from '../slices/settingsSlice';
 
 export const store = configureStore({
   reducer: {
@@ -26,6 +27,7 @@ export const store = configureStore({
     dashboard: dashboardSlice,
     samples: sampleSlice,
     quotes: quoteSlice,
+    settings: settingsSlice,
   },
 });
 
