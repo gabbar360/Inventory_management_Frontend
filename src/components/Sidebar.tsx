@@ -58,15 +58,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
 
   const handleLogoutAll = () => {
     // Immediately clear cookies and redirect (don't wait for API)
-    document.cookie = 'accessToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-    document.cookie = 'refreshToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-    toast.success('Logged out from all devices');
-    
-    // Call API in background (fire and forget)
-    dispatch(logoutAllDevices());
-    
-    // Immediate redirect
-    navigate('/login');
+    // document.cookie = 'accessToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    // document.cookie = 'refreshToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    // toast.success('Logged out from all devices');
+    // 
+    // // Call API in background (fire and forget)
+    // dispatch(logoutAllDevices());
+    // 
+    // // Immediate redirect
+    // navigate('/login');
   };
 
   const handleLinkClick = () => {
@@ -169,7 +169,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
                   <LogOut className="mr-2 h-4 w-4" />
                   Logout
                 </Button>
-                <Button
+                {/* Logout All Devices Button - Commented Out */}
+                {/* <Button
                   variant="ghost"
                   size="sm"
                   onClick={handleLogoutAll}
@@ -177,7 +178,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
                 >
                   <Power className="mr-2 h-4 w-4" />
                   Logout All Devices
-                </Button>
+                </Button> */}
               </div>
             ) : (
               <div className="relative">
@@ -201,7 +202,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
                       <LogOut className="mr-2 h-4 w-4" />
                       Logout
                     </button>
-                    <button
+                    {/* Logout All Devices Menu Item - Commented Out */}
+                    {/* <button
                       onClick={() => {
                         handleLogoutAll();
                         setShowLogoutMenu(false);
@@ -210,7 +212,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
                     >
                       <Power className="mr-2 h-4 w-4" />
                       Logout All
-                    </button>
+                    </button> */}
                   </div>
                 )}
               </div>
