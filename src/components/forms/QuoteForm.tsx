@@ -9,6 +9,7 @@ import Button from '@/components/Button';
 
 interface QuoteItem {
   id?: number;
+  tempId?: number; // For new items before saving
   productId: number;
   quantity: number;
   unit: string;
@@ -83,7 +84,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: any; onClose: ()
   useEffect(() => {
     if (currentQuote && quote?.id) {
       setFormData({
-        customerId: currentQuote.customerId || '',
+        customerId: currentQuote.customerId?.toString() || '', // Convert to string for select
         quoteDate: currentQuote.quoteDate?.split('T')[0] || '',
         expiryDate: currentQuote.expiryDate?.split('T')[0] || '',
         discount: currentQuote.discount || 0,
@@ -114,7 +115,13 @@ export default function QuoteForm({ quote, onClose }: { quote?: any; onClose: ()
         setFormData(prev => ({ ...prev, taxRate: gstRate }));
       }
       
-      setItems([...items, newItem]);
+      // Add temporary id for new items (negative numbers to distinguish from existing items)
+      const itemWithTempId = {
+        ...newItem,
+        tempId: Date.now() // Use timestamp as temporary id for new items
+      };
+      
+      setItems([...items, itemWithTempId]);
       setNewItem({ productId: 0, quantity: 1, unit: 'box', rate: 0, description: '' });
     }
   };
@@ -135,6 +142,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: any; onClose: ()
       quoteDate: formData.quoteDate,
       expiryDate: formData.expiryDate,
       items: items.map(item => ({
+        ...(item.id && { id: item.id }), // Include id for existing items
         productId: item.productId,
         quantity: item.quantity,
         unit: item.unit,
@@ -148,15 +156,20 @@ export default function QuoteForm({ quote, onClose }: { quote?: any; onClose: ()
       termsAndConditions: formData.termsAndConditions,
     };
 
-    if (quote?.id) {
-      await dispatch(updateQuote({ id: quote.id, data }));
-    } else {
-      await dispatch(createQuote(data));
+    try {
+      if (quote?.id) {
+        await dispatch(updateQuote({ id: quote.id, data }));
+        await dispatch(fetchQuoteById(quote.id));
+      } else {
+        await dispatch(createQuote(data));
+      }
+      
+      dispatch(fetchQuotes());
+      dispatch(clearCurrentQuote());
+      onClose();
+    } catch (error) {
+      console.error('Error submitting quote:', error);
     }
-    
-    dispatch(fetchQuotes());
-    dispatch(clearCurrentQuote());
-    onClose();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -287,7 +300,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: any; onClose: ()
             </thead>
             <tbody>
               {items.map((item, idx) => (
-                <tr key={idx} className="border-t">
+                <tr key={item.id || item.tempId || idx} className="border-t">
                   <td className="p-2">
                     <div className="font-medium">{getProductName(item)}</div>
                     <div className="text-xs text-gray-600 mt-1">{getProductDescription(item)}</div>
