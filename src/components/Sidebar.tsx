@@ -11,12 +11,11 @@ import {
   Menu,
   FolderTree,
   Box,
-  Power,
   FlaskConical,
   FileText,
 } from 'lucide-react';
 import { useAppDispatch } from '@/store/hooks';
-import { logoutUser, logoutAllDevices } from '@/slices/authSlice';
+import { logoutUser } from '@/slices/authSlice';
 import { cn } from '@/utils';
 import Button from '@/components/Button';
 import toast from 'react-hot-toast';
@@ -54,19 +53,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
     } catch (error) {
       toast.error('Logout failed');
     }
-  };
-
-  const handleLogoutAll = () => {
-    // Immediately clear cookies and redirect (don't wait for API)
-    // document.cookie = 'accessToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-    // document.cookie = 'refreshToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-    // toast.success('Logged out from all devices');
-    // 
-    // // Call API in background (fire and forget)
-    // dispatch(logoutAllDevices());
-    // 
-    // // Immediate redirect
-    // navigate('/login');
   };
 
   const handleLinkClick = () => {
@@ -159,27 +145,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
           {/* Logout Button */}
           <div className="border-t border-gray-200 p-4">
             {isOpen ? (
-              <div className="space-y-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleLogout}
-                  className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-                >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Logout
-                </Button>
-                {/* Logout All Devices Button - Commented Out */}
-                {/* <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleLogoutAll}
-                  className="w-full justify-start text-red-700 hover:text-red-800 hover:bg-red-50"
-                >
-                  <Power className="mr-2 h-4 w-4" />
-                  Logout All Devices
-                </Button> */}
-              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLogout}
+                className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Logout
+              </Button>
             ) : (
               <div className="relative">
                 <Button
@@ -202,17 +176,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
                       <LogOut className="mr-2 h-4 w-4" />
                       Logout
                     </button>
-                    {/* Logout All Devices Menu Item - Commented Out */}
-                    {/* <button
-                      onClick={() => {
-                        handleLogoutAll();
-                        setShowLogoutMenu(false);
-                      }}
-                      className="w-full px-4 py-2 text-left text-sm text-red-700 hover:bg-red-50 flex items-center"
-                    >
-                      <Power className="mr-2 h-4 w-4" />
-                      Logout All
-                    </button> */}
                   </div>
                 )}
               </div>

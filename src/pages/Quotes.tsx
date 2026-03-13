@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, FileText, Download } from 'lucide-react';
+import { Plus, Edit, Trash2, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
@@ -20,7 +20,7 @@ const Quotes: React.FC = () => {
   const dispatch = useAppDispatch();
   const { quotes, pagination, loading, error } = useAppSelector(
     (state) => state.quotes
-  );
+  ) as { quotes: Quote[]; pagination: { page: number; totalPages: number; total: number; limit: number }; loading: boolean; error: string | null };
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
@@ -182,7 +182,7 @@ const Quotes: React.FC = () => {
         title={editingQuote ? 'Edit Quote' : 'Add Quote'}
         size="xl"
       >
-        <QuoteForm quote={editingQuote} onClose={closeModal} />
+        <QuoteForm quote={editingQuote || undefined} onClose={closeModal} />
       </Modal>
     </div>
   );
