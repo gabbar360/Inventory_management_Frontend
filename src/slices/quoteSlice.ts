@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { quoteService } from '../services/quoteService';
+import { Quote } from '@/types';
 
 export const fetchQuotes = createAsyncThunk(
   'quotes/fetchQuotes',
@@ -10,7 +11,7 @@ export const fetchQuotes = createAsyncThunk(
 
 export const fetchQuoteById = createAsyncThunk(
   'quotes/fetchQuoteById',
-  async (id: number) => {
+  async (id: string) => {
     const response = await quoteService.getQuoteById(id);
     return response.data || response;
   }
@@ -25,14 +26,14 @@ export const createQuote = createAsyncThunk(
 
 export const updateQuote = createAsyncThunk(
   'quotes/updateQuote',
-  async ({ id, data }: { id: number; data: any }) => {
+  async ({ id, data }: { id: string; data: any }) => {
     return await quoteService.updateQuote(id, data);
   }
 );
 
 export const deleteQuote = createAsyncThunk(
   'quotes/deleteQuote',
-  async (id: number) => {
+  async (id: string) => {
     await quoteService.deleteQuote(id);
     return id;
   }
@@ -40,7 +41,7 @@ export const deleteQuote = createAsyncThunk(
 
 export const downloadQuotePDF = createAsyncThunk(
   'quotes/downloadQuotePDF',
-  async (id: number) => {
+  async (id: string) => {
     const blob = await quoteService.downloadQuotePDF(id);
     
     const url = window.URL.createObjectURL(blob);
@@ -57,12 +58,26 @@ export const downloadQuotePDF = createAsyncThunk(
   }
 );
 
-const initialState = {
+interface QuoteState {
+  quotes: Quote[];
+  currentQuote: Quote | null;
+  loading: boolean;
+  downloadingPDF: boolean;
+  error: string | null;
+  pagination?: {
+    page: number;
+    totalPages: number;
+    total: number;
+    limit: number;
+  };
+}
+
+const initialState: QuoteState = {
   quotes: [],
   currentQuote: null,
   loading: false,
   downloadingPDF: false,
-  error: null as string | null,
+  error: null,
 };
 
 const quoteSlice = createSlice({

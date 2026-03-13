@@ -258,6 +258,35 @@ export interface SampleItem {
   };
 }
 
+export interface Quote {
+  id: string;
+  quoteNo: string;
+  customerId: string;
+  customer?: Customer;
+  quoteDate: string;
+  expiryDate: string;
+  totalAmount: number;
+  discount: number;
+  tax: number;
+  notes?: string;
+  termsAndConditions?: string;
+  status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired';
+  createdAt: string;
+  updatedAt: string;
+  items?: QuoteItem[];
+}
+
+export interface QuoteItem {
+  id: string;
+  quoteId: string;
+  productId: string;
+  product?: Product;
+  quantity: number;
+  unit: string;
+  rate: number;
+  description?: string;
+}
+
 export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;

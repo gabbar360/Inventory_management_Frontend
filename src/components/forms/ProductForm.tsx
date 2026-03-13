@@ -220,7 +220,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
           label="Category *"
           value={formData.categoryId?.toString() || ''}
           onChange={(e) =>
-            setFormData((prev) => ({ ...prev, categoryId: parseInt(e.target.value) || '' }))
+            setFormData((prev) => ({ ...prev, categoryId: e.target.value }))
           }
           error={errors.categoryId}
         >

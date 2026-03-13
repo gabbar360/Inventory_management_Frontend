@@ -11,27 +11,27 @@ export const quoteService = {
     return response.data.data || response.data;
   },
 
-  getQuoteById: async (id: number) => {
+  getQuoteById: async (id: string | number) => {
     const response = await api.get(`/quotes/${id}`);
     return response.data.data || response.data;
   },
 
-  updateQuote: async (id: number, data: any) => {
+  updateQuote: async (id: string | number, data: any) => {
     const response = await api.put(`/quotes/${id}`, data);
     return response.data.data || response.data;
   },
 
-  updateQuoteItems: async (id: number, items: any[]) => {
+  updateQuoteItems: async (id: string | number, items: any[]) => {
     const response = await api.put(`/quotes/${id}/items`, { items });
     return response.data.data || response.data;
   },
 
-  deleteQuote: async (id: number) => {
+  deleteQuote: async (id: string | number) => {
     const response = await api.delete(`/quotes/${id}`);
     return response.data;
   },
 
-  downloadQuotePDF: async (id: number) => {
+  downloadQuotePDF: async (id: string | number) => {
     const response = await api.get(`/quotes/${id}/pdf`, {
       responseType: 'blob',
     });

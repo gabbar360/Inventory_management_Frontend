@@ -3,6 +3,7 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { createQuote, updateQuote, fetchQuotes, fetchQuoteById, clearCurrentQuote } from '@/slices/quoteSlice';
 import { fetchCustomers } from '@/slices/customerSlice';
 import { fetchProducts } from '@/slices/productSlice';
+import { Quote } from '@/types';
 import Input from '@/components/Input';
 import Select from '@/components/Select';
 import Button from '@/components/Button';
@@ -18,11 +19,11 @@ interface QuoteItem {
   product?: any;
 }
 
-export default function QuoteForm({ quote, onClose }: { quote?: any; onClose: () => void }) {
+export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: () => void }) {
   const dispatch = useAppDispatch();
   const { customers } = useAppSelector((state) => state.customers);
   const { products } = useAppSelector((state) => state.products);
-  const { currentQuote, loading } = useAppSelector((state) => state.quotes);
+  const { currentQuote, loading } = useAppSelector((state) => state.quotes) as { currentQuote: Quote | null; loading: boolean };
   
   const [formData, setFormData] = useState({
     customerId: '',
@@ -164,7 +165,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: any; onClose: ()
         await dispatch(createQuote(data));
       }
       
-      dispatch(fetchQuotes());
+      dispatch(fetchQuotes({ page: 1, limit: 10 }));
       dispatch(clearCurrentQuote());
       onClose();
     } catch (error) {
