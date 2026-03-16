@@ -7,6 +7,7 @@ import {
   Calendar,
   User,
   Archive,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
@@ -21,6 +22,9 @@ import Button from '@/components/Button';
 import Select from '@/components/Select';
 import Table from '@/components/Table';
 import Pagination from '@/components/Pagination';
+import StockTransferModal from '@/components/StockTransferModal';
+import { transferStock } from '@/services/stockTransferService';
+import { toast } from 'react-hot-toast';
 
 const Inventory: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -35,6 +39,8 @@ const Inventory: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [transferModalOpen, setTransferModalOpen] = useState(false);
+  const [selectedBatch, setSelectedBatch] = useState<StockBatch | null>(null);
   const itemsPerPage = 10;
 
   useEffect(() => {
@@ -254,13 +260,43 @@ const Inventory: React.FC = () => {
       key: 'totalValue',
       title: 'Batch Value',
       render: (_: any, record: StockBatch) => {
-        // Calculate total value based on remaining stock only
         const totalRemainingPcs = record.remainingPcs;
         const totalValue = totalRemainingPcs * record.costPerPcs;
         return formatCurrency(totalValue);
       },
     },
+    {
+      key: 'actions',
+      title: 'Actions',
+      render: (_: any, record: StockBatch) => (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setSelectedBatch(record);
+            setTransferModalOpen(true);
+          }}
+        >
+          <ArrowRightLeft className="w-4 h-4 mr-1" />
+          Transfer
+        </Button>
+      ),
+    },
   ];
+
+  const handleTransfer = async (data: any) => {
+    try {
+      await transferStock(data);
+      toast.success('Stock transferred successfully');
+      loadData();
+      if (selectedProduct) {
+        loadBatches(selectedProduct);
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to transfer stock');
+      throw error;
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -529,6 +565,18 @@ const Inventory: React.FC = () => {
           </div>
         </>
       )}
+
+      {/* Stock Transfer Modal */}
+      <StockTransferModal
+        isOpen={transferModalOpen}
+        onClose={() => {
+          setTransferModalOpen(false);
+          setSelectedBatch(null);
+        }}
+        batch={selectedBatch}
+        locations={locations.map((loc) => ({ id: loc.id, name: loc.name }))}
+        onTransfer={handleTransfer}
+      />
 
       {/* Low Stock Alert */}
       {lowStockItems.length > 0 && (

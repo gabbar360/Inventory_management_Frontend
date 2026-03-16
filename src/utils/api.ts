@@ -4,7 +4,7 @@ import { store } from '@/store/store';
 import { refreshToken as refreshTokenAction } from '@/slices/authSlice';
 
 
-const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api/v1';
+const API_URL = (import.meta as any).env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -91,7 +91,7 @@ api.interceptors.response.use(
 
     // Extract error message from response
     const errorMessage = error.response?.data?.error || error.response?.data?.message || 'An error occurred';
-    
+
     // Return error with message for handling in components
     return Promise.reject(errorMessage);
   }

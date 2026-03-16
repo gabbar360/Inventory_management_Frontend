@@ -140,10 +140,26 @@ const Samples: React.FC = () => {
   const onSubmit = async (data: SampleFormData) => {
     try {
       if (editingSample) {
-        await dispatch(updateSample({ id: editingSample.id, data })).unwrap();
+        const updateData: Partial<Sample> = {
+          ...data,
+          items: data.items.map(item => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            unit: item.unit,
+          })) as any,
+        };
+        await dispatch(updateSample({ id: editingSample.id, data: updateData })).unwrap();
         toast.success('Sample updated successfully');
       } else {
-        await dispatch(createSample(data)).unwrap();
+        const createData: Partial<Sample> = {
+          ...data,
+          items: data.items.map(item => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            unit: item.unit,
+          })) as any,
+        };
+        await dispatch(createSample(createData)).unwrap();
         toast.success('Sample created successfully');
       }
       closeModal();

@@ -22,9 +22,9 @@ export interface Product {
   name: string;
   code: string;
   grade?: string;
+  description?: string;
   categoryId: string;
   unit: string;
-  description?: string;
   specifications?: string;
   minStockLevel?: number;
   maxStockLevel?: number;
@@ -71,6 +71,7 @@ export interface Customer {
   email?: string;
   phone?: string;
   address?: string;
+  gstNumber?: string;
   createdAt: string;
   updatedAt: string;
   _count?: {
@@ -255,6 +256,35 @@ export interface SampleItem {
     name: string;
     grade?: string;
   };
+}
+
+export interface Quote {
+  id: string;
+  quoteNo: string;
+  customerId: string;
+  customer?: Customer;
+  quoteDate: string;
+  expiryDate: string;
+  totalAmount: number;
+  discount: number;
+  tax: number;
+  notes?: string;
+  termsAndConditions?: string;
+  status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired';
+  createdAt: string;
+  updatedAt: string;
+  items?: QuoteItem[];
+}
+
+export interface QuoteItem {
+  id: string;
+  quoteId: string;
+  productId: string;
+  product?: Product;
+  quantity: number;
+  unit: string;
+  rate: number;
+  description?: string;
 }
 
 export interface ApiResponse<T = any> {
