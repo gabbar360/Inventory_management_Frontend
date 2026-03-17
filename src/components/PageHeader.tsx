@@ -24,11 +24,34 @@ const PageHeader: React.FC<PageHeaderProps> = ({
 }) => {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-        <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
-        
+      {/* Mobile and Tablet Layout */}
+      <div className="lg:hidden space-y-4">
+        {/* Row 1: Title and Mobile Actions */}
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="text-2xl font-bold text-gray-900 flex-shrink-0">
+            {title}
+          </h1>
+
+          {actions.length > 0 && (
+            <div className="flex md:hidden gap-2 flex-shrink-0">
+              {actions.map((action, index) => (
+                <Button
+                  key={index}
+                  variant={action.variant || 'outline'}
+                  onClick={action.onClick}
+                  size="sm"
+                  className="p-2"
+                >
+                  {action.icon}
+                </Button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Row 2: Search */}
         {onSearch && (
-          <div className="relative w-full sm:w-64 sm:ml-4">
+          <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
@@ -38,9 +61,10 @@ const PageHeader: React.FC<PageHeaderProps> = ({
             />
           </div>
         )}
-        
+
+        {/* Row 3: Tablet Actions */}
         {actions.length > 0 && (
-          <div className="flex gap-2 sm:ml-auto">
+          <div className="hidden md:flex lg:hidden gap-2">
             {actions.map((action, index) => (
               <Button
                 key={index}
@@ -49,7 +73,42 @@ const PageHeader: React.FC<PageHeaderProps> = ({
                 size="sm"
               >
                 {action.icon}
-                <span className="hidden sm:inline ml-2">{action.label}</span>
+                <span className="ml-2">{action.label}</span>
+              </Button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Desktop Layout (1024px+) - Single Line */}
+      <div className="hidden lg:flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-bold text-gray-900 flex-shrink-0">
+          {title}
+        </h1>
+
+        {onSearch && (
+          <div className="relative flex-1 max-w-xs">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder={searchPlaceholder}
+              className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+              onChange={(e) => onSearch(e.target.value)}
+            />
+          </div>
+        )}
+
+        {actions.length > 0 && (
+          <div className="flex gap-2 flex-shrink-0">
+            {actions.map((action, index) => (
+              <Button
+                key={index}
+                variant={action.variant || 'outline'}
+                onClick={action.onClick}
+                size="sm"
+              >
+                {action.icon}
+                <span className="ml-2">{action.label}</span>
               </Button>
             ))}
           </div>

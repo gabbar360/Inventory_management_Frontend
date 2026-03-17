@@ -71,7 +71,6 @@ const Locations: React.FC = () => {
     setCurrentPage(1);
   });
 
-
   const openModal = (location?: Location) => {
     if (location) {
       setEditingLocation(location);
@@ -188,7 +187,7 @@ const Locations: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 sm:space-y-6">
       <PageHeader
         title="Locations"
         searchPlaceholder="Search locations..."
@@ -214,7 +213,7 @@ const Locations: React.FC = () => {
       />
 
       {/* Table */}
-      <div className="card overflow-x-auto">
+      <div className="card overflow-hidden">
         <Table data={locations} columns={columns} loading={loading} />
 
         <Pagination
