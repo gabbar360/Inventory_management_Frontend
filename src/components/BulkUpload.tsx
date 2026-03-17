@@ -58,6 +58,11 @@ const BulkUpload: React.FC<BulkUploadProps> = ({
       return;
     }
 
+    if (selectedFile.size === 0) {
+      toast.error('File is empty. Please select a valid file');
+      return;
+    }
+
     setFile(selectedFile);
     setResult(null);
   };
@@ -122,16 +127,18 @@ const BulkUpload: React.FC<BulkUploadProps> = ({
 
       setResult(uploadResult);
 
-      if (uploadResult.success > 0) {
+      if (uploadResult.success > 0 && uploadResult.failed === 0) {
         toast.success(`Successfully uploaded ${uploadResult.success} records`);
         onSuccess();
+      } else if (uploadResult.success > 0 && uploadResult.failed > 0) {
+        toast.success(`Uploaded ${uploadResult.success} records. ${uploadResult.failed} failed.`);
+        onSuccess();
+      } else if (uploadResult.failed > 0) {
+        toast.error(`All ${uploadResult.failed} records failed to upload`);
       }
-
-      if (uploadResult.failed > 0) {
-        toast.error(`${uploadResult.failed} records failed to upload`);
-      }
-    } catch (error) {
-      toast.error('Upload failed. Please try again.');
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Upload failed. Please check your file and try again.');
+      console.error('Upload error:', error);
     } finally {
       setUploading(false);
     }
@@ -149,8 +156,9 @@ const BulkUpload: React.FC<BulkUploadProps> = ({
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       toast.success('Template downloaded successfully');
-    } catch (error) {
-      toast.error('Failed to download template');
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to download template');
+      console.error('Download template error:', error);
     }
   };
 
@@ -280,22 +288,17 @@ const BulkUpload: React.FC<BulkUploadProps> = ({
             </div>
 
             {result.errors.length > 0 && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <h4 className="text-sm font-medium text-red-900 mb-2">
-                  Errors:
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 max-h-96 overflow-y-auto">
+                <h4 className="text-sm font-medium text-red-900 mb-3 sticky top-0 bg-red-50 pb-2">
+                  Errors ({result.errors.length}):
                 </h4>
-                <div className="max-h-40 overflow-y-auto space-y-2">
-                  {result.errors.slice(0, 10).map((error, index) => (
-                    <div key={index} className="text-sm text-red-800">
+                <div className="space-y-2">
+                  {result.errors.map((error, index) => (
+                    <div key={index} className="text-sm text-red-800 bg-white p-2 rounded border border-red-100">
                       <span className="font-medium">Row {error.row}:</span>{' '}
                       {error.error}
                     </div>
                   ))}
-                  {result.errors.length > 10 && (
-                    <div className="text-sm text-red-600">
-                      ... and {result.errors.length - 10} more errors
-                    </div>
-                  )}
                 </div>
               </div>
             )}
