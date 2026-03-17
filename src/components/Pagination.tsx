@@ -45,25 +45,26 @@ const Pagination: React.FC<PaginationProps> = ({
   };
 
   return (
-    <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-white">
-      <div className="flex items-center text-sm text-gray-700">
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-3 sm:px-6 py-4 border-t border-gray-200 bg-white">
+      <div className="flex items-center text-xs sm:text-sm text-gray-700">
         <span>
-          Showing {startItem} to {endItem} of {total} results
+          Showing {startItem} to {endItem} of {total}
         </span>
       </div>
 
-      <div className="flex items-center space-x-2">
+      <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-1">
         <Button
           variant="outline"
           size="sm"
           disabled={currentPage === 1 || loading}
           onClick={() => onPageChange(currentPage - 1)}
+          className="w-full sm:w-auto"
         >
           <ChevronLeft className="h-4 w-4 mr-1" />
-          Previous
+          <span className="sm:inline">Prev</span>
         </Button>
 
-        <div className="flex items-center space-x-1">
+        <div className="flex items-center gap-1 overflow-x-auto">
           {getVisiblePages().map((page) => (
             <Button
               key={page}
@@ -83,8 +84,9 @@ const Pagination: React.FC<PaginationProps> = ({
           size="sm"
           disabled={currentPage === totalPages || loading}
           onClick={() => onPageChange(currentPage + 1)}
+          className="w-full sm:w-auto"
         >
-          Next
+          <span className="sm:inline">Next</span>
           <ChevronRight className="h-4 w-4 ml-1" />
         </Button>
       </div>

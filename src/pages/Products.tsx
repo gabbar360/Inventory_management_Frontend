@@ -82,7 +82,6 @@ const Products: React.FC = () => {
     setCurrentPage(1);
   });
 
-
   const openModal = (product?: Product) => {
     if (product) {
       setEditingProduct(product);
@@ -204,7 +203,7 @@ const Products: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 sm:space-y-6">
       <PageHeader
         title="Products"
         searchPlaceholder="Search products..."
@@ -230,7 +229,7 @@ const Products: React.FC = () => {
       />
 
       {/* Table */}
-      <div className="card overflow-x-auto">
+      <div className="card overflow-hidden">
         <Table data={products} columns={columns} loading={loading} />
 
         <Pagination

@@ -23,7 +23,7 @@ const Modal: React.FC<ModalProps> = ({
   if (!isOpen) return null;
 
   const sizes = {
-    sm: 'max-w-md',
+    sm: 'max-w-sm',
     md: 'max-w-lg',
     lg: 'max-w-2xl',
     xl: 'max-w-4xl',
@@ -31,7 +31,7 @@ const Modal: React.FC<ModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-screen items-center justify-center p-4">
+      <div className="flex min-h-screen items-center justify-center p-3 sm:p-4">
         {/* Backdrop */}
         <div
           className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
@@ -47,16 +47,18 @@ const Modal: React.FC<ModalProps> = ({
         >
           {/* Header */}
           {(title || showCloseButton) && (
-            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+            <div className="flex items-center justify-between border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4">
               {title && (
-                <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-900 truncate">
+                  {title}
+                </h3>
               )}
               {showCloseButton && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={onClose}
-                  className="h-8 w-8 p-0"
+                  className="h-8 w-8 p-0 ml-2 flex-shrink-0"
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -65,7 +67,9 @@ const Modal: React.FC<ModalProps> = ({
           )}
 
           {/* Content */}
-          <div className="px-6 py-4">{children}</div>
+          <div className="px-4 sm:px-6 py-4 sm:py-6 max-h-[calc(100vh-200px)] overflow-y-auto">
+            {children}
+          </div>
         </div>
       </div>
     </div>
