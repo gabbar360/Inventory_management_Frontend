@@ -191,7 +191,7 @@ const Categories: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 sm:space-y-6">
       <PageHeader
         title="Categories"
         searchPlaceholder="Search categories..."
@@ -219,7 +219,7 @@ const Categories: React.FC = () => {
       />
 
       {/* Table */}
-      <div className="card overflow-x-auto">
+      <div className="card overflow-hidden">
         <Table data={categories} columns={columns} loading={loading} />
 
         <Pagination

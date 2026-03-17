@@ -75,7 +75,6 @@ const Vendors: React.FC = () => {
     setCurrentPage(1);
   });
 
-
   const openModal = (vendor?: Vendor) => {
     if (vendor) {
       setEditingVendor(vendor);
@@ -192,7 +191,7 @@ const Vendors: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 sm:space-y-6">
       <PageHeader
         title="Vendors"
         searchPlaceholder="Search vendors..."
@@ -218,7 +217,7 @@ const Vendors: React.FC = () => {
       />
 
       {/* Table */}
-      <div className="card overflow-x-auto">
+      <div className="card overflow-hidden">
         <Table data={vendors} columns={columns} loading={loading} />
 
         <Pagination
