@@ -30,7 +30,6 @@ function Table<T extends Record<string, any>>(
     sortBy,
     sortOrder,
     onSort,
-    className,
     emptyMessage = 'No data available',
   }: TableProps<T>
 ) {
