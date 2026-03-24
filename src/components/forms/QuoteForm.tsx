@@ -35,6 +35,9 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
     taxRate: 0,
     notes: '',
     termsAndConditions: '',
+    termsOfDelivery: '',
+    paymentTerms: '',
+    reference: '',
   });
 
   const [items, setItems] = useState<QuoteItem[]>([]);
@@ -66,6 +69,9 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
         taxRate: 0,
         notes: '',
         termsAndConditions: '',
+        termsOfDelivery: '',
+        paymentTerms: '',
+        reference: '',
       });
       setItems([]);
       setNewItem({
@@ -97,6 +103,9 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
         taxRate: currentQuote.tax || 0,
         notes: currentQuote.notes || '',
         termsAndConditions: currentQuote.termsAndConditions || '',
+        termsOfDelivery: (currentQuote as any).termsOfDelivery || '',
+        paymentTerms: (currentQuote as any).paymentTerms || '',
+        reference: (currentQuote as any).reference || '',
       });
       
       const mappedItems = (currentQuote.items || []).map((item: any) => ({
@@ -159,6 +168,9 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
       tax: totalTax,
       notes: formData.notes,
       termsAndConditions: formData.termsAndConditions,
+      termsOfDelivery: formData.termsOfDelivery || null,
+      paymentTerms: formData.paymentTerms || null,
+      reference: formData.reference || null,
     };
 
     try {
@@ -229,6 +241,36 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
           value={formData.expiryDate}
           onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
           required
+        />
+
+        <Select
+          label="Terms of Delivery"
+          value={formData.termsOfDelivery}
+          onChange={(e) => setFormData({ ...formData, termsOfDelivery: e.target.value })}
+        >
+          <option value="">Select Terms of Delivery</option>
+          <option value="Ex-works">Ex-works</option>
+          <option value="FOR">FOR</option>
+        </Select>
+
+        <Select
+          label="Payment Terms"
+          value={formData.paymentTerms}
+          onChange={(e) => setFormData({ ...formData, paymentTerms: e.target.value })}
+        >
+          <option value="">Select Payment Terms</option>
+          <option value="100% advance">100% advance</option>
+          <option value="50% advance/50% dispatch">50% advance, 50% dispatch</option>
+          <option value="30%/70%">30% advance, 70% dispatch</option>
+          <option value="20%/80%">20% advance, 80% dispatch</option>
+          <option value="Due on Receipt">Due on Receipt</option>
+        </Select>
+
+        <Input
+          label="Reference"
+          value={formData.reference}
+          onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
+          placeholder="Enter reference"
         />
       </div>
 
