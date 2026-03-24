@@ -260,9 +260,9 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
         >
           <option value="">Select Payment Terms</option>
           <option value="100% advance">100% advance</option>
-          <option value="50% advance/50% dispatch">50% advance/50% dispatch</option>
-          <option value="30%/70%">30%/70%</option>
-          <option value="20%/80%">20%/80%</option>
+          <option value="50% advance/50% dispatch">50% advance, 50% dispatch</option>
+          <option value="30%/70%">30% advance, 70% dispatch</option>
+          <option value="20%/80%">20% advance, 80% dispatch</option>
           <option value="Due on Receipt">Due on Receipt</option>
         </Select>
 
