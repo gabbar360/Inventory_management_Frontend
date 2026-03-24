@@ -61,4 +61,11 @@ export const outwardService = {
   async delete(id: string): Promise<void> {
     await api.delete(`/delete-outward/${id}`);
   },
+
+  async generatePDF(id: string): Promise<Blob> {
+    const response = await api.get(`/outward/${id}/pdf`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
 };
