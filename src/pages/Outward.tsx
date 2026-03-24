@@ -11,6 +11,7 @@ import {
   Edit,
   ChevronDown,
   ChevronRight,
+  FileText,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -26,6 +27,7 @@ import { fetchAvailableStock } from '@/slices/inventorySlice';
 import { fetchCustomers } from '@/slices/customerSlice';
 import { fetchLocations } from '@/slices/locationSlice';
 import { bulkUploadService } from '@/services/bulkUploadService';
+import { outwardService } from '@/services/outwardService';
 import { OutwardInvoice, StockBatch, Product } from '@/types';
 import {
   formatDate,
@@ -516,6 +518,24 @@ const Outward: React.FC = () => {
     }
   };
 
+  const handleDownloadPDF = async (invoice: OutwardInvoice) => {
+    try {
+      const blob = await outwardService.generatePDF(invoice.id);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Invoice-${invoice.invoiceNo}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success('Invoice PDF downloaded successfully');
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to generate PDF');
+      console.error('PDF generation error:', error);
+    }
+  };
+
   const customerOptions = customers.map((c) => ({
     value: c.id,
     label: `${c.code} - ${c.name}`,
@@ -635,6 +655,9 @@ const Outward: React.FC = () => {
         <div className="flex gap-1 sm:gap-2">
           <Button variant="ghost" size="sm" onClick={() => viewInvoice(record)}>
             <Eye className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => handleDownloadPDF(record)}>
+            <FileText className="h-4 w-4" />
           </Button>
           <Button variant="ghost" size="sm" onClick={() => editInvoice(record)}>
             <Edit className="h-4 w-4" />
