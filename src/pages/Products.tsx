@@ -88,7 +88,7 @@ const Products: React.FC = () => {
       setValue('name', product.name);
       setValue('grade', product.grade || '');
       setValue('description', product.description || '');
-      setValue('categoryId', product.categoryId);
+      setValue('categoryId', product.categoryId.toString());
     } else {
       setEditingProduct(null);
       reset();

@@ -220,7 +220,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
           label="Category *"
           value={formData.categoryId?.toString() || ''}
           onChange={(e) =>
-            setFormData((prev) => ({ ...prev, categoryId: e.target.value }))
+            setFormData((prev) => ({ ...prev, categoryId: parseInt(e.target.value) || '' }))
           }
           error={errors.categoryId}
         >
@@ -318,7 +318,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
           onChange={(e) =>
             setFormData((prev) => ({
               ...prev,
-              minStockLevel: parseInt(e.target.value) || 0,
+              minStockLevel: Number(e.target.value) || 0,
             }))
           }
           error={errors.minStockLevel}
@@ -332,7 +332,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
           onChange={(e) =>
             setFormData((prev) => ({
               ...prev,
-              maxStockLevel: parseInt(e.target.value) || 0,
+              maxStockLevel: Number(e.target.value) || 0,
             }))
           }
           error={errors.maxStockLevel}
@@ -346,7 +346,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
           onChange={(e) =>
             setFormData((prev) => ({
               ...prev,
-              reorderLevel: parseInt(e.target.value) || 0,
+              reorderLevel: Number(e.target.value) || 0,
             }))
           }
           error={errors.reorderLevel}
@@ -363,7 +363,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
           onChange={(e) =>
             setFormData((prev) => ({
               ...prev,
-              weight: parseFloat(e.target.value) || 0,
+              weight: Number(e.target.value) || 0,
             }))
           }
           placeholder="0.00"
@@ -414,7 +414,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
             onChange={(e) =>
               setFormData((prev) => ({
                 ...prev,
-                shelfLife: parseInt(e.target.value) || 0,
+                shelfLife: Number(e.target.value) || 0,
               }))
             }
             error={errors.shelfLife}
@@ -451,7 +451,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
             onChange={(e) =>
               setFormData((prev) => ({
                 ...prev,
-                shelfLife: parseInt(e.target.value) || 0,
+                shelfLife: Number(e.target.value) || 0,
               }))
             }
             placeholder="0 (No expiry)"
