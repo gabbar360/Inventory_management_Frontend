@@ -13,6 +13,7 @@ import {
   Box,
   FlaskConical,
   FileText,
+  Megaphone,
 } from 'lucide-react';
 import { useAppDispatch } from '@/store/hooks';
 import { logoutUser } from '@/slices/authSlice';
@@ -22,6 +23,7 @@ import toast from 'react-hot-toast';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Leads', href: '/leads', icon: Megaphone },
   { name: 'Categories', href: '/categories', icon: FolderTree },
   { name: 'Products', href: '/products', icon: Box },
   { name: 'Vendors', href: '/vendors', icon: Users },
