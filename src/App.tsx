@@ -18,6 +18,7 @@ import Inventory from '@/pages/Inventory';
 import Samples from '@/pages/Samples';
 import Quotes from '@/pages/Quotes';
 import Settings from '@/pages/Settings';
+import Leads from '@/pages/Leads';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -84,6 +85,7 @@ function App() {
       >
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
+        <Route path="leads" element={<Leads />} />
         <Route path="categories" element={<Categories />} />
         <Route path="products" element={<Products />} />
         <Route path="vendors" element={<Vendors />} />
