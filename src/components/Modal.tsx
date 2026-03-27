@@ -31,7 +31,7 @@ const Modal: React.FC<ModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-screen items-center justify-center p-3 sm:p-4">
+      <div className="flex min-h-screen items-end sm:items-center justify-center sm:p-4">
         {/* Backdrop */}
         <div
           className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
@@ -41,7 +41,9 @@ const Modal: React.FC<ModalProps> = ({
         {/* Modal */}
         <div
           className={cn(
-            'relative w-full transform rounded-lg bg-white shadow-xl transition-all',
+            'relative w-full transform bg-white shadow-xl transition-all',
+            'rounded-t-2xl sm:rounded-lg',
+            'max-h-[95vh] sm:max-h-[90vh]',
             sizes[size]
           )}
         >
@@ -49,7 +51,7 @@ const Modal: React.FC<ModalProps> = ({
           {(title || showCloseButton) && (
             <div className="flex items-center justify-between border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4">
               {title && (
-                <h3 className="text-lg sm:text-xl font-semibold text-gray-900 truncate">
+                <h3 className="text-base sm:text-xl font-semibold text-gray-900 truncate pr-2">
                   {title}
                 </h3>
               )}
@@ -67,7 +69,7 @@ const Modal: React.FC<ModalProps> = ({
           )}
 
           {/* Content */}
-          <div className="px-4 sm:px-6 py-4 sm:py-6 max-h-[calc(100vh-200px)] overflow-y-auto">
+          <div className="px-4 sm:px-6 py-4 sm:py-6 overflow-y-auto max-h-[calc(95vh-60px)] sm:max-h-[calc(90vh-70px)]">
             {children}
           </div>
         </div>

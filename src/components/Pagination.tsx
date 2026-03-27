@@ -45,26 +45,23 @@ const Pagination: React.FC<PaginationProps> = ({
   };
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-3 sm:px-6 py-4 border-t border-gray-200 bg-white">
-      <div className="flex items-center text-xs sm:text-sm text-gray-700">
-        <span>
-          Showing {startItem} to {endItem} of {total}
-        </span>
+    <div className="flex items-center justify-between gap-2 px-3 sm:px-6 py-3 border-t border-gray-200 bg-white">
+      <div className="text-xs sm:text-sm text-gray-700 whitespace-nowrap">
+        {startItem}–{endItem} of {total}
       </div>
 
-      <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-1">
+      <div className="flex items-center gap-1">
         <Button
           variant="outline"
           size="sm"
           disabled={currentPage === 1 || loading}
           onClick={() => onPageChange(currentPage - 1)}
-          className="w-full sm:w-auto"
+          className="px-2"
         >
-          <ChevronLeft className="h-4 w-4 mr-1" />
-          <span className="sm:inline">Prev</span>
+          <ChevronLeft className="h-4 w-4" />
         </Button>
 
-        <div className="flex items-center gap-1 overflow-x-auto">
+        <div className="flex items-center gap-1">
           {getVisiblePages().map((page) => (
             <Button
               key={page}
@@ -72,7 +69,7 @@ const Pagination: React.FC<PaginationProps> = ({
               size="sm"
               disabled={loading}
               onClick={() => onPageChange(page)}
-              className="min-w-[2.5rem]"
+              className="min-w-[2rem] px-2"
             >
               {page}
             </Button>
@@ -84,10 +81,9 @@ const Pagination: React.FC<PaginationProps> = ({
           size="sm"
           disabled={currentPage === totalPages || loading}
           onClick={() => onPageChange(currentPage + 1)}
-          className="w-full sm:w-auto"
+          className="px-2"
         >
-          <span className="sm:inline">Next</span>
-          <ChevronRight className="h-4 w-4 ml-1" />
+          <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
     </div>

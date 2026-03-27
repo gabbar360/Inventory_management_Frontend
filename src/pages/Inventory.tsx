@@ -91,6 +91,7 @@ const Inventory: React.FC = () => {
       key: 'productName',
       title: 'Product',
       sortable: true,
+      sticky: true,
       render: (value: string, record: StockSummary) => (
         <div>
           <div className="font-medium text-gray-900">{value}</div>
@@ -323,13 +324,13 @@ const Inventory: React.FC = () => {
               placeholder="Search products..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-64"
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-64"
             />
             <Select
               value={selectedLocation}
               onChange={(e) => setSelectedLocation(e.target.value)}
               options={locationOptions}
-              className="sm:w-48"
+              className="w-full sm:w-48"
             />
           </div>
         </div>
@@ -397,14 +398,12 @@ const Inventory: React.FC = () => {
               )}
             </h3>
           </div>
-          <div className="overflow-x-auto">
-            <Table
+          <Table
             data={stockSummary}
             columns={summaryColumns}
             loading={loading}
             emptyMessage="No stock available"
           />
-          </div>
         </div>
       )}
 
@@ -540,8 +539,7 @@ const Inventory: React.FC = () => {
                 </div>
               </div>
             </div>
-            <div className="overflow-x-auto">
-              <Table
+            <Table
               data={availableStock.slice(
                 (currentPage - 1) * itemsPerPage,
                 currentPage * itemsPerPage
@@ -550,7 +548,6 @@ const Inventory: React.FC = () => {
               loading={loading}
               emptyMessage="No batches available for this product"
             />
-            </div>
             {availableStock.length > itemsPerPage && (
               <div className="card-footer">
                 <Pagination
