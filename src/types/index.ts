@@ -287,6 +287,20 @@ export interface QuoteItem {
   description?: string;
 }
 
+export interface Lead {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  company?: string;
+  country?: string;
+  message?: string;
+  formType: string;
+  status: 'new' | 'contacted' | 'converted' | 'rejected';
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
