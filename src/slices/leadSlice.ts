@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { leadService } from '@/services/leadService';
+import { leadService, CreateLeadData } from '@/services/leadService';
 import { Lead, PaginationQuery } from '@/types';
 
 interface LeadState {
@@ -20,6 +20,13 @@ export const fetchLeads = createAsyncThunk(
   'leads/fetchAll',
   async (params?: PaginationQuery) => {
     return await leadService.getAll(params);
+  }
+);
+
+export const createLead = createAsyncThunk(
+  'leads/create',
+  async (data: CreateLeadData) => {
+    return await leadService.create(data);
   }
 );
 
@@ -55,6 +62,12 @@ const leadSlice = createSlice({
       .addCase(fetchLeads.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch leads';
+      })
+      .addCase(createLead.fulfilled, (state, action) => {
+        state.leads.unshift(action.payload);
+      })
+      .addCase(createLead.rejected, (state, action) => {
+        state.error = action.error.message || 'Failed to create lead';
       })
       .addCase(updateLead.fulfilled, (state, action) => {
         const index = state.leads.findIndex((l) => l.id === action.payload.id);
