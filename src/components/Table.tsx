@@ -9,6 +9,7 @@ interface Column<T> {
   render?: (value: any, record: T, index: number) => React.ReactNode;
   width?: string;
   align?: 'left' | 'center' | 'right';
+  sticky?: boolean;
 }
 
 interface TableProps<T> {
@@ -74,7 +75,7 @@ function Table<T extends Record<string, any>>(
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto -mx-0">
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
@@ -85,7 +86,8 @@ function Table<T extends Record<string, any>>(
                   'px-3 sm:px-4 lg:px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap',
                   column.sortable && 'cursor-pointer hover:bg-gray-100',
                   column.align === 'center' && 'text-center',
-                  column.align === 'right' && 'text-right'
+                  column.align === 'right' && 'text-right',
+                  column.sticky && 'sticky left-0 z-10 bg-gray-50'
                 )}
                 style={{ width: column.width }}
                 onClick={() =>
@@ -126,9 +128,10 @@ function Table<T extends Record<string, any>>(
                 <td
                   key={String(column.key)}
                   className={cn(
-                    'px-3 sm:px-4 lg:px-6 py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900',
+                    'px-3 sm:px-4 lg:px-6 py-3 text-xs sm:text-sm text-gray-900',
                     column.align === 'center' && 'text-center',
-                    column.align === 'right' && 'text-right'
+                    column.align === 'right' && 'text-right',
+                    column.sticky ? 'sticky left-0 z-10 bg-white whitespace-nowrap' : 'whitespace-nowrap'
                   )}
                 >
                   {column.render
