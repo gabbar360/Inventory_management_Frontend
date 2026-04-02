@@ -296,6 +296,7 @@ export interface Lead {
   country?: string;
   message?: string;
   formType: string;
+  source: 'website' | 'manual';
   status: 'new' | 'contacted' | 'converted' | 'rejected';
   createdAt: string;
   updatedAt: string;

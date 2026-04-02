@@ -571,6 +571,7 @@ const Outward: React.FC = () => {
     {
       key: 'customer.name',
       title: 'Customer',
+      sticky: true,
       render: (_: any, record: OutwardInvoice) => (
         <div>
           <div className="font-medium">{record.customer?.name}</div>
