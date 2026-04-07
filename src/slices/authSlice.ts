@@ -91,7 +91,7 @@ export const refreshToken = createAsyncThunk(
 
 export const verifyToken = createAsyncThunk('auth/verifyToken', async () => {
   const result = await authService.verifyToken();
-  return result.user;
+  return result;
 });
 
 const authSlice = createSlice({
@@ -111,8 +111,12 @@ const authSlice = createSlice({
       .addCase(loginUser.fulfilled, (state, action) => {
         state.loading = false;
         state.user = action.payload.user;
-        state.token = null;
+        state.token = action.payload.accessToken;
         state.isAuthenticated = true;
+        // Store token in localStorage for socket
+        if (action.payload.accessToken) {
+          localStorage.setItem('accessToken', action.payload.accessToken);
+        }
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.loading = false;
@@ -127,8 +131,12 @@ const authSlice = createSlice({
       .addCase(registerUser.fulfilled, (state, action) => {
         state.loading = false;
         state.user = action.payload.user;
-        state.token = null;
+        state.token = action.payload.accessToken;
         state.isAuthenticated = true;
+        // Store token in localStorage for socket
+        if (action.payload.accessToken) {
+          localStorage.setItem('accessToken', action.payload.accessToken);
+        }
       })
       .addCase(registerUser.rejected, (state, action) => {
         state.loading = false;
@@ -138,16 +146,19 @@ const authSlice = createSlice({
         state.user = null;
         state.token = null;
         state.isAuthenticated = false;
+        localStorage.removeItem('accessToken');
       })
       .addCase(logoutAllDevices.fulfilled, (state) => {
         state.user = null;
         state.token = null;
         state.isAuthenticated = false;
+        localStorage.removeItem('accessToken');
       })
       .addCase(logoutAllDevices.rejected, (state) => {
         state.user = null;
         state.token = null;
         state.isAuthenticated = false;
+        localStorage.removeItem('accessToken');
       })
       .addCase(checkAuth.pending, (state) => {
         state.loading = true;
@@ -161,6 +172,7 @@ const authSlice = createSlice({
         state.user = null;
         state.isAuthenticated = false;
         state.loading = false;
+        localStorage.removeItem('accessToken');
       })
       .addCase(updateProfile.pending, (state) => {
         state.loading = true;
@@ -207,19 +219,26 @@ const authSlice = createSlice({
         state.isAuthenticated = false;
         state.user = null;
         state.token = null;
+        localStorage.removeItem('accessToken');
       })
       .addCase(verifyToken.pending, (state) => {
         state.loading = true;
       })
       .addCase(verifyToken.fulfilled, (state, action) => {
         state.loading = false;
-        state.user = action.payload;
+        state.user = action.payload.user;
+        state.token = action.payload.accessToken;
         state.isAuthenticated = true;
+        // Store token in localStorage for socket
+        if (action.payload.accessToken) {
+          localStorage.setItem('accessToken', action.payload.accessToken);
+        }
       })
       .addCase(verifyToken.rejected, (state) => {
         state.loading = false;
         state.isAuthenticated = false;
         state.user = null;
+        localStorage.removeItem('accessToken');
       });
   },
 });

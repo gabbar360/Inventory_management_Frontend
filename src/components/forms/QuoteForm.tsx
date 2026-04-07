@@ -99,8 +99,8 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
         customerId: currentQuote.customerId?.toString() || '', // Convert to string for select
         quoteDate: currentQuote.quoteDate?.split('T')[0] || '',
         expiryDate: currentQuote.expiryDate?.split('T')[0] || '',
-        discount: currentQuote.discount || 0,
-        taxRate: currentQuote.tax || 0,
+        discount: Number(currentQuote.discount) || 0,
+        taxRate: Number(currentQuote.tax) || 0,
         notes: currentQuote.notes || '',
         termsAndConditions: currentQuote.termsAndConditions || '',
         termsOfDelivery: (currentQuote as any).termsOfDelivery || '',
@@ -110,11 +110,11 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
       
       const mappedItems = (currentQuote.items || []).map((item: any) => ({
         id: item.id,
-        productId: item.productId,
-        quantity: item.quantity,
+        productId: Number(item.productId),
+        quantity: Number(item.quantity),
         unit: item.unit,
-        rate: item.rate,
-        taxRate: item.taxRate || item.product?.category?.gstRate || 0,
+        rate: Number(item.rate),
+        taxRate: Number(item.taxRate) || Number(item.product?.category?.gstRate) || 0,
         description: item.product?.description || item.description || '',
         product: item.product,
       }));
@@ -296,7 +296,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
             type="number"
             label="Quantity"
             value={newItem.quantity}
-            onChange={(e) => setNewItem({ ...newItem, quantity: parseInt(e.target.value) })}
+            onChange={(e) => setNewItem({ ...newItem, quantity: Number(e.target.value) || 1 })}
             min="1"
           />
 
@@ -314,7 +314,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
             type="number"
             label="Rate"
             value={newItem.rate}
-            onChange={(e) => setNewItem({ ...newItem, rate: parseFloat(e.target.value) })}
+            onChange={(e) => setNewItem({ ...newItem, rate: Number(e.target.value) || 0 })}
             step="0.01"
             min="0"
           />
@@ -323,7 +323,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
             type="number"
             label="Tax Rate (%)"
             value={newItem.taxRate}
-            onChange={(e) => setNewItem({ ...newItem, taxRate: parseFloat(e.target.value) })}
+            onChange={(e) => setNewItem({ ...newItem, taxRate: Number(e.target.value) || 0 })}
             step="0.01"
             min="0"
           />
@@ -375,7 +375,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
                           type="number"
                           label="Quantity"
                           value={editingData.quantity}
-                          onChange={(e) => setEditingData({ ...editingData, quantity: parseInt(e.target.value) })}
+                          onChange={(e) => setEditingData({ ...editingData, quantity: Number(e.target.value) || 1 })}
                           min="1"
                         />
                         <Select
@@ -391,7 +391,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
                           type="number"
                           label="Rate"
                           value={editingData.rate}
-                          onChange={(e) => setEditingData({ ...editingData, rate: parseFloat(e.target.value) })}
+                          onChange={(e) => setEditingData({ ...editingData, rate: Number(e.target.value) || 0 })}
                           step="0.01"
                           min="0"
                         />
@@ -399,7 +399,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
                           type="number"
                           label="Tax Rate (%)"
                           value={editingData.taxRate}
-                          onChange={(e) => setEditingData({ ...editingData, taxRate: parseFloat(e.target.value) })}
+                          onChange={(e) => setEditingData({ ...editingData, taxRate: Number(e.target.value) || 0 })}
                           step="0.01"
                           min="0"
                         />
@@ -478,7 +478,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
           type="number"
           label="Discount"
           value={formData.discount}
-          onChange={(e) => setFormData({ ...formData, discount: parseFloat(e.target.value) })}
+          onChange={(e) => setFormData({ ...formData, discount: Number(e.target.value) || 0 })}
           step="0.01"
           min="0"
         />

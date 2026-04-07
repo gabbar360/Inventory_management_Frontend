@@ -4,6 +4,9 @@ import { Menu, User, Settings, ChevronDown } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
 import Sidebar from '@/components/Sidebar';
 import ProfileModal from '@/components/ProfileModal';
+import NotificationBell from '@/components/NotificationBell';
+import TokenVerifier from '@/components/TokenVerifier';
+import SocketDebug from '@/components/SocketDebug';
 
 const Layout: React.FC = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -32,7 +35,10 @@ const Layout: React.FC = () => {
   }, []);
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <>
+      <TokenVerifier />
+      <SocketDebug />
+      <div className="flex h-screen bg-gray-100">
       <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
 
       {/* Main content */}
@@ -47,6 +53,7 @@ const Layout: React.FC = () => {
               <Menu className="h-6 w-6" />
             </button>
             <div className="flex items-center gap-3 ml-auto relative">
+              <NotificationBell />
               <button
                 onClick={() => setDropdownOpen(!dropdownOpen)}
                 className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 transition-colors"
@@ -104,7 +111,8 @@ const Layout: React.FC = () => {
       {showProfileModal && (
         <ProfileModal onClose={() => setShowProfileModal(false)} />
       )}
-    </div>
+      </div>
+    </>
   );
 };
 

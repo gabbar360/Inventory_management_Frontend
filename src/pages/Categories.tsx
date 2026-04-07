@@ -32,7 +32,7 @@ interface CategoryFormData {
 const categorySchema = z.object({
   name: z.string().min(1, 'Category name is required'),
   hsnCode: z.string().min(1, 'HSN code is required'),
-  gstRate: z.number().min(0).max(100, 'GST rate must be between 0 and 100'),
+  gstRate: z.coerce.number().min(0).max(100, 'GST rate must be between 0 and 100'),
 });
 
 const Categories: React.FC = () => {
