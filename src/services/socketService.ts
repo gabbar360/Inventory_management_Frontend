@@ -8,8 +8,8 @@ export const initializeSocket = (token: string) => {
     return socket;
   }
 
-  const BASE_URL = import.meta.env.VITE_SOCKET_URL;
-  const isProduction = import.meta.env.MODE === 'production';
+  const BASE_URL = (import.meta.env as any).VITE_SOCKET_URL || 'http://localhost:5000';
+  const isProduction = (import.meta.env as any).MODE === 'production';
 
   console.log('[SOCKET] Initializing socket connection to:', BASE_URL);
 

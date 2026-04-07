@@ -38,7 +38,7 @@ const NotificationBell: React.FC = () => {
 
   // Setup socket listeners - only once using ref
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval>;
 
     const setupListeners = () => {
       // Skip if already setup
