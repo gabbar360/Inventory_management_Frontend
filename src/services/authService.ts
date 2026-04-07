@@ -14,6 +14,7 @@ export interface RegisterData {
 
 export interface AuthResponse {
   user: User;
+  accessToken?: string;
 }
 
 export interface UpdateProfileData {
@@ -68,8 +69,8 @@ export const authService = {
     await api.post('/auth/refresh-token');
   },
 
-  async verifyToken(): Promise<{ valid: boolean; user: User }> {
-    const response = await api.get<ApiResponse<{ valid: boolean; user: User }>>('/auth/verify-token');
+  async verifyToken(): Promise<{ valid: boolean; user: User; accessToken?: string }> {
+    const response = await api.get<ApiResponse<{ valid: boolean; user: User; accessToken?: string }>>('/auth/verify-token');
     return response.data.data!;
   },
 };

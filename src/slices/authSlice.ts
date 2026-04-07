@@ -111,7 +111,7 @@ const authSlice = createSlice({
       .addCase(loginUser.fulfilled, (state, action) => {
         state.loading = false;
         state.user = action.payload.user;
-        state.token = action.payload.accessToken;
+        state.token = action.payload.accessToken || null;
         state.isAuthenticated = true;
         // Store token in localStorage for socket
         if (action.payload.accessToken) {
@@ -131,7 +131,7 @@ const authSlice = createSlice({
       .addCase(registerUser.fulfilled, (state, action) => {
         state.loading = false;
         state.user = action.payload.user;
-        state.token = action.payload.accessToken;
+        state.token = action.payload.accessToken || null;
         state.isAuthenticated = true;
         // Store token in localStorage for socket
         if (action.payload.accessToken) {
@@ -227,7 +227,7 @@ const authSlice = createSlice({
       .addCase(verifyToken.fulfilled, (state, action) => {
         state.loading = false;
         state.user = action.payload.user;
-        state.token = action.payload.accessToken;
+        state.token = action.payload.accessToken || null;
         state.isAuthenticated = true;
         // Store token in localStorage for socket
         if (action.payload.accessToken) {
