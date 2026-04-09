@@ -13,10 +13,10 @@ interface QuoteItem {
   id?: number;
   tempId?: number; // For new items before saving
   productId: number;
-  quantity: number;
+  quantity: number | '';
   unit: string;
-  rate: number;
-  taxRate: number; // Product-wise tax rate
+  rate: number | '';
+  taxRate: number | ''; // Product-wise tax rate
   description?: string;
   product?: any;
 }
@@ -31,7 +31,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
     customerId: '',
     quoteDate: new Date().toISOString().split('T')[0],
     expiryDate: '',
-    discount: 0,
+    discount: '' as number | '',
     taxRate: 0,
     notes: '',
     termsAndConditions: '',
@@ -43,10 +43,10 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
   const [items, setItems] = useState<QuoteItem[]>([]);
   const [newItem, setNewItem] = useState<QuoteItem>({
     productId: 0,
-    quantity: 1,
+    quantity: '',
     unit: 'box',
-    rate: 0,
-    taxRate: 0,
+    rate: '',
+    taxRate: '',
     description: '',
   });
   const [editingItem, setEditingItem] = useState<number | null>(null);
@@ -65,7 +65,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
         customerId: '',
         quoteDate: new Date().toISOString().split('T')[0],
         expiryDate: '',
-        discount: 0,
+        discount: '',
         taxRate: 0,
         notes: '',
         termsAndConditions: '',
@@ -76,10 +76,10 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
       setItems([]);
       setNewItem({
         productId: 0,
-        quantity: 1,
+        quantity: '',
         unit: 'box',
-        rate: 0,
-        taxRate: 0,
+        rate: '',
+        taxRate: '',
         description: '',
       });
     }
@@ -99,7 +99,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
         customerId: currentQuote.customerId?.toString() || '', // Convert to string for select
         quoteDate: currentQuote.quoteDate?.split('T')[0] || '',
         expiryDate: currentQuote.expiryDate?.split('T')[0] || '',
-        discount: Number(currentQuote.discount) || 0,
+        discount: currentQuote.discount != null ? Number(currentQuote.discount) : '',
         taxRate: Number(currentQuote.tax) || 0,
         notes: currentQuote.notes || '',
         termsAndConditions: currentQuote.termsAndConditions || '',
@@ -111,10 +111,10 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
       const mappedItems = (currentQuote.items || []).map((item: any) => ({
         id: item.id,
         productId: Number(item.productId),
-        quantity: Number(item.quantity),
+        quantity: (item.quantity != null ? Number(item.quantity) : '') as number | '',
         unit: item.unit,
-        rate: Number(item.rate),
-        taxRate: Number(item.taxRate) || Number(item.product?.category?.gstRate) || 0,
+        rate: (item.rate != null ? Number(item.rate) : '') as number | '',
+        taxRate: (item.taxRate != null ? Number(item.taxRate) : (item.product?.category?.gstRate != null ? Number(item.product?.category?.gstRate) : '')) as number | '',
         description: item.product?.description || item.description || '',
         product: item.product,
       }));
@@ -123,7 +123,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
   }, [currentQuote, quote?.id]);
 
   const handleAddItem = () => {
-    if (newItem.productId && newItem.quantity && newItem.rate) {
+    if (newItem.productId && newItem.quantity !== '' && newItem.rate !== '') {
       const itemWithTempId = {
         ...newItem,
         tempId: Date.now(),
@@ -131,7 +131,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
       };
       
       setItems([...items, itemWithTempId]);
-      setNewItem({ productId: 0, quantity: 1, unit: 'box', rate: 0, taxRate: 0, description: '' });
+      setNewItem({ productId: 0, quantity: '', unit: 'box', rate: '', taxRate: '', description: '' });
     }
   };
 
@@ -139,13 +139,13 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
     setItems(items.filter((_, i) => i !== index));
   };
 
-  const subtotal = items.reduce((sum, item) => sum + item.quantity * item.rate, 0);
+  const subtotal = items.reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.rate) || 0), 0);
   const totalTax = items.reduce((sum, item) => {
-    const itemAmount = item.quantity * item.rate;
-    return sum + (itemAmount * item.taxRate) / 100;
+    const itemAmount = (Number(item.quantity) || 0) * (Number(item.rate) || 0);
+    return sum + (itemAmount * (Number(item.taxRate) || 0)) / 100;
   }, 0);
   const totalAmount = subtotal + totalTax;
-  const finalAmount = totalAmount - formData.discount;
+  const finalAmount = totalAmount - (Number(formData.discount) || 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -157,14 +157,14 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
       items: items.map(item => ({
         ...(item.id && { id: item.id }),
         productId: item.productId,
-        quantity: item.quantity,
+        quantity: Number(item.quantity) || 0,
         unit: item.unit,
-        rate: item.rate,
-        taxRate: item.taxRate,
+        rate: Number(item.rate) || 0,
+        taxRate: Number(item.taxRate) || 0,
         description: item.description,
       })),
       totalAmount: finalAmount,
-      discount: formData.discount,
+      discount: Number(formData.discount) || 0,
       tax: totalTax,
       notes: formData.notes,
       termsAndConditions: formData.termsAndConditions,
@@ -296,7 +296,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
             type="number"
             label="Quantity"
             value={newItem.quantity}
-            onChange={(e) => setNewItem({ ...newItem, quantity: Number(e.target.value) || 1 })}
+            onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value === '' ? '' : Number(e.target.value) })}
             min="1"
           />
 
@@ -314,7 +314,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
             type="number"
             label="Rate"
             value={newItem.rate}
-            onChange={(e) => setNewItem({ ...newItem, rate: Number(e.target.value) || 0 })}
+            onChange={(e) => setNewItem({ ...newItem, rate: e.target.value === '' ? '' : Number(e.target.value) })}
             step="0.01"
             min="0"
           />
@@ -323,7 +323,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
             type="number"
             label="Tax Rate (%)"
             value={newItem.taxRate}
-            onChange={(e) => setNewItem({ ...newItem, taxRate: Number(e.target.value) || 0 })}
+            onChange={(e) => setNewItem({ ...newItem, taxRate: e.target.value === '' ? '' : Number(e.target.value) })}
             step="0.01"
             min="0"
           />
@@ -375,7 +375,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
                           type="number"
                           label="Quantity"
                           value={editingData.quantity}
-                          onChange={(e) => setEditingData({ ...editingData, quantity: Number(e.target.value) || 1 })}
+                          onChange={(e) => setEditingData({ ...editingData, quantity: e.target.value === '' ? '' : Number(e.target.value) })}
                           min="1"
                         />
                         <Select
@@ -391,7 +391,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
                           type="number"
                           label="Rate"
                           value={editingData.rate}
-                          onChange={(e) => setEditingData({ ...editingData, rate: Number(e.target.value) || 0 })}
+                          onChange={(e) => setEditingData({ ...editingData, rate: e.target.value === '' ? '' : Number(e.target.value) })}
                           step="0.01"
                           min="0"
                         />
@@ -399,7 +399,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
                           type="number"
                           label="Tax Rate (%)"
                           value={editingData.taxRate}
-                          onChange={(e) => setEditingData({ ...editingData, taxRate: Number(e.target.value) || 0 })}
+                          onChange={(e) => setEditingData({ ...editingData, taxRate: e.target.value === '' ? '' : Number(e.target.value) })}
                           step="0.01"
                           min="0"
                         />
@@ -440,10 +440,10 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
                       </td>
                       <td className="p-2 text-right">{item.quantity}</td>
                       <td className="p-2 text-left">{item.unit}</td>
-                      <td className="p-2 text-right">₹{item.rate.toFixed(2)}</td>
-                      <td className="p-2 text-right">{item.taxRate}%</td>
-                      <td className="p-2 text-right">₹{((item.quantity * item.rate * item.taxRate) / 100).toFixed(2)}</td>
-                      <td className="p-2 text-right">₹{(item.quantity * item.rate).toFixed(2)}</td>
+                      <td className="p-2 text-right">₹{Number(item.rate || 0).toFixed(2)}</td>
+                      <td className="p-2 text-right">{Number(item.taxRate || 0)}%</td>
+                      <td className="p-2 text-right">₹{(((Number(item.quantity) || 0) * (Number(item.rate) || 0) * (Number(item.taxRate) || 0)) / 100).toFixed(2)}</td>
+                      <td className="p-2 text-right">₹{((Number(item.quantity) || 0) * (Number(item.rate) || 0)).toFixed(2)}</td>
                       <td className="p-2 text-center">
                         <div className="flex gap-1 justify-center">
                           <button 
@@ -478,7 +478,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
           type="number"
           label="Discount"
           value={formData.discount}
-          onChange={(e) => setFormData({ ...formData, discount: Number(e.target.value) || 0 })}
+          onChange={(e) => setFormData({ ...formData, discount: e.target.value === '' ? '' : Number(e.target.value) })}
           step="0.01"
           min="0"
         />
@@ -494,7 +494,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
           </div>
           <div className="flex justify-between mb-2">
             <span>Discount:</span>
-            <span>-₹{formData.discount.toFixed(2)}</span>
+            <span>-₹{Number(formData.discount || 0).toFixed(2)}</span>
           </div>
           <div className="flex justify-between font-bold text-lg border-t pt-2">
             <span>Total:</span>
