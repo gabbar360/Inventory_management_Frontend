@@ -43,9 +43,14 @@ const ProductSearch: React.FC<ProductSearchProps> = ({
   }, [search, allProducts]);
 
   useEffect(() => {
-    if (value && !selectedProduct) {
-      // Load the selected product details if we have a value but no selected product
-      loadSelectedProduct();
+    if (!value || value === '0') {
+      setSelectedProduct(null);
+      setSearch('');
+    } else if (value && value !== 'NaN') {
+      if (!selectedProduct || selectedProduct.id.toString() !== value) {
+        // Load the selected product details if value changes
+        loadSelectedProduct();
+      }
     }
   }, [value]);
 
