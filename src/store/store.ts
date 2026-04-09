@@ -13,7 +13,6 @@ import sampleSlice from '../slices/sampleSlice';
 import quoteSlice from '../slices/quoteSlice';
 import settingsSlice from '../slices/settingsSlice';
 import leadSlice from '../slices/leadSlice';
-import notificationSlice from '../slices/notificationSlice';
 
 export const store = configureStore({
   reducer: {
@@ -31,7 +30,6 @@ export const store = configureStore({
     quotes: quoteSlice,
     settings: settingsSlice,
     leads: leadSlice,
-    notifications: notificationSlice,
   },
 });
 

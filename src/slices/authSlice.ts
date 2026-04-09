@@ -113,7 +113,6 @@ const authSlice = createSlice({
         state.user = action.payload.user;
         state.token = action.payload.accessToken || null;
         state.isAuthenticated = true;
-        // Store token in localStorage for socket
         if (action.payload.accessToken) {
           localStorage.setItem('accessToken', action.payload.accessToken);
         }
@@ -133,7 +132,6 @@ const authSlice = createSlice({
         state.user = action.payload.user;
         state.token = action.payload.accessToken || null;
         state.isAuthenticated = true;
-        // Store token in localStorage for socket
         if (action.payload.accessToken) {
           localStorage.setItem('accessToken', action.payload.accessToken);
         }
@@ -229,7 +227,6 @@ const authSlice = createSlice({
         state.user = action.payload.user;
         state.token = action.payload.accessToken || null;
         state.isAuthenticated = true;
-        // Store token in localStorage for socket
         if (action.payload.accessToken) {
           localStorage.setItem('accessToken', action.payload.accessToken);
         }
