@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Download } from 'lucide-react';
+import { Plus, Edit, Trash2, Download, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
@@ -26,6 +26,7 @@ const Quotes: React.FC = () => {
   const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
   useEffect(() => {
     dispatch(fetchQuotes({ page: currentPage, limit: 10, search }));
@@ -64,11 +65,14 @@ const Quotes: React.FC = () => {
   };
 
   const handleDownloadPDF = async (quote: Quote) => {
+    setDownloadingId(quote.id);
     try {
       await dispatch(downloadQuotePDF(quote.id)).unwrap();
       toast.success('PDF downloaded successfully');
     } catch (error) {
       toast.error('Failed to download PDF');
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -126,8 +130,10 @@ const Quotes: React.FC = () => {
       title: 'Actions',
       render: (_: any, record: Quote) => (
         <div className="flex gap-1 sm:gap-2">
-          <Button variant="ghost" size="sm" onClick={() => handleDownloadPDF(record)} title="Download PDF">
-            <Download className="h-4 w-4" />
+          <Button variant="ghost" size="sm" onClick={() => handleDownloadPDF(record)} title="Download PDF" disabled={downloadingId === record.id}>
+            {downloadingId === record.id
+              ? <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+              : <Download className="h-4 w-4" />}
           </Button>
           <Button variant="ghost" size="sm" onClick={() => openModal(record)}>
             <Edit className="h-4 w-4" />

@@ -4,6 +4,7 @@ import { ApiResponse, OutwardInvoice, PaginationQuery } from '@/types';
 export interface OutwardItemFormData {
   productId: string;
   stockBatchId: string;
+  locationId: string;
   saleUnit: 'box' | 'pack' | 'piece';
   quantity: number;
   ratePerUnit: number;
@@ -13,7 +14,6 @@ export interface OutwardInvoiceFormData {
   invoiceNo: string;
   date: string;
   customerId: string;
-  locationId: string;
   saleType: 'export' | 'domestic';
   expense: number;
   items: OutwardItemFormData[];

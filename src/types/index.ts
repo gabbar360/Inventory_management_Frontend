@@ -132,12 +132,14 @@ export interface OutwardItem {
   id: string;
   productId: string;
   stockBatchId: string;
+  locationId: string;
   saleUnit: 'box' | 'pack' | 'piece';
   quantity: number;
   ratePerUnit: number;
   totalCost: number;
   product?: Product;
   stockBatch?: StockBatch;
+  location?: Location;
 }
 
 export interface OutwardInvoice {
@@ -145,14 +147,12 @@ export interface OutwardInvoice {
   invoiceNo: string;
   date: string;
   customerId: string;
-  locationId: string;
   saleType: 'export' | 'domestic';
   expense: number;
   totalCost: number;
   createdAt: string;
   updatedAt: string;
   customer?: Customer;
-  location?: Location;
   items?: OutwardItem[];
 }
 

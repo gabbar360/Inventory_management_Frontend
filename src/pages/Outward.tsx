@@ -25,7 +25,6 @@ import {
 } from '@/slices/outwardSlice';
 import { fetchAvailableStock } from '@/slices/inventorySlice';
 import { fetchCustomers } from '@/slices/customerSlice';
-import { fetchLocations } from '@/slices/locationSlice';
 import { bulkUploadService } from '@/services/bulkUploadService';
 import { outwardService } from '@/services/outwardService';
 import { OutwardInvoice, StockBatch, Product } from '@/types';
@@ -50,12 +49,12 @@ interface OutwardInvoiceFormData {
   invoiceNo: string;
   date: string;
   customerId: string;
-  locationId: string;
   saleType: 'export' | 'domestic';
   expense: number;
   items: {
     productId: string;
     stockBatchId: string;
+    locationId: string;
     saleUnit: 'box' | 'pack' | 'piece';
     quantity: number;
     ratePerUnit: number;
@@ -66,7 +65,6 @@ const outwardSchema = z.object({
   invoiceNo: z.string().min(1, 'Invoice number is required'),
   date: z.string().min(1, 'Date is required'),
   customerId: z.union([z.string(), z.number()]).transform(val => val.toString()),
-  locationId: z.union([z.string(), z.number()]).transform(val => val.toString()),
   saleType: z.enum(['export', 'domestic'], {
     required_error: 'Sale type is required',
   }),
@@ -76,6 +74,7 @@ const outwardSchema = z.object({
       z.object({
         productId: z.union([z.string(), z.number()]).transform(val => val.toString()),
         stockBatchId: z.union([z.string(), z.number()]).transform(val => val.toString()),
+        locationId: z.union([z.string(), z.number()]).transform(val => val.toString()),
         saleUnit: z.enum(['box', 'pack', 'piece'], {
           required_error: 'Sale unit is required',
         }),
@@ -189,7 +188,6 @@ const Outward: React.FC = () => {
   const { invoices, pagination, loading, error } =
     useAppSelector((state) => state.outward);
   const { customers } = useAppSelector((state) => state.customers);
-  const { locations } = useAppSelector((state) => state.locations);
   const [availableStockCache, setAvailableStockCache] = useState<{
     [key: string]: StockBatch[];
   }>({});
@@ -224,6 +222,7 @@ const Outward: React.FC = () => {
         {
           productId: '',
           stockBatchId: '',
+          locationId: '',
           saleUnit: 'box',
           quantity: 1,
           ratePerUnit: 0,
@@ -239,7 +238,6 @@ const Outward: React.FC = () => {
   });
 
   const watchedItems = watch('items');
-  const watchedLocationId = watch('locationId');
 
   const calculateGrandTotal = () => {
     let totalBase = 0;
@@ -248,8 +246,7 @@ const Outward: React.FC = () => {
     watchedItems.forEach((item) => {
       if (!item?.productId || !item?.quantity || !item?.ratePerUnit) return;
       
-      const stockKey = `${item.productId}-${watchedLocationId || 'all'}`;
-      const stockBatches = availableStockCache[stockKey] || [];
+      const stockBatches = availableStockCache[item.productId] || [];
       const selectedBatch = stockBatches.find(
         (b) => b.id.toString() === item.stockBatchId?.toString()
       );
@@ -279,17 +276,16 @@ const Outward: React.FC = () => {
 
   const loadMasterData = async () => {
     dispatch(fetchCustomers({ limit: 100 }));
-    dispatch(fetchLocations({ limit: 100 }));
   };
 
-  const loadAvailableStock = async (productId: string, locationId?: string) => {
+  const loadAvailableStock = async (productId: string) => {
     try {
       const result = await dispatch(
-        fetchAvailableStock({ productId, locationId })
+        fetchAvailableStock({ productId })
       ).unwrap();
       setAvailableStockCache((prev) => ({
         ...prev,
-        [`${productId}-${locationId || 'all'}`]: result,
+        [productId]: result,
       }));
       return result;
     } catch (error) {
@@ -321,13 +317,13 @@ const Outward: React.FC = () => {
       invoiceNo: generateInvoiceNumber('OUT'),
       date: new Date().toISOString().split('T')[0],
       customerId: '',
-      locationId: '',
       saleType: 'domestic',
       expense: 0,
       items: [
         {
           productId: '',
           stockBatchId: '',
+          locationId: '',
           saleUnit: 'box',
           quantity: 1,
           ratePerUnit: 0,
@@ -359,12 +355,12 @@ const Outward: React.FC = () => {
           invoiceNo: fullInvoice.invoiceNo,
           date: fullInvoice.date.split('T')[0],
           customerId: fullInvoice.customerId,
-          locationId: fullInvoice.locationId,
           saleType: fullInvoice.saleType,
           expense: fullInvoice.expense,
           items: fullInvoice.items?.map((item) => ({
             productId: item.productId,
             stockBatchId: item.stockBatchId,
+            locationId: item.locationId,
             saleUnit: item.saleUnit,
             quantity: item.quantity,
             ratePerUnit: item.ratePerUnit,
@@ -372,6 +368,7 @@ const Outward: React.FC = () => {
             {
               productId: '',
               stockBatchId: '',
+              locationId: '',
               saleUnit: 'box',
               quantity: 1,
               ratePerUnit: 0,
@@ -384,7 +381,7 @@ const Outward: React.FC = () => {
         // Load stock for existing items
         if (fullInvoice.items) {
           for (const item of fullInvoice.items) {
-            await loadAvailableStock(item.productId, fullInvoice.locationId);
+            await loadAvailableStock(item.productId);
           }
         }
 
@@ -446,30 +443,32 @@ const Outward: React.FC = () => {
   ) => {
     setValue(`items.${index}.productId`, productId);
     setValue(`items.${index}.stockBatchId`, '');
+    setValue(`items.${index}.locationId`, '');
     setValue(`items.${index}.ratePerUnit`, 0);
 
     if (product) {
       setProductsCache(prev => ({ ...prev, [productId]: product }));
     }
 
-    if (productId && watchedLocationId) {
-      loadAvailableStock(productId.toString(), watchedLocationId.toString());
+    if (productId) {
+      loadAvailableStock(productId.toString());
     }
   };
 
   const handleStockBatchChange = (index: number, stockBatchId: string) => {
     setValue(`items.${index}.stockBatchId`, stockBatchId);
 
-    // Auto-set rate based on stock batch cost
     const item = watchedItems[index];
-    const stockKey = `${item?.productId}-${watchedLocationId || 'all'}`;
-    const stockBatches = availableStockCache[stockKey] || [];
+    const stockBatches = availableStockCache[item?.productId] || [];
     const selectedBatch = stockBatches.find((b) => b.id.toString() === stockBatchId);
 
     if (selectedBatch) {
+      // Auto-set locationId from the selected stock batch
+      setValue(`items.${index}.locationId`, selectedBatch.locationId?.toString() || '');
+
       const suggestedRate =
         item?.saleUnit === 'box'
-          ? selectedBatch.costPerBox * 1.2 // 20% markup
+          ? selectedBatch.costPerBox * 1.2
           : item?.saleUnit === 'pack'
             ? (selectedBatch.costPerPack ||
                 selectedBatch.costPerBox / (selectedBatch.packPerBox || 1)) *
@@ -541,12 +540,7 @@ const Outward: React.FC = () => {
     label: `${c.code} - ${c.name}`,
   }));
 
-  const locationOptions = locations.map((l) => ({
-    value: l.id,
-    label: l.name,
-  }));
-
-  const saleTypeOptions = [
+const saleTypeOptions = [
     { value: 'domestic', label: 'Domestic' },
     { value: 'export', label: 'Export' },
   ];
@@ -581,8 +575,11 @@ const Outward: React.FC = () => {
     },
     {
       key: 'location.name',
-      title: 'Location',
-      render: (_: any, record: OutwardInvoice) => record.location?.name,
+      title: 'Locations',
+      render: (_: any, record: OutwardInvoice) => {
+        const locations = [...new Set(record.items?.map(i => i.location?.name).filter(Boolean))];
+        return locations.length > 0 ? locations.join(', ') : '-';
+      },
     },
     {
       key: 'saleType',
@@ -748,13 +745,6 @@ const Outward: React.FC = () => {
               error={errors.customerId?.message}
               {...register('customerId')}
             />
-            <Select
-              label="Location"
-              options={locationOptions}
-              placeholder="Select location"
-              error={errors.locationId?.message}
-              {...register('locationId')}
-            />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -780,8 +770,7 @@ const Outward: React.FC = () => {
 
             {fields.map((field, index) => {
               const item = watchedItems[index];
-              const stockKey = `${item?.productId}-${watchedLocationId || 'all'}`;
-              const stockBatches = availableStockCache[stockKey] || [];
+              const stockBatches = availableStockCache[item?.productId] || [];
               const selectedBatch = stockBatches.find(
                 (b) => b.id.toString() === item?.stockBatchId?.toString()
               );
@@ -800,7 +789,7 @@ const Outward: React.FC = () => {
 
               const stockBatchOptions = stockBatches.map((batch) => ({
                 value: batch.id.toString(),
-                line1: `${batch.vendor?.name} - ${formatDate(batch.inwardDate)}`,
+                line1: `[${batch.location?.name}] ${batch.vendor?.name} - ${formatDate(batch.inwardDate)}`,
                 line2: `${batch.remainingBoxes} boxes, ${batch.packPerBox} pack/box, ${batch.remainingPacks || 0} packs, ${batch.packPerPiece} pcs/pack, ${batch.remainingPcs} pcs`,
               }));
 
@@ -980,8 +969,7 @@ const Outward: React.FC = () => {
                         No Stock Available
                       </div>
                       <div className="text-yellow-800">
-                        No stock available for this product at the selected
-                        location.
+                        No stock available for this product across any location.
                       </div>
                     </div>
                   )}
@@ -1000,6 +988,7 @@ const Outward: React.FC = () => {
                 append({
                   productId: '',
                   stockBatchId: '',
+                  locationId: '',
                   saleUnit: 'box',
                   quantity: 1,
                   ratePerUnit: 0,
@@ -1083,14 +1072,7 @@ const Outward: React.FC = () => {
                   {selectedInvoice.customer?.code})
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Location
-                </label>
-                <div className="text-gray-900">
-                  {selectedInvoice.location?.name}
-                </div>
-              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   Sale Type
@@ -1119,6 +1101,9 @@ const Outward: React.FC = () => {
                         Product
                       </th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Location
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                         Unit
                       </th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
@@ -1138,6 +1123,9 @@ const Outward: React.FC = () => {
                         <td className="px-4 py-2 text-sm text-gray-900">
                           {item.product?.name}{' '}
                           {item.product?.grade && `(${item.product.grade})`}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-500">
+                          {item.location?.name || '-'}
                         </td>
                         <td className="px-4 py-2 text-sm text-gray-900 capitalize">
                           {item.saleUnit}
