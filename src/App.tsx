@@ -19,6 +19,7 @@ import Samples from '@/pages/Samples';
 import Quotes from '@/pages/Quotes';
 import Settings from '@/pages/Settings';
 import Leads from '@/pages/Leads';
+import ProfitLossAnalysis from '@/pages/ProfitLossAnalysis';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -93,6 +94,7 @@ function App() {
         <Route path="locations" element={<Locations />} />
         <Route path="inward" element={<Inward />} />
         <Route path="outward" element={<Outward />} />
+        <Route path="profit-loss" element={<ProfitLossAnalysis />} />
         <Route path="inventory" element={<Inventory />} />
         <Route path="samples" element={<Samples />} />
         <Route path="quotes" element={<Quotes />} />
