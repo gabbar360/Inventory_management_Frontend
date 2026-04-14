@@ -26,7 +26,7 @@ const Quotes: React.FC = () => {
   const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | number | null>(null);
 
   useEffect(() => {
     dispatch(fetchQuotes({ page: currentPage, limit: 10, search }));
