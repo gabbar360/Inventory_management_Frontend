@@ -26,7 +26,7 @@ const Quotes: React.FC = () => {
   const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [downloadingId, setDownloadingId] = useState<number | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   useEffect(() => {
     dispatch(fetchQuotes({ page: currentPage, limit: 10, search }));
@@ -65,7 +65,7 @@ const Quotes: React.FC = () => {
   };
 
   const handleDownloadPDF = async (quote: Quote) => {
-    setDownloadingId(quote.id);
+    setDownloadingId(quote.id.toString());
     try {
       await dispatch(downloadQuotePDF(quote.id)).unwrap();
       toast.success('PDF downloaded successfully');

@@ -11,6 +11,9 @@ interface OutwardState {
   pagination: any;
   loading: boolean;
   error: string | null;
+  profitLossData: any[];
+  profitLossLoading: boolean;
+  profitLossError: string | null;
 }
 
 const initialState: OutwardState = {
@@ -19,6 +22,9 @@ const initialState: OutwardState = {
   pagination: null,
   loading: false,
   error: null,
+  profitLossData: [],
+  profitLossLoading: false,
+  profitLossError: null,
 };
 
 export const fetchOutwardInvoices = createAsyncThunk(
@@ -54,6 +60,37 @@ export const deleteOutwardInvoice = createAsyncThunk(
   async (id: string) => {
     await outwardService.delete(id);
     return id;
+  }
+);
+
+export const fetchProfitLossData = createAsyncThunk(
+  'outward/fetchProfitLossData',
+  async ({ startDate, endDate }: { startDate?: string; endDate?: string }) => {
+    return await outwardService.getProfitLossData(startDate, endDate);
+  }
+);
+
+export const generateProfitLossPDF = createAsyncThunk(
+  'outward/generateProfitLossPDF',
+  async ({ startDate, endDate }: { startDate?: string; endDate?: string }) => {
+    const blob = await outwardService.generateProfitLossPDF(startDate, endDate);
+    return blob;
+  }
+);
+
+export const generateInvoicePDF = createAsyncThunk(
+  'outward/generateInvoicePDF',
+  async (id: string) => {
+    const blob = await outwardService.generatePDF(id);
+    return blob;
+  }
+);
+
+export const generateSingleInvoiceProfitLossPDF = createAsyncThunk(
+  'outward/generateSingleInvoiceProfitLossPDF',
+  async (invoiceId: string) => {
+    const blob = await outwardService.generateSingleInvoiceProfitLossPDF(invoiceId);
+    return blob;
   }
 );
 
@@ -100,6 +137,53 @@ const outwardSlice = createSlice({
       })
       .addCase(deleteOutwardInvoice.fulfilled, (state, action) => {
         state.invoices = state.invoices.filter((i) => i.id !== action.payload);
+      })
+      .addCase(fetchProfitLossData.pending, (state) => {
+        state.profitLossLoading = true;
+        state.profitLossError = null;
+      })
+      .addCase(fetchProfitLossData.fulfilled, (state, action) => {
+        state.profitLossLoading = false;
+        state.profitLossData = action.payload;
+      })
+      .addCase(fetchProfitLossData.rejected, (state, action) => {
+        state.profitLossLoading = false;
+        state.profitLossError =
+          action.error.message || 'Failed to fetch profit-loss data';
+      })
+      .addCase(generateProfitLossPDF.pending, (state) => {
+        state.profitLossLoading = true;
+        state.profitLossError = null;
+      })
+      .addCase(generateProfitLossPDF.fulfilled, (state) => {
+        state.profitLossLoading = false;
+      })
+      .addCase(generateProfitLossPDF.rejected, (state, action) => {
+        state.profitLossLoading = false;
+        state.profitLossError =
+          action.error.message || 'Failed to generate PDF';
+      })
+      .addCase(generateInvoicePDF.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(generateInvoicePDF.fulfilled, (state) => {
+        state.loading = false;
+      })
+      .addCase(generateInvoicePDF.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to generate PDF';
+      })
+      .addCase(generateSingleInvoiceProfitLossPDF.pending, (state) => {
+        state.profitLossLoading = true;
+        state.profitLossError = null;
+      })
+      .addCase(generateSingleInvoiceProfitLossPDF.fulfilled, (state) => {
+        state.profitLossLoading = false;
+      })
+      .addCase(generateSingleInvoiceProfitLossPDF.rejected, (state, action) => {
+        state.profitLossLoading = false;
+        state.profitLossError = action.error.message || 'Failed to generate PDF';
       });
   },
 });
