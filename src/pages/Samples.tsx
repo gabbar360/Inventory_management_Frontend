@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Edit, Trash2, X } from 'lucide-react';
+import { Plus, Edit, Trash2, X, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchSamples, createSample, updateSample, deleteSample, clearError } from '@/slices/sampleSlice';
 import { fetchProducts } from '@/slices/productSlice';
 import { Sample } from '@/types';
-import { formatDate, debounce } from '@/utils';
+import { formatDate, debounce, generateSampleInvoice } from '@/utils';
 import Button from '@/components/Button';
 import Input from '@/components/Input';
 import Select from '@/components/Select';
@@ -66,6 +66,7 @@ const Samples: React.FC = () => {
   const [editingSample, setEditingSample] = useState<Sample | null>(null);
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'manual' | 'website'>('all');
 
   const { register, handleSubmit, reset, setValue, control, formState: { errors, isSubmitting } } = useForm<SampleFormData>({
     resolver: zodResolver(sampleSchema),
@@ -81,9 +82,9 @@ const Samples: React.FC = () => {
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
 
   useEffect(() => {
-    dispatch(fetchSamples({ page: currentPage, limit: 10, search }));
+    dispatch(fetchSamples({ page: currentPage, limit: 10, search, ...(sourceFilter !== 'all' && { source: sourceFilter }) }));
     dispatch(fetchProducts({ limit: 1000 }));
-  }, [dispatch, search, currentPage]);
+  }, [dispatch, search, currentPage, sourceFilter]);
 
   useEffect(() => {
     if (error) {
@@ -96,6 +97,12 @@ const Samples: React.FC = () => {
     setSearch(value);
     setCurrentPage(1);
   });
+
+  const sourceTabs = [
+    { key: 'all', label: 'All Samples' },
+    { key: 'website', label: '🌐 Website' },
+    { key: 'manual', label: '✏️ Manual' },
+  ] as const;
 
   const openModal = (sample?: Sample) => {
     if (sample) {
@@ -196,6 +203,17 @@ const Samples: React.FC = () => {
     { key: 'sampleNo', title: 'Sample No', sortable: true },
     { key: 'customerName', title: 'Customer', sortable: true },
     {
+      key: 'source',
+      title: 'Source',
+      render: (_: any, record: Sample) => (
+        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+          record.source === 'website' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-700'
+        }`}>
+          {record.source === 'website' ? '🌐 Website' : '✏️ Manual'}
+        </span>
+      ),
+    },
+    {
       key: 'sampleType',
       title: 'Type',
       render: (_: any, record: Sample) => (
@@ -229,6 +247,11 @@ const Samples: React.FC = () => {
       title: 'Actions',
       render: (_: any, record: Sample) => (
         <div className="flex gap-1 sm:gap-2">
+          {record.source === 'website' && (
+            <Button variant="ghost" size="sm" onClick={() => generateSampleInvoice(record)} title="Download Invoice">
+              <Download className="h-4 w-4 text-green-600" />
+            </Button>
+          )}
           <Button variant="ghost" size="sm" onClick={() => openModal(record)}>
             <Edit className="h-4 w-4" />
           </Button>
@@ -257,6 +280,21 @@ const Samples: React.FC = () => {
       />
 
       <div className="card overflow-x-auto">
+        <div className="flex gap-2 p-4 border-b border-gray-200">
+          {sourceTabs.map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => { setSourceFilter(tab.key); setCurrentPage(1); }}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                sourceFilter === tab.key
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
         <Table data={samples} columns={columns} loading={loading} />
         <Pagination
           currentPage={pagination?.page || 1}
