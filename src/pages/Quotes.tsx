@@ -65,7 +65,7 @@ const Quotes: React.FC = () => {
   };
 
   const handleDownloadPDF = async (quote: Quote) => {
-    setDownloadingId(quote.id);
+    setDownloadingId(quote.id.toString());
     try {
       await dispatch(downloadQuotePDF(quote.id)).unwrap();
       toast.success('PDF downloaded successfully');

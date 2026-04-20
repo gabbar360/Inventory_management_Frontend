@@ -14,6 +14,7 @@ import {
   FlaskConical,
   FileText,
   Megaphone,
+  TrendingUp,
 } from 'lucide-react';
 import { useAppDispatch } from '@/store/hooks';
 import { logoutUser } from '@/slices/authSlice';
@@ -34,6 +35,7 @@ const navigation = [
   { name: 'Outward', href: '/outward', icon: ArrowUpFromLine },
   { name: 'Inventory', href: '/inventory', icon: Warehouse },
   { name: 'Samples', href: '/samples', icon: FlaskConical },
+  { name: 'Profit & Loss', href: '/profit-loss', icon: TrendingUp },
 ];
 
 interface SidebarProps {

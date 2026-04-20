@@ -68,4 +68,26 @@ export const outwardService = {
     });
     return response.data;
   },
+
+  async getProfitLossData(startDate?: string, endDate?: string): Promise<any[]> {
+    const response = await api.get<ApiResponse<any[]>>('/get-outward/reports/profit-loss', {
+      params: { startDate, endDate },
+    });
+    return response.data.data!;
+  },
+
+  async generateProfitLossPDF(startDate?: string, endDate?: string): Promise<Blob> {
+    const response = await api.get('/reports/profit-loss-pdf', {
+      params: { startDate, endDate },
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  async generateSingleInvoiceProfitLossPDF(invoiceId: string): Promise<Blob> {
+    const response = await api.get(`/reports/profit-loss-pdf/${invoiceId}`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
 };
