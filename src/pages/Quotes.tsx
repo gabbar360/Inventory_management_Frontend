@@ -130,8 +130,8 @@ const Quotes: React.FC = () => {
       title: 'Actions',
       render: (_: any, record: Quote) => (
         <div className="flex gap-1 sm:gap-2">
-          <Button variant="ghost" size="sm" onClick={() => handleDownloadPDF(record)} title="Download PDF" disabled={downloadingId === record.id}>
-            {downloadingId === record.id
+          <Button variant="ghost" size="sm" onClick={() => handleDownloadPDF(record)} title="Download PDF" disabled={downloadingId === record.id.toString()}>
+            {downloadingId === record.id.toString()
               ? <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
               : <Download className="h-4 w-4" />}
           </Button>
