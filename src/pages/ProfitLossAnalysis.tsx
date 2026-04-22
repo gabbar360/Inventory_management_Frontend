@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Download, TrendingUp, TrendingDown, FileText, Calendar } from 'lucide-react';
+import { Download, TrendingUp, TrendingDown, FileText, Calendar, ChevronDown, ChevronUp } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { fetchProfitLossData, generateProfitLossPDF, generateSingleInvoiceProfitLossPDF } from '@/slices/outwardSlice';
+import { fetchProfitLossData, generateProfitLossPDF, generateSingleInvoiceProfitLossPDF, fetchProductWiseProfitLossData } from '@/slices/outwardSlice';
 import { formatCurrency, formatDate } from '@/utils';
 import Button from '@/components/Button';
 import Table from '@/components/Table';
@@ -32,11 +32,32 @@ interface ProfitLossItem {
   customerName: string;
 }
 
+interface ProductWiseProfitLoss {
+  productId: number;
+  productName: string;
+  productGrade: string;
+  categoryName: string;
+  totalQuantity: number;
+  totalPurchasePrice: string;
+  totalSalesPrice: string;
+  totalProfit: string;
+  profitMargin: string;
+  transactions: any[];
+}
+
+interface ColumnDef {
+  key: string;
+  title: string;
+  render?: (value: any, record: any) => React.ReactNode;
+}
+
 const ProfitLossAnalysis: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { profitLossData, profitLossLoading, profitLossError } = useAppSelector(
+  const { profitLossData, profitLossLoading, profitLossError, productWiseProfitLossData, productWiseProfitLossLoading } = useAppSelector(
     (state) => state.outward
   );
+  const [viewMode, setViewMode] = useState<'invoice' | 'product'>('product');
+  const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
   const [summary, setSummary] = useState({
     totalRevenue: 0,
     totalCOGS: 0,
@@ -56,10 +77,11 @@ const ProfitLossAnalysis: React.FC = () => {
   }, [profitLossError]);
 
   useEffect(() => {
-    if (profitLossData && profitLossData.length > 0) {
-      const totalRevenue = profitLossData.reduce((sum: number, item: ProfitLossItem) => sum + parseFloat(item.totalSalesPrice), 0);
-      const totalCOGS = profitLossData.reduce((sum: number, item: ProfitLossItem) => sum + parseFloat(item.totalPurchasePrice), 0);
-      const totalProfit = profitLossData.reduce((sum: number, item: ProfitLossItem) => sum + parseFloat(item.difference), 0);
+    const data = viewMode === 'product' ? productWiseProfitLossData : profitLossData;
+    if (data && data.length > 0) {
+      const totalRevenue = data.reduce((sum: number, item: any) => sum + parseFloat(item.totalSalesPrice), 0);
+      const totalCOGS = data.reduce((sum: number, item: any) => sum + parseFloat(item.totalPurchasePrice), 0);
+      const totalProfit = data.reduce((sum: number, item: any) => sum + parseFloat(item.totalProfit || item.difference), 0);
       const profitMargin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100) : 0;
 
       setSummary({
@@ -67,13 +89,14 @@ const ProfitLossAnalysis: React.FC = () => {
         totalCOGS,
         totalProfit,
         profitMargin,
-        totalItems: profitLossData.length,
+        totalItems: data.length,
       });
     }
-  }, [profitLossData]);
+  }, [profitLossData, productWiseProfitLossData, viewMode]);
 
   const loadData = () => {
     dispatch(fetchProfitLossData({ startDate: undefined, endDate: undefined }));
+    dispatch(fetchProductWiseProfitLossData({ startDate: undefined, endDate: undefined }));
   };
 
   const handleDownloadPDF = async () => {
@@ -116,7 +139,85 @@ const ProfitLossAnalysis: React.FC = () => {
     }
   };
 
-  const columns = [
+  const toggleProductExpand = (productId: number) => {
+    const newExpanded = new Set(expandedProducts);
+    if (newExpanded.has(productId)) {
+      newExpanded.delete(productId);
+    } else {
+      newExpanded.add(productId);
+    }
+    setExpandedProducts(newExpanded);
+  };
+
+  const productColumns: ColumnDef[] = [
+    {
+      key: 'productName',
+      title: 'Product Name',
+      render: (value: any, record: ProductWiseProfitLoss) => (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => toggleProductExpand(record.productId)}
+            className="p-1 hover:bg-gray-200 rounded"
+          >
+            {expandedProducts.has(record.productId) ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </button>
+          <div>
+            <div className="font-medium">{value}</div>
+            {record.productGrade && <div className="text-xs text-gray-500">{record.productGrade}</div>}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'categoryName',
+      title: 'Category',
+    },
+    {
+      key: 'totalQuantity',
+      title: 'Total Qty',
+      render: (value: any) => <span className="text-center block">{value}</span>,
+    },
+    {
+      key: 'totalPurchasePrice',
+      title: 'Total Purchase',
+      render: (value: any) => <span className="text-right block">₹{value}</span>,
+    },
+    {
+      key: 'totalSalesPrice',
+      title: 'Total Sales',
+      render: (value: any) => <span className="text-right block">₹{value}</span>,
+    },
+    {
+      key: 'totalProfit',
+      title: 'Total Profit',
+      render: (value: any) => {
+        const profit = parseFloat(value);
+        return (
+          <span className={`text-right block font-semibold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            ₹{value}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'profitMargin',
+      title: 'Margin %',
+      render: (value: any) => {
+        const margin = parseFloat(value);
+        return (
+          <span className={`text-right block font-semibold ${margin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {value}%
+          </span>
+        );
+      },
+    },
+  ];
+
+  const invoiceColumns = [
     {
       key: 'invoiceNo',
       title: 'Invoice No',
@@ -142,37 +243,11 @@ const ProfitLossAnalysis: React.FC = () => {
       title: 'UOM',
     },
     {
-      key: 'packPerPiece',
-      title: 'PCS/PACK',
-      render: (value: number) => <span className="text-center block">{value}</span>,
-    },
-    {
-      key: 'packPerBox',
-      title: 'PACK/BOX',
-      render: (value: number) => <span className="text-center block">{value}</span>,
-    },
-    {
-      key: 'pcsPerBox',
-      title: 'PCS/BOX',
-      render: (value: number) => <span className="text-center block">{value}</span>,
-    },
-    {
       key: 'orderQty',
       title: 'Order Qty',
       render: (value: number, record: ProfitLossItem) => (
         <span className="text-center block">{value} {record.saleUnit}</span>
       ),
-    },
-    {
-      key: 'dispatchQty',
-      title: 'Dispatch Qty',
-      render: (value: number, record: ProfitLossItem) => (
-        <span className="text-center block">{value} {record.saleUnit}</span>
-      ),
-    },
-    {
-      key: 'vendorName',
-      title: 'Vendor',
     },
     {
       key: 'purchasePrice',
@@ -224,6 +299,54 @@ const ProfitLossAnalysis: React.FC = () => {
     },
   ];
 
+  const renderProductDetails = (product: ProductWiseProfitLoss) => {
+    if (!expandedProducts.has(product.productId)) return null;
+
+    return (
+      <tr className="bg-gray-50">
+        <td colSpan={7} className="p-4">
+          <div className="space-y-3">
+            <h4 className="font-semibold text-sm">Transaction Details</h4>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border border-gray-200">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="px-3 py-2 text-left">Invoice No</th>
+                    <th className="px-3 py-2 text-left">Date</th>
+                    <th className="px-3 py-2 text-left">Customer</th>
+                    <th className="px-3 py-2 text-center">Qty</th>
+                    <th className="px-3 py-2 text-right">Purchase Price</th>
+                    <th className="px-3 py-2 text-right">Sales Price</th>
+                    <th className="px-3 py-2 text-right">Profit</th>
+                    <th className="px-3 py-2 text-right">Margin %</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {product.transactions.map((tx: any, idx: number) => (
+                    <tr key={idx} className="border-t border-gray-200 hover:bg-gray-50">
+                      <td className="px-3 py-2 font-medium">{tx.invoiceNo}</td>
+                      <td className="px-3 py-2">{formatDate(tx.invoiceDate)}</td>
+                      <td className="px-3 py-2">{tx.customerName}</td>
+                      <td className="px-3 py-2 text-center">{tx.quantity} {tx.saleUnit}</td>
+                      <td className="px-3 py-2 text-right">₹{tx.purchasePrice}</td>
+                      <td className="px-3 py-2 text-right">₹{tx.salesPrice}</td>
+                      <td className={`px-3 py-2 text-right font-semibold ${parseFloat(tx.profit) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        ₹{tx.profit}
+                      </td>
+                      <td className={`px-3 py-2 text-right font-semibold ${parseFloat(tx.profitMargin) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {tx.profitMargin}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </td>
+      </tr>
+    );
+  };
+
   return (
     <div className="space-y-4">
       <PageHeader
@@ -239,6 +362,30 @@ const ProfitLossAnalysis: React.FC = () => {
           },
         ]}
       />
+
+      {/* View Mode Toggle */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setViewMode('product')}
+          className={`px-4 py-2 rounded font-medium transition ${
+            viewMode === 'product'
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+          }`}
+        >
+          Product-wise View
+        </button>
+        <button
+          onClick={() => setViewMode('invoice')}
+          className={`px-4 py-2 rounded font-medium transition ${
+            viewMode === 'invoice'
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+          }`}
+        >
+          Invoice-wise View
+        </button>
+      </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -299,7 +446,43 @@ const ProfitLossAnalysis: React.FC = () => {
 
       {/* Data Table */}
       <div className="card overflow-x-auto">
-        <Table data={profitLossData} columns={columns} loading={profitLossLoading} />
+        {viewMode === 'product' ? (
+          <div>
+            <table className="w-full text-sm">
+              <thead className="bg-gray-100 border-b">
+                <tr>
+                  {productColumns.map((col) => (
+                    <th key={col.key} className="px-4 py-3 text-left font-semibold">
+                      {col.title}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {productWiseProfitLossData.map((product: ProductWiseProfitLoss) => {
+                  const productData = product as Record<string, any>;
+                  return (
+                    <React.Fragment key={product.productId}>
+                      <tr className="border-b hover:bg-gray-50">
+                        {productColumns.map((col) => (
+                          <td key={col.key} className="px-4 py-3">
+                            {col.render ? col.render(productData[col.key], product) : productData[col.key]}
+                          </td>
+                        ))}
+                      </tr>
+                      {renderProductDetails(product)}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+            {productWiseProfitLossLoading && (
+              <div className="text-center py-8 text-gray-500">Loading...</div>
+            )}
+          </div>
+        ) : (
+          <Table data={profitLossData} columns={invoiceColumns} loading={profitLossLoading} />
+        )}
       </div>
     </div>
   );
