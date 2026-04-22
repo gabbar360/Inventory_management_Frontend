@@ -11,7 +11,7 @@ import {
   Edit,
   ChevronDown,
   ChevronRight,
-  FileText,
+  Loader2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -206,6 +206,7 @@ const Outward: React.FC = () => {
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
   const {
     register,
@@ -378,11 +379,13 @@ const Outward: React.FC = () => {
         console.log('🟡 Edit Invoice - Form data prepared:', formData);
         reset(formData);
 
-        // Load stock for existing items
+        // Expand all existing items so stock batches are visible
+        setExpandedItems(new Set(formData.items.map((_, i) => i)));
+
+        // Load stock for existing items before opening modal
         if (fullInvoice.items) {
-          for (const item of fullInvoice.items) {
-            await loadAvailableStock(item.productId);
-          }
+          const uniqueProductIds = [...new Set(fullInvoice.items.map(i => i.productId))];
+          await Promise.all(uniqueProductIds.map(pid => loadAvailableStock(pid.toString())));
         }
 
         setModalOpen(true);
@@ -518,6 +521,7 @@ const Outward: React.FC = () => {
   };
 
   const handleDownloadPDF = async (invoice: OutwardInvoice) => {
+    setDownloadingId(invoice.id);
     try {
       const blob = await outwardService.generatePDF(invoice.id);
       const url = window.URL.createObjectURL(blob);
@@ -531,7 +535,8 @@ const Outward: React.FC = () => {
       toast.success('Invoice PDF downloaded successfully');
     } catch (error: any) {
       toast.error(error?.response?.data?.message || 'Failed to generate PDF');
-      console.error('PDF generation error:', error);
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -654,8 +659,10 @@ const saleTypeOptions = [
           <Button variant="ghost" size="sm" onClick={() => viewInvoice(record)}>
             <Eye className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => handleDownloadPDF(record)}>
-            <FileText className="h-4 w-4" />
+          <Button variant="ghost" size="sm" onClick={() => handleDownloadPDF(record)} title="Download PDF" disabled={downloadingId === record.id}>
+            {downloadingId === record.id
+              ? <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+              : <Download className="h-4 w-4" />}
           </Button>
           <Button variant="ghost" size="sm" onClick={() => editInvoice(record)}>
             <Edit className="h-4 w-4" />
@@ -775,12 +782,18 @@ const saleTypeOptions = [
                 (b) => b.id.toString() === item?.stockBatchId?.toString()
               );
               const product = productsCache[item?.productId] || selectedBatch?.product;
+              // In edit mode, add back the original item's quantity since backend will restore it on update
+              const originalItem = editingInvoice?.items?.find(
+                (oi) => oi.stockBatchId?.toString() === item?.stockBatchId?.toString() &&
+                        oi.saleUnit === item?.saleUnit
+              );
+              const originalQty = originalItem?.quantity || 0;
               const maxQuantity =
                 item?.saleUnit === 'box'
-                  ? selectedBatch?.remainingBoxes || 0
+                  ? (selectedBatch?.remainingBoxes || 0) + (editingInvoice ? originalQty : 0)
                   : item?.saleUnit === 'pack'
-                    ? selectedBatch?.remainingPacks || 0
-                    : selectedBatch?.remainingPcs || 0;
+                    ? (selectedBatch?.remainingPacks || 0) + (editingInvoice ? originalQty : 0)
+                    : (selectedBatch?.remainingPcs || 0) + (editingInvoice ? originalQty : 0);
               
               const gstRate = product?.category?.gstRate || 0;
               const baseAmount = (item?.quantity || 0) * (item?.ratePerUnit || 0);
