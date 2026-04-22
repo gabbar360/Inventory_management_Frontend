@@ -90,4 +90,11 @@ export const outwardService = {
     });
     return response.data;
   },
+
+  async getProductWiseProfitLossData(startDate?: string, endDate?: string): Promise<any[]> {
+    const response = await api.get<ApiResponse<any[]>>('/get-outward/reports/product-wise-profit-loss', {
+      params: { startDate, endDate },
+    });
+    return response.data.data!;
+  },
 };

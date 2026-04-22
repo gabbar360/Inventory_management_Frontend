@@ -14,6 +14,9 @@ interface OutwardState {
   profitLossData: any[];
   profitLossLoading: boolean;
   profitLossError: string | null;
+  productWiseProfitLossData: any[];
+  productWiseProfitLossLoading: boolean;
+  productWiseProfitLossError: string | null;
 }
 
 const initialState: OutwardState = {
@@ -25,6 +28,9 @@ const initialState: OutwardState = {
   profitLossData: [],
   profitLossLoading: false,
   profitLossError: null,
+  productWiseProfitLossData: [],
+  productWiseProfitLossLoading: false,
+  productWiseProfitLossError: null,
 };
 
 export const fetchOutwardInvoices = createAsyncThunk(
@@ -91,6 +97,13 @@ export const generateSingleInvoiceProfitLossPDF = createAsyncThunk(
   async (invoiceId: string) => {
     const blob = await outwardService.generateSingleInvoiceProfitLossPDF(invoiceId);
     return blob;
+  }
+);
+
+export const fetchProductWiseProfitLossData = createAsyncThunk(
+  'outward/fetchProductWiseProfitLossData',
+  async ({ startDate, endDate }: { startDate?: string; endDate?: string }) => {
+    return await outwardService.getProductWiseProfitLossData(startDate, endDate);
   }
 );
 
@@ -184,6 +197,19 @@ const outwardSlice = createSlice({
       .addCase(generateSingleInvoiceProfitLossPDF.rejected, (state, action) => {
         state.profitLossLoading = false;
         state.profitLossError = action.error.message || 'Failed to generate PDF';
+      })
+      .addCase(fetchProductWiseProfitLossData.pending, (state) => {
+        state.productWiseProfitLossLoading = true;
+        state.productWiseProfitLossError = null;
+      })
+      .addCase(fetchProductWiseProfitLossData.fulfilled, (state, action) => {
+        state.productWiseProfitLossLoading = false;
+        state.productWiseProfitLossData = action.payload;
+      })
+      .addCase(fetchProductWiseProfitLossData.rejected, (state, action) => {
+        state.productWiseProfitLossLoading = false;
+        state.productWiseProfitLossError =
+          action.error.message || 'Failed to fetch product-wise profit-loss data';
       });
   },
 });
