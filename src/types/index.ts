@@ -241,6 +241,12 @@ export interface Sample {
   sentDate: string;
   status: 'pending' | 'approved' | 'rejected';
   remarks?: string;
+  source?: 'website' | 'manual';
+  paymentId?: string;
+  orderId?: string;
+  userType?: 'company' | 'customer';
+  gstNumber?: string;
+  panNumber?: string;
   createdAt: string;
   updatedAt: string;
   items?: SampleItem[];
