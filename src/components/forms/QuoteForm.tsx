@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { createQuote, updateQuote, fetchQuotes, fetchQuoteById, clearCurrentQuote } from '@/slices/quoteSlice';
 import { fetchCustomers } from '@/slices/customerSlice';
@@ -115,7 +115,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
         unit: item.unit,
         rate: (item.rate != null ? Number(item.rate) : '') as number | '',
         taxRate: (item.taxRate != null ? Number(item.taxRate) : (item.product?.category?.gstRate != null ? Number(item.product?.category?.gstRate) : '')) as number | '',
-        description: item.product?.description || item.description || '',
+        description: item.description ?? item.product?.description ?? '',
         product: item.product,
       }));
       setItems(mappedItems);
@@ -354,119 +354,128 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
             </thead>
             <tbody>
               {items.map((item, idx) => (
-                <tr key={item.id || item.tempId || idx} className="border-t">
-                  {editingItem === idx && editingData ? (
-                    <td colSpan={8} className="p-3">
-                      <div className="grid grid-cols-2 gap-3 mb-3">
-                        <ProductSearch
-                          value={editingData.productId?.toString()}
-                          onChange={(productId, product) => {
-                            const gstRate = product?.category?.gstRate || 0;
-                            setEditingData({
-                              ...editingData,
-                              productId: parseInt(productId),
-                              taxRate: gstRate,
-                              description: product?.description || '',
-                              product,
-                            });
-                          }}
-                        />
-                        <Input
-                          type="number"
-                          label="Quantity"
-                          value={editingData.quantity}
-                          onChange={(e) => setEditingData({ ...editingData, quantity: e.target.value === '' ? '' : Number(e.target.value) })}
-                          min="1"
-                        />
-                        <Select
-                          label="Unit"
-                          value={editingData.unit}
-                          onChange={(e) => setEditingData({ ...editingData, unit: e.target.value })}
-                        >
-                          <option value="box">Box</option>
-                          <option value="pack">Pack</option>
-                          <option value="piece">Piece</option>
-                        </Select>
-                        <Input
-                          type="number"
-                          label="Rate"
-                          value={editingData.rate}
-                          onChange={(e) => setEditingData({ ...editingData, rate: e.target.value === '' ? '' : Number(e.target.value) })}
-                          step="0.01"
-                          min="0"
-                        />
-                        <Input
-                          type="number"
-                          label="Tax Rate (%)"
-                          value={editingData.taxRate}
-                          onChange={(e) => setEditingData({ ...editingData, taxRate: e.target.value === '' ? '' : Number(e.target.value) })}
-                          step="0.01"
-                          min="0"
-                        />
-                      </div>
-                      <Input
-                        label="Description"
-                        value={editingData.description || ''}
-                        onChange={(e) => setEditingData({ ...editingData, description: e.target.value })}
-                        placeholder="Product description (auto-filled from product)"
-                      />
-                      <div className="flex gap-2 mt-3">
-                        <Button
+                <React.Fragment key={item.id || item.tempId || idx}>
+                  <tr className="border-t">
+                    <td className="p-2">
+                      <div className="font-medium">{getProductName(item)}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">{getProductDescription(item)}</div>
+                    </td>
+                    <td className="p-2 text-right">{item.quantity}</td>
+                    <td className="p-2 text-left">{item.unit}</td>
+                    <td className="p-2 text-right">₹{Number(item.rate || 0).toFixed(2)}</td>
+                    <td className="p-2 text-right">{Number(item.taxRate || 0)}%</td>
+                    <td className="p-2 text-right">₹{(((Number(item.quantity) || 0) * (Number(item.rate) || 0) * (Number(item.taxRate) || 0)) / 100).toFixed(2)}</td>
+                    <td className="p-2 text-right">₹{((Number(item.quantity) || 0) * (Number(item.rate) || 0)).toFixed(2)}</td>
+                    <td className="p-2 text-center">
+                      <div className="flex gap-1 justify-center">
+                        <button
                           type="button"
                           onClick={() => {
-                            const updatedItems = [...items];
-                            updatedItems[idx] = editingData;
-                            setItems(updatedItems);
-                            setEditingItem(null);
-                            setEditingData(null);
+                            if (editingItem === idx) {
+                              setEditingItem(null);
+                              setEditingData(null);
+                            } else {
+                              setEditingItem(idx);
+                              setEditingData({ ...item });
+                            }
                           }}
+                          className="text-blue-600 hover:text-blue-800"
+                          title="Edit"
                         >
-                          Save
-                        </Button>
-                        <Button
+                          ✏️
+                        </button>
+                        <button
                           type="button"
-                          variant="secondary"
-                          onClick={() => { setEditingItem(null); setEditingData(null); }}
+                          onClick={() => handleRemoveItem(idx)}
+                          className="text-red-600 hover:text-red-800"
+                          title="Delete"
                         >
-                          Cancel
-                        </Button>
+                          ×
+                        </button>
                       </div>
                     </td>
-                  ) : (
-                    <>
-                      <td className="p-2">
-                        <div className="font-medium">{getProductName(item)}</div>
-                        <div className="text-xs text-gray-500 mt-0.5">{getProductDescription(item)}</div>
-                      </td>
-                      <td className="p-2 text-right">{item.quantity}</td>
-                      <td className="p-2 text-left">{item.unit}</td>
-                      <td className="p-2 text-right">₹{Number(item.rate || 0).toFixed(2)}</td>
-                      <td className="p-2 text-right">{Number(item.taxRate || 0)}%</td>
-                      <td className="p-2 text-right">₹{(((Number(item.quantity) || 0) * (Number(item.rate) || 0) * (Number(item.taxRate) || 0)) / 100).toFixed(2)}</td>
-                      <td className="p-2 text-right">₹{((Number(item.quantity) || 0) * (Number(item.rate) || 0)).toFixed(2)}</td>
-                      <td className="p-2 text-center">
-                        <div className="flex gap-1 justify-center">
-                          <button 
-                            type="button" 
-                            onClick={() => { setEditingItem(idx); setEditingData({ ...item }); }} 
-                            className="text-blue-600 hover:text-blue-800"
-                            title="Edit"
+                  </tr>
+                  {editingItem === idx && editingData && (
+                    <tr className="bg-blue-50 border-t border-blue-200">
+                      <td colSpan={8} className="p-3">
+                        <div className="grid grid-cols-2 gap-3 mb-3">
+                          <ProductSearch
+                            value={editingData.productId?.toString()}
+                            onChange={(productId, product) => {
+                              const gstRate = product?.category?.gstRate || 0;
+                              setEditingData({
+                                ...editingData,
+                                productId: parseInt(productId),
+                                taxRate: gstRate,
+                                description: product?.description || '',
+                                product,
+                              });
+                            }}
+                          />
+                          <Input
+                            type="number"
+                            label="Quantity"
+                            value={editingData.quantity}
+                            onChange={(e) => setEditingData({ ...editingData, quantity: e.target.value === '' ? '' : Number(e.target.value) })}
+                            min="1"
+                          />
+                          <Select
+                            label="Unit"
+                            value={editingData.unit}
+                            onChange={(e) => setEditingData({ ...editingData, unit: e.target.value })}
                           >
-                            ✏️
-                          </button>
-                          <button 
-                            type="button" 
-                            onClick={() => handleRemoveItem(idx)} 
-                            className="text-red-600 hover:text-red-800"
-                            title="Delete"
+                            <option value="box">Box</option>
+                            <option value="pack">Pack</option>
+                            <option value="piece">Piece</option>
+                          </Select>
+                          <Input
+                            type="number"
+                            label="Rate"
+                            value={editingData.rate}
+                            onChange={(e) => setEditingData({ ...editingData, rate: e.target.value === '' ? '' : Number(e.target.value) })}
+                            step="0.01"
+                            min="0"
+                          />
+                          <Input
+                            type="number"
+                            label="Tax Rate (%)"
+                            value={editingData.taxRate}
+                            onChange={(e) => setEditingData({ ...editingData, taxRate: e.target.value === '' ? '' : Number(e.target.value) })}
+                            step="0.01"
+                            min="0"
+                          />
+                        </div>
+                        <Input
+                          label="Description"
+                          value={editingData.description || ''}
+                          onChange={(e) => setEditingData({ ...editingData, description: e.target.value })}
+                          placeholder="Product description (auto-filled from product)"
+                        />
+                        <div className="flex gap-2 mt-3">
+                          <Button
+                            type="button"
+                            onClick={() => {
+                              const updatedItems = [...items];
+                              updatedItems[idx] = editingData;
+                              setItems(updatedItems);
+                              setEditingItem(null);
+                              setEditingData(null);
+                            }}
                           >
-                            ×
-                          </button>
+                            Save
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => { setEditingItem(null); setEditingData(null); }}
+                          >
+                            Cancel
+                          </Button>
                         </div>
                       </td>
-                    </>
+                    </tr>
                   )}
-                </tr>
+                </React.Fragment>
               ))}
             </tbody>
           </table>
