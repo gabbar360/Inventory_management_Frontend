@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Edit, Trash2, X, Download } from 'lucide-react';
+import { Plus, Edit, Trash2, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchSamples, createSample, updateSample, deleteSample, clearError } from '@/slices/sampleSlice';
-import { fetchProducts } from '@/slices/productSlice';
 import { Sample } from '@/types';
-import { formatDate, debounce, generateSampleInvoice } from '@/utils';
+import { formatDate, debounce, generateSampleInvoice, generateSampleDispatchSlip } from '@/utils';
 import Button from '@/components/Button';
 import Input from '@/components/Input';
 import Select from '@/components/Select';
@@ -30,11 +29,6 @@ interface SampleFormData {
   sentDate: string;
   status: 'pending' | 'approved' | 'rejected';
   remarks?: string;
-  items: {
-    productId: string;
-    quantity: number;
-    unit: 'box' | 'pack' | 'piece';
-  }[];
 }
 
 const sampleSchema = z.object({
@@ -50,17 +44,11 @@ const sampleSchema = z.object({
   sentDate: z.string().min(1, 'Sent date is required'),
   status: z.enum(['pending', 'approved', 'rejected']),
   remarks: z.string().optional(),
-  items: z.array(z.object({
-    productId: z.string().min(1, 'Product is required'),
-    quantity: z.number().min(1, 'Quantity must be at least 1'),
-    unit: z.enum(['box', 'pack', 'piece']),
-  })).min(1, 'At least one product is required'),
 });
 
 const Samples: React.FC = () => {
   const dispatch = useAppDispatch();
   const { samples, pagination, loading, error } = useAppSelector((state) => state.samples);
-  const { products } = useAppSelector((state) => state.products);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingSample, setEditingSample] = useState<Sample | null>(null);
@@ -68,22 +56,18 @@ const Samples: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [sourceFilter, setSourceFilter] = useState<'all' | 'manual' | 'website'>('all');
 
-  const { register, handleSubmit, reset, setValue, control, formState: { errors, isSubmitting } } = useForm<SampleFormData>({
+  const { register, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } = useForm<SampleFormData>({
     resolver: zodResolver(sampleSchema),
     defaultValues: {
       status: 'pending',
       sampleType: 'domestic',
       dispatchMethod: 'courier',
       kitPrice: 0,
-      items: [{ productId: '', quantity: 1, unit: 'piece' }],
     },
   });
 
-  const { fields, append, remove } = useFieldArray({ control, name: 'items' });
-
   useEffect(() => {
     dispatch(fetchSamples({ page: currentPage, limit: 10, search, ...(sourceFilter !== 'all' && { source: sourceFilter }) }));
-    dispatch(fetchProducts({ limit: 1000 }));
   }, [dispatch, search, currentPage, sourceFilter]);
 
   useEffect(() => {
@@ -119,20 +103,14 @@ const Samples: React.FC = () => {
       setValue('sentDate', sample.sentDate.split('T')[0]);
       setValue('status', sample.status);
       setValue('remarks', sample.remarks || '');
-      setValue('items', sample.items?.map(item => ({
-        productId: item.productId,
-        quantity: item.quantity,
-        unit: item.unit,
-      })) || []);
     } else {
       setEditingSample(null);
-      reset({ 
+      reset({
         status: 'pending',
         sampleType: 'domestic',
         dispatchMethod: 'courier',
         kitPrice: 0,
         sentDate: new Date().toISOString().split('T')[0],
-        items: [{ productId: '', quantity: 1, unit: 'piece' }],
       });
     }
     setModalOpen(true);
@@ -147,26 +125,10 @@ const Samples: React.FC = () => {
   const onSubmit = async (data: SampleFormData) => {
     try {
       if (editingSample) {
-        const updateData: Partial<Sample> = {
-          ...data,
-          items: data.items.map(item => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            unit: item.unit,
-          })) as any,
-        };
-        await dispatch(updateSample({ id: editingSample.id, data: updateData })).unwrap();
+        await dispatch(updateSample({ id: editingSample.id, data: data as Partial<Sample> })).unwrap();
         toast.success('Sample updated successfully');
       } else {
-        const createData: Partial<Sample> = {
-          ...data,
-          items: data.items.map(item => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            unit: item.unit,
-          })) as any,
-        };
-        await dispatch(createSample(createData)).unwrap();
+        await dispatch(createSample(data as Partial<Sample>)).unwrap();
         toast.success('Sample created successfully');
       }
       closeModal();
@@ -222,23 +184,6 @@ const Samples: React.FC = () => {
         </span>
       ),
     },
-    {
-      key: 'items',
-      title: 'Products',
-      render: (_: any, record: Sample) => (
-        <div className="text-sm">
-          {record.items && record.items.length > 0 ? (
-            record.items.map((item, idx) => (
-              <div key={idx}>
-                {item.product?.name || 'N/A'}{item.product?.grade ? ` (${item.product.grade})` : ''} - {item.quantity} {item.unit}
-              </div>
-            ))
-          ) : (
-            <span>No products</span>
-          )}
-        </div>
-      ),
-    },
     { key: 'kitPrice', title: 'Kit Price', render: (_: any, record: Sample) => `₹${record.kitPrice.toFixed(2)}` },
     { key: 'sentDate', title: 'Sent Date', render: (value: string) => formatDate(value) },
     { key: 'status', title: 'Status', render: (value: string) => getStatusBadge(value) },
@@ -247,9 +192,13 @@ const Samples: React.FC = () => {
       title: 'Actions',
       render: (_: any, record: Sample) => (
         <div className="flex gap-1 sm:gap-2">
-          {record.source === 'website' && (
+          {record.source === 'website' ? (
             <Button variant="ghost" size="sm" onClick={() => generateSampleInvoice(record)} title="Download Invoice">
               <Download className="h-4 w-4 text-green-600" />
+            </Button>
+          ) : (
+            <Button variant="ghost" size="sm" onClick={() => generateSampleDispatchSlip(record)} title="Print Dispatch Slip">
+              <Download className="h-4 w-4 text-blue-600" />
             </Button>
           )}
           <Button variant="ghost" size="sm" onClick={() => openModal(record)}>
@@ -378,53 +327,7 @@ const Samples: React.FC = () => {
               error={errors.sentDate?.message}
               {...register('sentDate')}
             />
-          </div>
 
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <label className="block text-sm font-medium text-gray-700">Products</label>
-              <Button type="button" size="sm" onClick={() => append({ productId: '', quantity: 1, unit: 'piece' })}>
-                <Plus className="h-4 w-4 mr-1" /> Add Product
-              </Button>
-            </div>
-            {fields.map((field, index) => (
-              <div key={field.id} className="flex gap-2 mb-2 items-start">
-                <div className="flex-1">
-                  <Select error={errors.items?.[index]?.productId?.message} {...register(`items.${index}.productId`)}>
-                    <option value="">Select product</option>
-                    {products.map((product) => (
-                      <option key={product.id} value={product.id}>
-                        {product.name}{product.grade ? ` (${product.grade})` : ''}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-                <div className="w-24">
-                  <Input
-                    type="number"
-                    placeholder="Qty"
-                    error={errors.items?.[index]?.quantity?.message}
-                    {...register(`items.${index}.quantity`, { valueAsNumber: true })}
-                  />
-                </div>
-                <div className="w-24">
-                  <Select error={errors.items?.[index]?.unit?.message} {...register(`items.${index}.unit`)}>
-                    <option value="box">Box</option>
-                    <option value="pack">Pack</option>
-                    <option value="piece">Piece</option>
-                  </Select>
-                </div>
-                {fields.length > 1 && (
-                  <Button type="button" variant="ghost" size="sm" onClick={() => remove(index)} className="text-red-600">
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            ))}
-            {errors.items?.message && <p className="text-sm text-red-600 mt-1">{errors.items.message}</p>}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Select label="Status" error={errors.status?.message} {...register('status')}>
               <option value="pending">Pending</option>
               <option value="approved">Approved</option>
