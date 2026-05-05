@@ -231,6 +231,43 @@ export function generateSampleInvoice(sample: Sample): void {
   setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
 
+export function generateSampleDispatchSlip(sample: Sample): void {
+  const div = document.createElement('div');
+  div.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:420px;font-family:Segoe UI,Arial,sans-serif;background:#fff;border:2px solid #222';
+  div.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:2px dashed #aaa">
+      <div style="padding:16px;border-right:1px dashed #aaa">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:8px">TO</div>
+        <div style="font-size:14px;font-weight:700;color:#111;margin-bottom:5px">${sample.customerName}</div>
+        <div style="font-size:11px;color:#333;line-height:1.7">${(sample.customerAddress || '').replace(/,\s*/g, ',<br>')}</div>
+        ${sample.customerPhone ? `<div style="font-size:11px;font-weight:600;color:#1e3a5f;margin-top:5px">Contact: ${sample.customerPhone}</div>` : ''}
+      </div>
+      <div style="padding:16px">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:8px">FROM</div>
+        <div style="font-size:14px;font-weight:700;color:#111;margin-bottom:5px">Vegnar Global LLP</div>
+        <div style="font-size:11px;color:#333;line-height:1.7">B623, RK Iconic, Sheetal Park<br>150 Feet Ring Rd<br>Rajkot, Gujarat 360007</div>
+        <div style="font-size:11px;font-weight:600;color:#1e3a5f;margin-top:5px">Contact: 9998040482</div>
+      </div>
+    </div>
+    <div style="background:#f9fafb;text-align:center;padding:7px;font-size:9px;color:#999">Vegnar Global LLP | sales@vegnar.com | www.vegnar.com</div>
+  `;
+  document.body.appendChild(div);
+
+  import('html2canvas').then(({ default: html2canvas }) =>
+    html2canvas(div, { scale: 3, useCORS: true, backgroundColor: '#fff' })
+  ).then(canvas => {
+    document.body.removeChild(div);
+    import('jspdf').then(({ jsPDF }) => {
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a6' });
+      const pdfW = pdf.internal.pageSize.getWidth();
+      const pdfH = (canvas.height * pdfW) / canvas.width;
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfW, pdfH);
+      pdf.save(`DispatchSlip-${sample.sampleNo}.pdf`);
+    });
+  });
+}
+
 export function generateInvoiceNumber(prefix: string): string {
   const timestamp = Date.now().toString().slice(-6);
   const random = Math.floor(Math.random() * 100)
