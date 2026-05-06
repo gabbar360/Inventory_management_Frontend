@@ -15,6 +15,7 @@ import {
   FileText,
   Megaphone,
   TrendingUp,
+  ClipboardList,
 } from 'lucide-react';
 import { useAppDispatch } from '@/store/hooks';
 import { logoutUser } from '@/slices/authSlice';
@@ -30,6 +31,7 @@ const navigation = [
   { name: 'Vendors', href: '/vendors', icon: Users },
   { name: 'Customers', href: '/customers', icon: Users },
   { name: 'Quotes', href: '/quotes', icon: FileText },
+  { name: 'Sales Orders', href: '/sales-orders', icon: ClipboardList },
   { name: 'Warehouse', href: '/locations', icon: MapPin },
   { name: 'Inward', href: '/inward', icon: ArrowDownToLine },
   { name: 'Outward', href: '/outward', icon: ArrowUpFromLine },
