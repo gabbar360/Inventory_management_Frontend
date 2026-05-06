@@ -25,9 +25,8 @@ interface SampleFormData {
   sampleType: 'domestic' | 'export';
   kitPrice: number;
   trackingNumber?: string;
-  dispatchMethod: 'courier' | 'hand_delivery' | 'transport';
+  dispatchMethod: string;
   sentDate: string;
-  status: 'pending' | 'approved' | 'rejected';
   remarks?: string;
 }
 
@@ -40,9 +39,8 @@ const sampleSchema = z.object({
   sampleType: z.enum(['domestic', 'export']),
   kitPrice: z.number().min(0, 'Kit price must be positive'),
   trackingNumber: z.string().optional(),
-  dispatchMethod: z.enum(['courier', 'hand_delivery', 'transport']),
+  dispatchMethod: z.string().min(1, 'Dispatch method is required'),
   sentDate: z.string().min(1, 'Sent date is required'),
-  status: z.enum(['pending', 'approved', 'rejected']),
   remarks: z.string().optional(),
 });
 
@@ -59,9 +57,8 @@ const Samples: React.FC = () => {
   const { register, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } = useForm<SampleFormData>({
     resolver: zodResolver(sampleSchema),
     defaultValues: {
-      status: 'pending',
       sampleType: 'domestic',
-      dispatchMethod: 'courier',
+      dispatchMethod: '',
       kitPrice: 0,
     },
   });
@@ -101,14 +98,12 @@ const Samples: React.FC = () => {
       setValue('trackingNumber', sample.trackingNumber || '');
       setValue('dispatchMethod', sample.dispatchMethod);
       setValue('sentDate', sample.sentDate.split('T')[0]);
-      setValue('status', sample.status);
       setValue('remarks', sample.remarks || '');
     } else {
       setEditingSample(null);
       reset({
-        status: 'pending',
         sampleType: 'domestic',
-        dispatchMethod: 'courier',
+        dispatchMethod: '',
         kitPrice: 0,
         sentDate: new Date().toISOString().split('T')[0],
       });
@@ -308,11 +303,12 @@ const Samples: React.FC = () => {
               {...register('kitPrice', { valueAsNumber: true })}
             />
 
-            <Select label="Dispatch Method" error={errors.dispatchMethod?.message} {...register('dispatchMethod')}>
-              <option value="courier">Courier</option>
-              <option value="hand_delivery">Hand Delivery</option>
-              <option value="transport">Transport</option>
-            </Select>
+            <Input
+              label="Dispatch Method"
+              placeholder="Enter dispatch method"
+              error={errors.dispatchMethod?.message}
+              {...register('dispatchMethod')}
+            />
 
             <Input
               label="Tracking Number (Optional)"
@@ -327,12 +323,6 @@ const Samples: React.FC = () => {
               error={errors.sentDate?.message}
               {...register('sentDate')}
             />
-
-            <Select label="Status" error={errors.status?.message} {...register('status')}>
-              <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
-            </Select>
 
             <Input
               label="Remarks (Optional)"

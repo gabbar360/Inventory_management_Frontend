@@ -293,6 +293,36 @@ export interface QuoteItem {
   description?: string;
 }
 
+export interface SalesOrderItem {
+  id: string;
+  salesOrderId: string;
+  productId: string;
+  product?: Product;
+  quantity: number;
+  unit: string;
+  rate: number;
+  taxRate: number;
+  amount: number;
+  description?: string;
+}
+
+export interface SalesOrder {
+  id: string;
+  orderNo: string;
+  quoteId?: string;
+  quote?: { quoteNo: string };
+  customerId: string;
+  customer?: Customer;
+  orderDate: string;
+  status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  saleType: 'domestic' | 'export';
+  totalAmount: number;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  items?: SalesOrderItem[];
+}
+
 export interface Lead {
   id: string;
   name: string;

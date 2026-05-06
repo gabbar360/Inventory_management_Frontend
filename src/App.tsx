@@ -17,6 +17,7 @@ import Outward from '@/pages/Outward';
 import Inventory from '@/pages/Inventory';
 import Samples from '@/pages/Samples';
 import Quotes from '@/pages/Quotes';
+import SalesOrders from '@/pages/SalesOrders';
 import Settings from '@/pages/Settings';
 import Leads from '@/pages/Leads';
 import ProfitLossAnalysis from '@/pages/ProfitLossAnalysis';
@@ -98,6 +99,7 @@ function App() {
         <Route path="inventory" element={<Inventory />} />
         <Route path="samples" element={<Samples />} />
         <Route path="quotes" element={<Quotes />} />
+        <Route path="sales-orders" element={<SalesOrders />} />
         <Route path="settings" element={<Settings />} />
       </Route>
     </Routes>

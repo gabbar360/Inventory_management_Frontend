@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Download, Loader2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Download, Loader2, ShoppingCart } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   fetchQuotes,
   deleteQuote,
   downloadQuotePDF,
 } from '@/slices/quoteSlice';
+import { convertQuoteToSalesOrder } from '@/slices/salesOrderSlice';
 import { Quote } from '@/types';
 import { formatDate, debounce } from '@/utils';
 import Button from '@/components/Button';
@@ -27,6 +29,8 @@ const Quotes: React.FC = () => {
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [downloadingId, setDownloadingId] = useState<string | number | null>(null);
+  const [convertingId, setConvertingId] = useState<string | number | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     dispatch(fetchQuotes({ page: currentPage, limit: 10, search }));
@@ -61,6 +65,20 @@ const Quotes: React.FC = () => {
       } catch (error) {
         // Error handled by Redux
       }
+    }
+  };
+
+  const handleConvertToSalesOrder = async (quote: Quote) => {
+    if (!window.confirm(`Convert "${quote.quoteNo}" to Sales Order?`)) return;
+    setConvertingId(quote.id);
+    try {
+      await dispatch(convertQuoteToSalesOrder(quote.id)).unwrap();
+      toast.success(`Sales Order created from ${quote.quoteNo}`);
+      navigate('/sales-orders');
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to convert');
+    } finally {
+      setConvertingId(null);
     }
   };
 
@@ -130,6 +148,9 @@ const Quotes: React.FC = () => {
       title: 'Actions',
       render: (_: any, record: Quote) => (
         <div className="flex gap-1 sm:gap-2">
+          <Button variant="ghost" size="sm" onClick={() => handleConvertToSalesOrder(record)} title="Convert to Sales Order" className="text-green-600 hover:text-green-700" disabled={convertingId === record.id}>
+            {convertingId === record.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShoppingCart className="h-4 w-4" />}
+          </Button>
           <Button variant="ghost" size="sm" onClick={() => handleDownloadPDF(record)} title="Download PDF" disabled={downloadingId === record.id.toString()}>
             {downloadingId === record.id.toString()
               ? <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
