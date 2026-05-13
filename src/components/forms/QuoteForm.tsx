@@ -27,6 +27,8 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
   const { products } = useAppSelector((state) => state.products);
   const { currentQuote, loading } = useAppSelector((state) => state.quotes) as { currentQuote: Quote | null; loading: boolean };
   
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [formData, setFormData] = useState({
     customerId: '',
     quoteDate: new Date().toISOString().split('T')[0],
@@ -53,7 +55,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
   const [editingData, setEditingData] = useState<QuoteItem | null>(null);
 
   useEffect(() => {
-    dispatch(fetchCustomers());
+    dispatch(fetchCustomers({ limit: 1000 }));
     dispatch(fetchProducts());
   }, [dispatch]);
 
@@ -107,6 +109,9 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
         paymentTerms: (currentQuote as any).paymentTerms || '',
         reference: (currentQuote as any).reference || '',
       });
+      const selectedCustomer = customers.find((c: any) => c.id === currentQuote.customerId || c.id === Number(currentQuote.customerId));
+      if (selectedCustomer) setCustomerSearch((selectedCustomer as any).name);
+      else if ((currentQuote as any).customer?.name) setCustomerSearch((currentQuote as any).customer.name);
       
       const mappedItems = (currentQuote.items || []).map((item: any) => ({
         id: item.id,
@@ -215,17 +220,47 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
       <h2 className="text-xl font-bold">{quote ? 'Edit Quote' : 'Create Quote'}</h2>
       
       <div className="grid grid-cols-2 gap-4">
-        <Select
-          label="Customer"
-          value={formData.customerId}
-          onChange={(e) => setFormData({ ...formData, customerId: e.target.value })}
-          required
-        >
-          <option value="">Select Customer</option>
-          {customers.map((c: any) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </Select>
+        <div className="relative">
+          <label className="block text-sm font-medium mb-1">Customer <span className="text-red-500">*</span></label>
+          <input
+            type="text"
+            placeholder="Search customer..."
+            value={customerSearch}
+            onChange={(e) => {
+              setCustomerSearch(e.target.value);
+              setFormData({ ...formData, customerId: '' });
+              setShowCustomerDropdown(true);
+            }}
+            onFocus={() => setShowCustomerDropdown(true)}
+            onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 150)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            autoComplete="off"
+          />
+          {/* hidden input for required validation */}
+          <input type="text" required value={formData.customerId} onChange={() => {}} className="sr-only" tabIndex={-1} />
+          {showCustomerDropdown && (
+            <ul className="absolute z-50 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto mt-1">
+              {customers
+                .filter((c: any) => c.name.toLowerCase().includes(customerSearch.toLowerCase()))
+                .map((c: any) => (
+                  <li
+                    key={c.id}
+                    onMouseDown={() => {
+                      setFormData({ ...formData, customerId: c.id.toString() });
+                      setCustomerSearch(c.name);
+                      setShowCustomerDropdown(false);
+                    }}
+                    className="px-3 py-2 cursor-pointer hover:bg-blue-50 text-sm"
+                  >
+                    {c.name}
+                  </li>
+                ))}
+              {customers.filter((c: any) => c.name.toLowerCase().includes(customerSearch.toLowerCase())).length === 0 && (
+                <li className="px-3 py-2 text-sm text-gray-400">No customers found</li>
+              )}
+            </ul>
+          )}
+        </div>
 
         <Input
           type="date"
