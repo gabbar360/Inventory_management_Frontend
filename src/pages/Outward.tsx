@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
@@ -276,7 +276,7 @@ const Outward: React.FC = () => {
   }, [error, dispatch]);
 
   const loadMasterData = async () => {
-    dispatch(fetchCustomers({ limit: 100 }));
+    dispatch(fetchCustomers({ limit: 1000 }));
   };
 
   const loadAvailableStock = async (productId: string) => {
@@ -541,7 +541,7 @@ const Outward: React.FC = () => {
   };
 
   const customerOptions = customers.map((c) => ({
-    value: c.id,
+    value: c.id.toString(),
     label: `${c.code} - ${c.name}`,
   }));
 
@@ -745,12 +745,46 @@ const saleTypeOptions = [
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Select
-              label="Customer"
-              options={customerOptions}
-              placeholder="Select customer"
-              error={errors.customerId?.message}
-              {...register('customerId')}
+            <Controller
+              name="customerId"
+              control={control}
+              render={({ field }) => {
+                const [custSearch, setCustSearch] = useState('');
+                const [custOpen, setCustOpen] = useState(false);
+                useEffect(() => {
+                  const sel = customerOptions.find((o) => o.value.toString() === field.value?.toString());
+                  if (sel) setCustSearch(`${sel.label}`);
+                }, [field.value, customerOptions]);
+                const filtered = customerOptions.filter((o) =>
+                  o.label.toLowerCase().includes(custSearch.toLowerCase())
+                );
+                return (
+                  <div className="relative">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Customer</label>
+                    <input
+                      type="text"
+                      autoComplete="off"
+                      placeholder="Search customer..."
+                      value={custSearch}
+                      onChange={(e) => { setCustSearch(e.target.value); field.onChange(''); setCustOpen(true); }}
+                      onFocus={() => setCustOpen(true)}
+                      onBlur={() => setTimeout(() => setCustOpen(false), 150)}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    />
+                    <input type="text" required value={field.value || ''} onChange={() => {}} className="sr-only" tabIndex={-1} />
+                    {errors.customerId && <p className="text-sm text-red-600 mt-1">{errors.customerId.message}</p>}
+                    {custOpen && (
+                      <ul className="absolute z-50 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto mt-1">
+                        {filtered.map((o) => (
+                          <li key={o.value} onMouseDown={() => { field.onChange(o.value.toString()); setCustSearch(o.label); setCustOpen(false); }}
+                            className="px-3 py-2 cursor-pointer hover:bg-blue-50 text-sm">{o.label}</li>
+                        ))}
+                        {filtered.length === 0 && <li className="px-3 py-2 text-sm text-gray-400">No customers found</li>}
+                      </ul>
+                    )}
+                  </div>
+                );
+              }}
             />
           </div>
 
