@@ -318,6 +318,10 @@ export interface SalesOrder {
   saleType: 'domestic' | 'export';
   totalAmount: number;
   notes?: string;
+  reference?: string;
+  expectedShipmentDate?: string;
+  placeOfSupply?: string;
+  deliveryMethod?: string;
   createdAt: string;
   updatedAt: string;
   items?: SalesOrderItem[];

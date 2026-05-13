@@ -34,7 +34,9 @@ interface OrderItem {
   description: string;
 }
 
-const emptyItem = (): OrderItem => ({ productId: '', quantity: 1, unit: 'box', rate: 0, taxRate: 0, description: '' });
+const emptyItem = (): OrderItem => ({ productId: '', quantity: 0, unit: 'box', rate: 0, taxRate: 0, description: '' });
+
+const unitOptions = ['box', 'pack', 'piece'];
 
 const StatusBadge = ({ status }: { status: string }) => {
   const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
@@ -45,6 +47,205 @@ const StatusBadge = ({ status }: { status: string }) => {
   );
 };
 
+// ── Standalone form component (outside SalesOrders) to prevent remount on state change ──
+interface OrderFormProps {
+  formData: { customerId: string; orderDate: string; saleType: string; status: string; notes: string; reference: string; expectedShipmentDate: string; placeOfSupply: string; deliveryMethod: string };
+  setFormData: React.Dispatch<React.SetStateAction<OrderFormProps['formData']>>;
+  items: OrderItem[];
+  setItems: React.Dispatch<React.SetStateAction<OrderItem[]>>;
+  newItem: OrderItem;
+  setNewItem: React.Dispatch<React.SetStateAction<OrderItem>>;
+  editingItem: number | null;
+  setEditingItem: React.Dispatch<React.SetStateAction<number | null>>;
+  editingData: OrderItem | null;
+  setEditingData: React.Dispatch<React.SetStateAction<OrderItem | null>>;
+  customerOptions: { value: string; label: string }[];
+  statusOptions: { value: string; label: string }[];
+  calcTotal: () => number;
+}
+
+const OrderForm: React.FC<OrderFormProps> = ({
+  formData, setFormData,
+  items, setItems,
+  newItem, setNewItem,
+  editingItem, setEditingItem,
+  editingData, setEditingData,
+  customerOptions, statusOptions,
+  calcTotal,
+}) => {
+  const removeItem = (index: number) => setItems((prev) => prev.filter((_, i) => i !== index));
+
+  const handleAddItem = () => {
+    if (!newItem.productId || newItem.quantity < 1 || newItem.rate < 0) return;
+    setItems((prev) => [...prev, { ...newItem }]);
+    setNewItem(emptyItem());
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Header fields */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Customer *</label>
+          <select className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            value={formData.customerId} onChange={(e) => setFormData({ ...formData, customerId: e.target.value })}>
+            <option value="">Select customer</option>
+            {customerOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
+        <Input label="Order Date *" type="date" value={formData.orderDate}
+          onChange={(e) => setFormData({ ...formData, orderDate: e.target.value })} />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+          <select className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value })}>
+            {statusOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
+        <Input label="Reference" value={formData.reference}
+          onChange={(e) => setFormData({ ...formData, reference: e.target.value })} />
+        <Input label="Expected Shipment Date" type="date" value={formData.expectedShipmentDate}
+          onChange={(e) => setFormData({ ...formData, expectedShipmentDate: e.target.value })} />
+        <Input label="Place of Supply" value={formData.placeOfSupply}
+          onChange={(e) => setFormData({ ...formData, placeOfSupply: e.target.value })} />
+        <Input label="Delivery Method" value={formData.deliveryMethod}
+          onChange={(e) => setFormData({ ...formData, deliveryMethod: e.target.value })} />
+      </div>
+
+      {/* Items */}
+      <div className="border-t pt-4">
+        <h3 className="font-semibold mb-3">Products *</h3>
+
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <ProductSearch
+            value={newItem.productId}
+            onChange={(productId, product) =>
+              setNewItem({ ...newItem, productId, product, taxRate: product?.category?.gstRate || 0, description: product?.description || '' })
+            }
+          />
+          <Input label="Quantity" type="number" min="1" value={newItem.quantity || ''}
+            onChange={(e) => setNewItem({ ...newItem, quantity: parseInt(e.target.value) || 0 })} />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
+            <select value={newItem.unit} onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+              {unitOptions.map((u) => <option key={u} value={u}>{u}</option>)}
+            </select>
+          </div>
+          <Input label="Rate (₹)" type="number" min="0" step="0.01" value={newItem.rate || ''}
+            onChange={(e) => setNewItem({ ...newItem, rate: parseFloat(e.target.value) || 0 })} />
+          <Input label="Tax Rate (%)" type="number" min="0" step="0.01" value={newItem.taxRate || ''}
+            onChange={(e) => setNewItem({ ...newItem, taxRate: parseFloat(e.target.value) || 0 })} />
+        </div>
+        <Input label="Description" value={newItem.description}
+          onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
+          placeholder="Product description (auto-filled from product)" />
+        <Button type="button" onClick={handleAddItem} className="mt-2">Add Item</Button>
+
+        {items.length > 0 && (
+          <table className="w-full text-sm border mt-4">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="p-2 text-left">Product</th>
+                <th className="p-2 text-right">Qty</th>
+                <th className="p-2 text-left">UOM</th>
+                <th className="p-2 text-right">Rate</th>
+                <th className="p-2 text-right">Tax%</th>
+                <th className="p-2 text-right">Tax Amt</th>
+                <th className="p-2 text-right">Amount</th>
+                <th className="p-2">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item, idx) => (
+                <React.Fragment key={idx}>
+                  <tr className="border-t">
+                    <td className="p-2">
+                      <div className="font-medium">{item.product?.name || '-'}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">{item.description}</div>
+                    </td>
+                    <td className="p-2 text-right">{item.quantity}</td>
+                    <td className="p-2 text-left">{item.unit}</td>
+                    <td className="p-2 text-right">₹{Number(item.rate).toFixed(2)}</td>
+                    <td className="p-2 text-right">{item.taxRate}%</td>
+                    <td className="p-2 text-right">₹{(item.quantity * item.rate * item.taxRate / 100).toFixed(2)}</td>
+                    <td className="p-2 text-right">₹{(item.quantity * item.rate).toFixed(2)}</td>
+                    <td className="p-2 text-center">
+                      <div className="flex gap-1 justify-center">
+                        <button type="button" onClick={() => { if (editingItem === idx) { setEditingItem(null); setEditingData(null); } else { setEditingItem(idx); setEditingData({ ...item }); } }} className="text-blue-600 hover:text-blue-800" title="Edit">✏️</button>
+                        <button type="button" onClick={() => removeItem(idx)} className="text-red-600 hover:text-red-800" title="Delete">×</button>
+                      </div>
+                    </td>
+                  </tr>
+                  {editingItem === idx && editingData && (
+                    <tr className="bg-blue-50 border-t border-blue-200">
+                      <td colSpan={8} className="p-3">
+                        <div className="grid grid-cols-2 gap-3 mb-3">
+                          <ProductSearch
+                            value={editingData.productId}
+                            onChange={(productId, product) =>
+                              setEditingData({ ...editingData, productId, product, taxRate: product?.category?.gstRate || 0, description: product?.description || '' })
+                            }
+                          />
+                          <Input label="Quantity" type="number" min="1" value={editingData.quantity}
+                            onChange={(e) => setEditingData({ ...editingData, quantity: parseInt(e.target.value) || 1 })} />
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
+                            <select value={editingData.unit} onChange={(e) => setEditingData({ ...editingData, unit: e.target.value })}
+                              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                              {unitOptions.map((u) => <option key={u} value={u}>{u}</option>)}
+                            </select>
+                          </div>
+                          <Input label="Rate (₹)" type="number" min="0" step="0.01" value={editingData.rate}
+                            onChange={(e) => setEditingData({ ...editingData, rate: parseFloat(e.target.value) || 0 })} />
+                          <Input label="Tax Rate (%)" type="number" min="0" step="0.01" value={editingData.taxRate}
+                            onChange={(e) => setEditingData({ ...editingData, taxRate: parseFloat(e.target.value) || 0 })} />
+                        </div>
+                        <Input label="Description" value={editingData.description || ''}
+                          onChange={(e) => setEditingData({ ...editingData, description: e.target.value })}
+                          placeholder="Product description (auto-filled from product)" />
+                        <div className="flex gap-2 mt-3">
+                          <Button type="button" onClick={() => { const updated = [...items]; updated[idx] = editingData; setItems(updated); setEditingItem(null); setEditingData(null); }}>Save</Button>
+                          <Button type="button" variant="outline" onClick={() => { setEditingItem(null); setEditingData(null); }}>Cancel</Button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Totals */}
+      <div className="bg-gray-100 p-3 rounded">
+        <div className="flex justify-between mb-1 text-sm">
+          <span>Subtotal:</span>
+          <span>₹{items.reduce((s, i) => s + i.quantity * i.rate, 0).toFixed(2)}</span>
+        </div>
+        <div className="flex justify-between mb-1 text-sm">
+          <span>Total Tax:</span>
+          <span>+₹{items.reduce((s, i) => s + i.quantity * i.rate * i.taxRate / 100, 0).toFixed(2)}</span>
+        </div>
+        <div className="flex justify-between font-bold text-base border-t pt-2">
+          <span>Total:</span>
+          <span>₹{calcTotal().toFixed(2)}</span>
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+        <textarea className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" rows={2}
+          value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} />
+      </div>
+    </div>
+  );
+};
+
+// ── Main page ──
 const SalesOrders: React.FC = () => {
   const dispatch = useAppDispatch();
   const { orders, pagination, loading } = useAppSelector((state) => state.salesOrders);
@@ -63,8 +264,15 @@ const SalesOrders: React.FC = () => {
     saleType: 'domestic',
     status: 'pending',
     notes: '',
+    reference: '',
+    expectedShipmentDate: '',
+    placeOfSupply: '',
+    deliveryMethod: '',
   });
-  const [items, setItems] = useState<OrderItem[]>([emptyItem()]);
+  const [items, setItems] = useState<OrderItem[]>([]);
+  const [newItem, setNewItem] = useState<OrderItem>(emptyItem());
+  const [editingItem, setEditingItem] = useState<number | null>(null);
+  const [editingData, setEditingData] = useState<OrderItem | null>(null);
 
   useEffect(() => {
     dispatch(fetchSalesOrders({ page: currentPage, limit: 10, search }));
@@ -80,14 +288,14 @@ const SalesOrders: React.FC = () => {
   });
 
   const resetForm = () => {
-    setFormData({ customerId: '', orderDate: new Date().toISOString().split('T')[0], saleType: 'domestic', status: 'pending', notes: '' });
-    setItems([emptyItem()]);
+    setFormData({ customerId: '', orderDate: new Date().toISOString().split('T')[0], saleType: 'domestic', status: 'pending', notes: '', reference: '', expectedShipmentDate: '', placeOfSupply: '', deliveryMethod: '' });
+    setItems([]);
+    setNewItem(emptyItem());
+    setEditingItem(null);
+    setEditingData(null);
   };
 
-  const openCreate = () => {
-    resetForm();
-    setCreateModalOpen(true);
-  };
+  const openCreate = () => { resetForm(); setCreateModalOpen(true); };
 
   const openEdit = (order: SalesOrder) => {
     setEditOrder(order);
@@ -97,38 +305,20 @@ const SalesOrders: React.FC = () => {
       saleType: order.saleType,
       status: order.status,
       notes: order.notes || '',
+      reference: order.reference || '',
+      expectedShipmentDate: order.expectedShipmentDate ? order.expectedShipmentDate.split('T')[0] : '',
+      placeOfSupply: order.placeOfSupply || '',
+      deliveryMethod: order.deliveryMethod || '',
     });
     setItems(
       order.items && order.items.length > 0
-        ? order.items.map((i) => ({
-            productId: i.productId,
-            product: i.product,
-            quantity: i.quantity,
-            unit: i.unit,
-            rate: i.rate,
-            taxRate: i.taxRate,
-            description: i.description || '',
-          }))
-        : [emptyItem()]
+        ? order.items.map((i) => ({ productId: i.productId, product: i.product, quantity: i.quantity, unit: i.unit, rate: i.rate, taxRate: i.taxRate, description: i.description || '' }))
+        : []
     );
+    setNewItem(emptyItem());
+    setEditingItem(null);
+    setEditingData(null);
   };
-
-  const updateItem = (index: number, field: keyof OrderItem, value: any) => {
-    setItems((prev) => prev.map((item, i) => (i === index ? { ...item, [field]: value } : item)));
-  };
-
-  const handleProductChange = (index: number, productId: string, product?: Product) => {
-    setItems((prev) =>
-      prev.map((item, i) =>
-        i === index
-          ? { ...item, productId, product, taxRate: product?.category?.gstRate || 0 }
-          : item
-      )
-    );
-  };
-
-  const addItem = () => setItems((prev) => [...prev, emptyItem()]);
-  const removeItem = (index: number) => setItems((prev) => prev.filter((_, i) => i !== index));
 
   const calcTotal = () =>
     items.reduce((sum, item) => {
@@ -142,17 +332,19 @@ const SalesOrders: React.FC = () => {
     saleType: formData.saleType,
     status: formData.status,
     notes: formData.notes,
+    reference: formData.reference,
+    expectedShipmentDate: formData.expectedShipmentDate || null,
+    placeOfSupply: formData.placeOfSupply,
+    deliveryMethod: formData.deliveryMethod,
     totalAmount: calcTotal(),
-    items: items
-      .filter((i) => i.productId)
-      .map((i) => ({
-        productId: parseInt(i.productId),
-        quantity: i.quantity,
-        unit: i.unit,
-        rate: i.rate,
-        taxRate: i.taxRate,
-        description: i.description,
-      })),
+    items: items.filter((i) => i.productId).map((i) => ({
+      productId: parseInt(i.productId),
+      quantity: i.quantity,
+      unit: i.unit,
+      rate: i.rate,
+      taxRate: i.taxRate,
+      description: i.description,
+    })),
   });
 
   const handleCreate = async () => {
@@ -164,9 +356,7 @@ const SalesOrders: React.FC = () => {
       setCreateModalOpen(false);
       resetForm();
       dispatch(fetchSalesOrders({ page: currentPage, limit: 10, search }));
-    } catch (e: any) {
-      toast.error(e?.message || 'Failed to create');
-    }
+    } catch (e: any) { toast.error(e?.message || 'Failed to create'); }
   };
 
   const handleUpdate = async () => {
@@ -176,9 +366,7 @@ const SalesOrders: React.FC = () => {
       toast.success('Sales order updated');
       setEditOrder(null);
       dispatch(fetchSalesOrders({ page: currentPage, limit: 10, search }));
-    } catch (e: any) {
-      toast.error(e?.message || 'Failed to update');
-    }
+    } catch (e: any) { toast.error(e?.message || 'Failed to update'); }
   };
 
   const handleDownloadPDF = async (order: SalesOrder) => {
@@ -194,11 +382,8 @@ const SalesOrders: React.FC = () => {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       toast.success('PDF downloaded');
-    } catch {
-      toast.error('Failed to download PDF');
-    } finally {
-      setDownloadingId(null);
-    }
+    } catch { toast.error('Failed to download PDF'); }
+    finally { setDownloadingId(null); }
   };
 
   const handleDelete = async (order: SalesOrder) => {
@@ -206,15 +391,21 @@ const SalesOrders: React.FC = () => {
     try {
       await dispatch(deleteSalesOrder(order.id)).unwrap();
       toast.success('Sales order deleted');
-    } catch (e: any) {
-      toast.error(e?.message || 'Failed to delete');
-    }
+    } catch (e: any) { toast.error(e?.message || 'Failed to delete'); }
   };
 
   const customerOptions = customers.map((c) => ({ value: c.id.toString(), label: `${c.code} - ${c.name}` }));
   const statusOptions = Object.entries(STATUS_CONFIG).map(([v, c]) => ({ value: v, label: c.label }));
-  const saleTypeOptions = [{ value: 'domestic', label: 'Domestic' }, { value: 'export', label: 'Export' }];
-  const unitOptions = ['box', 'pack', 'piece', 'kg', 'nos'];
+
+  const sharedFormProps: OrderFormProps = {
+    formData, setFormData,
+    items, setItems,
+    newItem, setNewItem,
+    editingItem, setEditingItem,
+    editingData, setEditingData,
+    customerOptions, statusOptions,
+    calcTotal,
+  };
 
   const columns = [
     { key: 'orderNo', title: 'Order No', sortable: true },
@@ -238,124 +429,6 @@ const SalesOrders: React.FC = () => {
       ),
     },
   ];
-
-  const OrderForm = () => (
-    <div className="space-y-4">
-      {/* Header fields */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Customer *</label>
-          <select className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-            value={formData.customerId} onChange={(e) => setFormData({ ...formData, customerId: e.target.value })}>
-            <option value="">Select customer</option>
-            {customerOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-        </div>
-        <Input label="Order Date *" type="date" value={formData.orderDate}
-          onChange={(e) => setFormData({ ...formData, orderDate: e.target.value })} />
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Sale Type</label>
-          <select className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-            value={formData.saleType} onChange={(e) => setFormData({ ...formData, saleType: e.target.value })}>
-            {saleTypeOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-          <select className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-            value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value })}>
-            {statusOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-        </div>
-      </div>
-
-      {/* Items */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <label className="block text-sm font-medium text-gray-700">Products *</label>
-          <Button type="button" variant="outline" size="sm" onClick={addItem}>
-            <Plus className="h-3 w-3 mr-1" /> Add Item
-          </Button>
-        </div>
-        <div className="space-y-3">
-          {items.map((item, index) => {
-            const base = item.quantity * item.rate;
-            const tax = base * (item.taxRate / 100);
-            return (
-              <div key={index} className="border border-gray-200 rounded-lg p-3 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-600">Item {index + 1}</span>
-                  {items.length > 1 && (
-                    <Button type="button" variant="ghost" size="sm" onClick={() => removeItem(index)} className="text-red-500 hover:text-red-700 p-1 h-auto">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-                </div>
-                <ProductSearch
-                  value={item.productId}
-                  onChange={(productId, product) => handleProductChange(index, productId, product)}
-                />
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Qty</label>
-                    <input type="number" min="1" value={item.quantity}
-                      onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)}
-                      className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Unit</label>
-                    <select value={item.unit} onChange={(e) => updateItem(index, 'unit', e.target.value)}
-                      className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
-                      {unitOptions.map((u) => <option key={u} value={u}>{u}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Rate (₹)</label>
-                    <input type="number" min="0" step="0.01" value={item.rate}
-                      onChange={(e) => updateItem(index, 'rate', parseFloat(e.target.value) || 0)}
-                      className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">GST%</label>
-                    <input type="number" min="0" value={item.taxRate}
-                      onChange={(e) => updateItem(index, 'taxRate', parseFloat(e.target.value) || 0)}
-                      className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Description</label>
-                  <input type="text" value={item.description}
-                    onChange={(e) => updateItem(index, 'description', e.target.value)}
-                    placeholder="Product description (optional)"
-                    className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
-                </div>
-                <div className="flex justify-between text-xs text-gray-500 bg-gray-50 rounded px-2 py-1.5">
-                  <span>Base: ₹{base.toFixed(2)}</span>
-                  <span>GST ({item.taxRate}%): ₹{tax.toFixed(2)}</span>
-                  <span className="font-semibold text-gray-700">Total: ₹{(base + tax).toFixed(2)}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Grand Total */}
-      <div className="flex justify-end">
-        <div className="bg-green-50 rounded-lg px-4 py-2 text-sm font-semibold text-green-800">
-          Grand Total: ₹{calcTotal().toFixed(2)}
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-        <textarea className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" rows={2}
-          value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} />
-      </div>
-    </div>
-  );
 
   return (
     <div className="space-y-4">
@@ -381,7 +454,7 @@ const SalesOrders: React.FC = () => {
       {/* Create Modal */}
       <Modal isOpen={createModalOpen} onClose={() => { setCreateModalOpen(false); resetForm(); }} title="Add Sales Order" size="xl">
         <div className="space-y-4">
-          <OrderForm />
+          <OrderForm {...sharedFormProps} />
           <div className="flex justify-end gap-2 pt-2 border-t">
             <Button variant="outline" onClick={() => { setCreateModalOpen(false); resetForm(); }}>Cancel</Button>
             <Button onClick={handleCreate}>Create Sales Order</Button>
@@ -392,7 +465,7 @@ const SalesOrders: React.FC = () => {
       {/* Edit Modal */}
       <Modal isOpen={!!editOrder} onClose={() => setEditOrder(null)} title={`Edit ${editOrder?.orderNo}`} size="xl">
         <div className="space-y-4">
-          <OrderForm />
+          <OrderForm {...sharedFormProps} />
           <div className="flex justify-end gap-2 pt-2 border-t">
             <Button variant="outline" onClick={() => setEditOrder(null)}>Cancel</Button>
             <Button onClick={handleUpdate}>Update Sales Order</Button>
@@ -411,6 +484,10 @@ const SalesOrders: React.FC = () => {
               <div><span className="font-medium text-gray-600">Sale Type:</span><div className="capitalize">{viewOrder.saleType}</div></div>
               <div><span className="font-medium text-gray-600">Total Amount:</span><div className="font-semibold">₹{viewOrder.totalAmount?.toFixed(2)}</div></div>
               {viewOrder.quote && <div><span className="font-medium text-gray-600">From Quote:</span><div className="text-blue-600">{viewOrder.quote.quoteNo}</div></div>}
+              {viewOrder.reference && <div><span className="font-medium text-gray-600">Reference:</span><div>{viewOrder.reference}</div></div>}
+              {viewOrder.expectedShipmentDate && <div><span className="font-medium text-gray-600">Expected Shipment:</span><div>{formatDate(viewOrder.expectedShipmentDate)}</div></div>}
+              {viewOrder.placeOfSupply && <div><span className="font-medium text-gray-600">Place of Supply:</span><div>{viewOrder.placeOfSupply}</div></div>}
+              {viewOrder.deliveryMethod && <div><span className="font-medium text-gray-600">Delivery Method:</span><div className="capitalize">{viewOrder.deliveryMethod.replace('_', ' ')}</div></div>}
               {viewOrder.notes && <div className="col-span-2"><span className="font-medium text-gray-600">Notes:</span><div>{viewOrder.notes}</div></div>}
             </div>
             {viewOrder.items && viewOrder.items.length > 0 && (
