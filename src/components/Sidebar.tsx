@@ -16,6 +16,10 @@ import {
   Megaphone,
   TrendingUp,
   ClipboardList,
+  ShoppingCart,
+  ShoppingBag,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import { useAppDispatch } from '@/store/hooks';
 import { logoutUser } from '@/slices/authSlice';
@@ -23,18 +27,27 @@ import { cn } from '@/utils';
 import Button from '@/components/Button';
 import toast from 'react-hot-toast';
 
-const navigation = [
+const topNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Leads', href: '/leads', icon: Megaphone },
   { name: 'Categories', href: '/categories', icon: FolderTree },
   { name: 'Products', href: '/products', icon: Box },
+];
+
+const purchaseItems = [
   { name: 'Vendors', href: '/vendors', icon: Users },
+  { name: 'Inward', href: '/inward', icon: ArrowDownToLine },
+];
+
+const salesItems = [
   { name: 'Customers', href: '/customers', icon: Users },
   { name: 'Quotes', href: '/quotes', icon: FileText },
   { name: 'Sales Orders', href: '/sales-orders', icon: ClipboardList },
-  { name: 'Warehouse', href: '/locations', icon: MapPin },
-  { name: 'Inward', href: '/inward', icon: ArrowDownToLine },
   { name: 'Outward', href: '/outward', icon: ArrowUpFromLine },
+];
+
+const bottomNavigation = [
+  { name: 'Warehouse', href: '/locations', icon: MapPin },
   { name: 'Inventory', href: '/inventory', icon: Warehouse },
   { name: 'Samples', href: '/samples', icon: FlaskConical },
   { name: 'Profit & Loss', href: '/profit-loss', icon: TrendingUp },
@@ -50,6 +63,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const [showLogoutMenu, setShowLogoutMenu] = useState(false);
+  const [purchaseOpen, setPurchaseOpen] = useState(
+    purchaseItems.some((i) => location.pathname === i.href)
+  );
+  const [salesOpen, setSalesOpen] = useState(
+    salesItems.some((i) => location.pathname === i.href)
+  );
 
   const handleLogout = async () => {
     try {
@@ -67,9 +86,83 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
     }
   };
 
+  const navLink = (item: { name: string; href: string; icon: React.ElementType }) => {
+    const isActive = location.pathname === item.href;
+    return (
+      <Link
+        key={item.name}
+        to={item.href}
+        onClick={handleLinkClick}
+        className={cn(
+          'group flex items-center rounded-md px-2 py-2 text-sm font-medium transition-colors',
+          isActive
+            ? 'bg-primary-100 text-primary-900'
+            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+        )}
+      >
+        <item.icon
+          className={cn(
+            'h-5 w-5 flex-shrink-0',
+            isOpen ? 'mr-3' : 'mx-auto',
+            isActive ? 'text-primary-500' : 'text-gray-400'
+          )}
+        />
+        {isOpen && item.name}
+      </Link>
+    );
+  };
+
+  const dropdownGroup = (
+    label: string,
+    Icon: React.ElementType,
+    items: typeof purchaseItems,
+    open: boolean,
+    setOpen: (v: boolean) => void
+  ) => {
+    const isGroupActive = items.some((i) => location.pathname === i.href);
+    return (
+      <div>
+        <button
+          onClick={() => {
+            if (!isOpen) onToggle();
+            else setOpen(!open);
+          }}
+          className={cn(
+            'w-full group flex items-center rounded-md px-2 py-2 text-sm font-medium transition-colors',
+            isGroupActive
+              ? 'bg-primary-100 text-primary-900'
+              : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+          )}
+        >
+          <Icon
+            className={cn(
+              'h-5 w-5 flex-shrink-0',
+              isOpen ? 'mr-3' : 'mx-auto',
+              isGroupActive ? 'text-primary-500' : 'text-gray-400'
+            )}
+          />
+          {isOpen && (
+            <>
+              <span className="flex-1 text-left">{label}</span>
+              {open ? (
+                <ChevronDown className="h-4 w-4 text-gray-400" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-gray-400" />
+              )}
+            </>
+          )}
+        </button>
+        {isOpen && open && (
+          <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-100 pl-2">
+            {items.map(navLink)}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <>
-      {/* Mobile Overlay */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
@@ -77,7 +170,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
         />
       )}
 
-      {/* Sidebar */}
       <div
         className={cn(
           'bg-white shadow-lg transition-all duration-300 ease-in-out z-50',
@@ -94,27 +186,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
             {isOpen ? (
               <>
                 <div className="flex-1" />
-                <span className="text-xl font-bold text-gray-900">
-                  Inventory
-                </span>
+                <span className="text-xl font-bold text-gray-900">Inventory</span>
                 <div className="flex-1 flex justify-end">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onToggle}
-                    className="p-2"
-                  >
+                  <Button variant="ghost" size="sm" onClick={onToggle} className="p-2">
                     <Menu className="h-5 w-5" />
                   </Button>
                 </div>
               </>
             ) : (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onToggle}
-                className="p-2 mx-auto"
-              >
+              <Button variant="ghost" size="sm" onClick={onToggle} className="p-2 mx-auto">
                 <Menu className="h-5 w-5" />
               </Button>
             )}
@@ -122,33 +202,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
 
           {/* Navigation */}
           <nav className="flex-1 space-y-1 px-2 py-4 overflow-y-auto">
-          {navigation.map((item) => {
-            const isActive = location.pathname === item.href;
-            return (
-              <Link
-                key={item.name}
-                to={item.href}
-                onClick={handleLinkClick}
-                className={cn(
-                  'group flex items-center rounded-md px-2 py-2 text-sm font-medium transition-colors',
-                  isActive
-                    ? 'bg-primary-100 text-primary-900'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                )}
-              >
-                <item.icon
-                  className={cn(
-                    'mr-3 h-5 w-5 flex-shrink-0',
-                    isActive ? 'text-primary-500' : 'text-gray-400'
-                  )}
-                />
-                {isOpen && item.name}
-              </Link>
-            );
-          })}
+            {topNavigation.map(navLink)}
+
+            {dropdownGroup('Purchase', ShoppingCart, purchaseItems, purchaseOpen, setPurchaseOpen)}
+            {dropdownGroup('Sales', ShoppingBag, salesItems, salesOpen, setSalesOpen)}
+
+            {bottomNavigation.map(navLink)}
           </nav>
 
-          {/* Logout Button */}
+          {/* Logout */}
           <div className="border-t border-gray-200 p-4">
             {isOpen ? (
               <Button
