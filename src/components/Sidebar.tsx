@@ -20,6 +20,7 @@ import {
   ShoppingBag,
   ChevronDown,
   ChevronRight,
+  Globe,
 } from 'lucide-react';
 import { useAppDispatch } from '@/store/hooks';
 import { logoutUser } from '@/slices/authSlice';
@@ -30,6 +31,7 @@ import toast from 'react-hot-toast';
 const topNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Leads', href: '/leads', icon: Megaphone },
+  { name: 'Website Quotes', href: '/website-quotes', icon: Globe },
   { name: 'Categories', href: '/categories', icon: FolderTree },
   { name: 'Products', href: '/products', icon: Box },
 ];
