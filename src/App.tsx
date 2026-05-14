@@ -20,6 +20,7 @@ import Quotes from '@/pages/Quotes';
 import SalesOrders from '@/pages/SalesOrders';
 import Settings from '@/pages/Settings';
 import Leads from '@/pages/Leads';
+import WebsiteQuotes from '@/pages/WebsiteQuotes';
 import ProfitLossAnalysis from '@/pages/ProfitLossAnalysis';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
@@ -88,6 +89,7 @@ function App() {
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="leads" element={<Leads />} />
+        <Route path="website-quotes" element={<WebsiteQuotes />} />
         <Route path="categories" element={<Categories />} />
         <Route path="products" element={<Products />} />
         <Route path="vendors" element={<Vendors />} />
