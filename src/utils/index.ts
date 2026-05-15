@@ -232,40 +232,68 @@ export function generateSampleInvoice(sample: Sample): void {
 }
 
 export function generateSampleDispatchSlip(sample: Sample): void {
-  const div = document.createElement('div');
-  div.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:420px;font-family:Segoe UI,Arial,sans-serif;background:#fff;border:2px solid #222';
-  div.innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:2px dashed #aaa">
-      <div style="padding:16px;border-right:1px dashed #aaa">
-        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:8px">TO</div>
-        <div style="font-size:14px;font-weight:700;color:#111;margin-bottom:5px">${sample.customerName}</div>
-        <div style="font-size:11px;color:#333;line-height:1.7">${(sample.customerAddress || '').replace(/,\s*/g, ',<br>')}</div>
-        ${sample.customerPhone ? `<div style="font-size:11px;font-weight:600;color:#1e3a5f;margin-top:5px">Contact: ${sample.customerPhone}</div>` : ''}
-      </div>
-      <div style="padding:16px">
-        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:8px">FROM</div>
-        <div style="font-size:14px;font-weight:700;color:#111;margin-bottom:5px">Vegnar Global LLP</div>
-        <div style="font-size:11px;color:#333;line-height:1.7">B623, RK Iconic, Sheetal Park<br>150 Feet Ring Rd<br>Rajkot, Gujarat 360007</div>
-        <div style="font-size:11px;font-weight:600;color:#1e3a5f;margin-top:5px">Contact: 9998040482</div>
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8"/>
+  <title>Dispatch Slip - ${sample.sampleNo}</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Segoe UI',Arial,sans-serif;background:#fff}
+    .print-btn{text-align:center;padding:10px;background:#f3f4f6}
+    .slip{width:120mm;margin:20px auto;border:2px solid #222;font-size:11pt}
+    .section{padding:14px 16px}
+    .section + .section{border-top:2px dashed #aaa}
+    .label{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:#888;margin-bottom:6px}
+    .name{font-size:14pt;font-weight:700;color:#111;margin-bottom:4px}
+    .detail{font-size:10pt;color:#333;line-height:1.8}
+    .footer-bar{background:#f9fafb;border-top:1px solid #ddd;text-align:center;padding:6px;font-size:8px;color:#999}
+    @media print{
+      .print-btn{display:none!important}
+      body{margin:0}
+      .slip{margin:0;border:2px solid #222;width:100%}
+    }
+  </style>
+</head>
+<body>
+  <div class="print-btn">
+    <button onclick="window.print()" style="background:#1d4ed8;color:#fff;border:none;padding:8px 24px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;margin-right:8px">🖨️ Print</button>
+    <button onclick="window.close()" style="background:#e5e7eb;color:#374151;border:none;padding:8px 18px;border-radius:6px;font-size:13px;cursor:pointer">Close</button>
+  </div>
+  <div class="slip">
+    <div class="section">
+      <div class="label">To</div>
+      <div class="name">${sample.customerName}</div>
+      <div class="detail">
+        ${sample.customerAddress || ''}
+        ${sample.customerPhone ? `<br>Contact: ${sample.customerPhone}` : ''}
+        ${sample.customerEmail ? `<br>${sample.customerEmail}` : ''}
       </div>
     </div>
-    <div style="background:#f9fafb;text-align:center;padding:7px;font-size:9px;color:#999">Vegnar Global LLP | sales@vegnar.com | www.vegnar.com</div>
-  `;
-  document.body.appendChild(div);
+    <div class="section">
+      <div class="label">From</div>
+      <div class="name">Vegnar Global LLP</div>
+      <div class="detail">
+        B-623, RK Iconic, 150 Feet Ring Road<br>
+        Ayodhya Chowk, Rajkot, Gujarat 360007<br>
+        Contact: +91 9998040482
+      </div>
+    </div>
+    <div class="footer-bar">Vegnar Global LLP | sales@vegnar.com | www.vegnar.com</div>
+  </div>
+</body>
+</html>`;
 
-  import('html2canvas').then(({ default: html2canvas }) =>
-    html2canvas(div, { scale: 3, useCORS: true, backgroundColor: '#fff' })
-  ).then(canvas => {
-    document.body.removeChild(div);
-    import('jspdf').then(({ jsPDF }) => {
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a6' });
-      const pdfW = pdf.internal.pageSize.getWidth();
-      const pdfH = (canvas.height * pdfW) / canvas.width;
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfW, pdfH);
-      pdf.save(`DispatchSlip-${sample.sampleNo}.pdf`);
-    });
-  });
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, '_blank');
+  if (!win) {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `DispatchSlip-${sample.sampleNo}.html`;
+    a.click();
+  }
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
 
 export function generateInvoiceNumber(prefix: string): string {

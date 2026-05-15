@@ -274,6 +274,7 @@ export interface Quote {
   totalAmount: number;
   discount: number;
   tax: number;
+  shippingCharge?: number;
   notes?: string;
   termsAndConditions?: string;
   status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired';

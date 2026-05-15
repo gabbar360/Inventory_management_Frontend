@@ -34,6 +34,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
     quoteDate: new Date().toISOString().split('T')[0],
     expiryDate: '',
     discount: '' as number | '',
+    shippingCharge: '' as number | '',
     taxRate: 0,
     notes: '',
     termsAndConditions: '',
@@ -68,6 +69,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
         quoteDate: new Date().toISOString().split('T')[0],
         expiryDate: '',
         discount: '',
+        shippingCharge: '',
         taxRate: 0,
         notes: '',
         termsAndConditions: '',
@@ -102,6 +104,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
         quoteDate: currentQuote.quoteDate?.split('T')[0] || '',
         expiryDate: currentQuote.expiryDate?.split('T')[0] || '',
         discount: currentQuote.discount != null ? Number(currentQuote.discount) : '',
+        shippingCharge: (currentQuote as any).shippingCharge != null ? Number((currentQuote as any).shippingCharge) : '',
         taxRate: Number(currentQuote.tax) || 0,
         notes: currentQuote.notes || '',
         termsAndConditions: currentQuote.termsAndConditions || '',
@@ -150,7 +153,8 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
     return sum + (itemAmount * (Number(item.taxRate) || 0)) / 100;
   }, 0);
   const totalAmount = subtotal + totalTax;
-  const finalAmount = totalAmount - (Number(formData.discount) || 0);
+  const shippingCharge = Number(formData.shippingCharge) || 0;
+  const finalAmount = totalAmount - (Number(formData.discount) || 0) + shippingCharge;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -170,6 +174,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
       })),
       totalAmount: finalAmount,
       discount: Number(formData.discount) || 0,
+      shippingCharge: Number(formData.shippingCharge) || 0,
       tax: totalTax,
       notes: formData.notes,
       termsAndConditions: formData.termsAndConditions,
@@ -518,14 +523,25 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
       </div>
 
       <div className="border-t pt-4 space-y-2">
-        <Input
-          type="number"
-          label="Discount"
-          value={formData.discount}
-          onChange={(e) => setFormData({ ...formData, discount: e.target.value === '' ? '' : Number(e.target.value) })}
-          step="0.01"
-          min="0"
-        />
+        <div className="grid grid-cols-2 gap-4">
+          <Input
+            type="number"
+            label="Discount"
+            value={formData.discount}
+            onChange={(e) => setFormData({ ...formData, discount: e.target.value === '' ? '' : Number(e.target.value) })}
+            step="0.01"
+            min="0"
+          />
+          <Input
+            type="number"
+            label="Shipping Charge"
+            value={formData.shippingCharge}
+            onChange={(e) => setFormData({ ...formData, shippingCharge: e.target.value === '' ? '' : Number(e.target.value) })}
+            step="0.01"
+            min="0"
+            placeholder="0.00"
+          />
+        </div>
 
         <div className="bg-gray-100 p-3 rounded">
           <div className="flex justify-between mb-1">
@@ -536,10 +552,16 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
             <span>Total Tax:</span>
             <span>+₹{totalTax.toFixed(2)}</span>
           </div>
-          <div className="flex justify-between mb-2">
+          <div className="flex justify-between mb-1">
             <span>Discount:</span>
             <span>-₹{Number(formData.discount || 0).toFixed(2)}</span>
           </div>
+          {shippingCharge > 0 && (
+            <div className="flex justify-between mb-1">
+              <span>Shipping Charge:</span>
+              <span>+₹{shippingCharge.toFixed(2)}</span>
+            </div>
+          )}
           <div className="flex justify-between font-bold text-lg border-t pt-2">
             <span>Total:</span>
             <span>₹{finalAmount.toFixed(2)}</span>
