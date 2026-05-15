@@ -252,6 +252,7 @@ export function generateSampleDispatchSlip(sample: Sample): void {
       .print-btn{display:none!important}
       body{margin:0}
       .slip{margin:0;border:2px solid #222;width:100%}
+      @page{margin:0;size:120mm auto}
     }
   </style>
 </head>
