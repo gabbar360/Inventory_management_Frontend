@@ -143,15 +143,44 @@ const Samples: React.FC = () => {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    const colors = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      approved: 'bg-green-100 text-green-800',
-      rejected: 'bg-red-100 text-red-800',
-    };
+  const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
+
+  const handleStatusChange = async (sample: Sample, newStatus: string) => {
+    setUpdatingStatusId(sample.id);
+    try {
+      await dispatch(updateSample({ id: sample.id, data: { status: newStatus } as Partial<Sample> })).unwrap();
+      toast.success('Status updated');
+    } catch {
+      toast.error('Failed to update status');
+    } finally {
+      setUpdatingStatusId(null);
+    }
+  };
+
+  const statusColors: Record<string, string> = {
+    pending: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+    approved: 'bg-green-100 text-green-800 border-green-300',
+    rejected: 'bg-red-100 text-red-800 border-red-300',
+  };
+
+  const getStatusCell = (record: Sample) => {
+    if (record.source === 'website') {
+      return (
+        <select
+          value={record.status}
+          disabled={updatingStatusId === record.id}
+          onChange={(e) => handleStatusChange(record, e.target.value)}
+          className={`text-xs font-medium px-2 py-1 rounded-full border cursor-pointer focus:outline-none ${statusColors[record.status] || 'bg-gray-100 text-gray-800 border-gray-300'}`}
+        >
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+        </select>
+      );
+    }
     return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[status as keyof typeof colors]}`}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${(statusColors[record.status] || 'bg-gray-100 text-gray-800').replace(' border-yellow-300','').replace(' border-green-300','').replace(' border-red-300','').replace(' border-gray-300','')}`}>
+        {record.status.charAt(0).toUpperCase() + record.status.slice(1)}
       </span>
     );
   };
@@ -181,7 +210,7 @@ const Samples: React.FC = () => {
     },
     { key: 'kitPrice', title: 'Kit Price', render: (_: any, record: Sample) => `₹${record.kitPrice.toFixed(2)}` },
     { key: 'sentDate', title: 'Sent Date', render: (value: string) => formatDate(value) },
-    { key: 'status', title: 'Status', render: (value: string) => getStatusBadge(value) },
+    { key: 'status', title: 'Status', render: (_: any, record: Sample) => getStatusCell(record) },
     {
       key: 'actions',
       title: 'Actions',
