@@ -27,6 +27,7 @@ import PageHeader from '@/components/PageHeader';
 
 interface ProductFormData {
   name: string;
+  sku?: string;
   grade?: string;
   description?: string;
   categoryId: string;
@@ -34,6 +35,7 @@ interface ProductFormData {
 
 const productSchema = z.object({
   name: z.string().min(1, 'Product name is required'),
+  sku: z.string().optional(),
   grade: z.string().optional(),
   description: z.string().optional(),
   categoryId: z.string().min(1, 'Category is required'),
@@ -86,6 +88,7 @@ const Products: React.FC = () => {
     if (product) {
       setEditingProduct(product);
       setValue('name', product.name);
+      setValue('sku', product.sku || '');
       setValue('grade', product.grade || '');
       setValue('description', product.description || '');
       setValue('categoryId', product.categoryId.toString());
@@ -160,6 +163,11 @@ const Products: React.FC = () => {
       key: 'name',
       title: 'Name',
       sortable: true,
+    },
+    {
+      key: 'sku',
+      title: 'SKU',
+      render: (value: string) => value || '-',
     },
     {
       key: 'grade',
@@ -254,6 +262,12 @@ const Products: React.FC = () => {
             placeholder="Enter product name"
             error={errors.name?.message}
             {...register('name')}
+          />
+
+          <Input
+            label="SKU (Optional)"
+            placeholder="Enter SKU number"
+            {...register('sku')}
           />
 
           <Input
