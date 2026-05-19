@@ -32,6 +32,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
     code: '',
     name: '',
     grade: '',
+    sku: '',
     categoryId: '',
     description: '',
     specifications: '',
@@ -86,6 +87,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
         code: '',
         name: '',
         grade: '',
+        sku: '',
         categoryId: '',
         description: '',
         specifications: '',
@@ -195,6 +197,15 @@ const ProductForm: React.FC<ProductFormProps> = ({
           }
           error={errors.code}
           placeholder="e.g., PRD001"
+        />
+
+        <Input
+          label="SKU Number"
+          value={formData.sku || ''}
+          onChange={(e) =>
+            setFormData((prev) => ({ ...prev, sku: e.target.value }))
+          }
+          placeholder="e.g., SKU-001"
         />
 
         <Input
@@ -538,6 +549,9 @@ const ProductForm: React.FC<ProductFormProps> = ({
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div>
             <span className="font-medium">Code:</span> {formData.code}
+          </div>
+          <div>
+            <span className="font-medium">SKU:</span> {formData.sku || '-'}
           </div>
           <div>
             <span className="font-medium">Name:</span> {formData.name}
