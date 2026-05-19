@@ -21,6 +21,7 @@ export interface Product {
   id: string;
   name: string;
   code: string;
+  sku?: string;
   grade?: string;
   description?: string;
   categoryId: string;
