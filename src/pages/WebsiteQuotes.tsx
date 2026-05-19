@@ -1,23 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Trash2, RefreshCw, Eye, X } from 'lucide-react';
+import { Trash2, RefreshCw, Edit, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatDate, debounce } from '@/utils';
 import Button from '@/components/Button';
 import PageHeader from '@/components/PageHeader';
 import Table from '@/components/Table';
 import Pagination from '@/components/Pagination';
+import Modal from '@/components/Modal';
 import api from '@/utils/api';
-
-interface WebsiteQuoteProduct {
-  itemCode: string;
-  productName: string;
-  category: string;
-  quantity: number;
-  unit: string;
-  pcsPerCarton: number;
-  totalPieces: number;
-  hsnCode: string;
-}
+import WebsiteQuoteForm from '@/components/forms/WebsiteQuoteForm';
 
 interface WebsiteQuote {
   id: number;
@@ -41,6 +32,14 @@ interface WebsiteQuote {
   totalWeight?: string;
   totalCBM?: string;
   products: string;
+  prices?: string;
+  discount?: number;
+  shippingCharge?: number;
+  tax?: number;
+  notes?: string;
+  termsAndConditions?: string;
+  termsOfDelivery?: string;
+  paymentTerms?: string;
   quoteDate: string;
   status: string;
   remarks?: string;
@@ -71,8 +70,9 @@ const WebsiteQuotes: React.FC = () => {
   const [orderTypeFilter, setOrderTypeFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0, limit: 20 });
-  const [selectedQuote, setSelectedQuote] = useState<WebsiteQuote | null>(null);
+  const [editingQuote, setEditingQuote] = useState<WebsiteQuote | null>(null);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
   const fetchQuotes = useCallback(async () => {
     setLoading(true);
@@ -81,7 +81,6 @@ const WebsiteQuotes: React.FC = () => {
       if (search) params.append('search', search);
       if (statusFilter) params.append('status', statusFilter);
       if (orderTypeFilter) params.append('orderType', orderTypeFilter);
-
       const res = await api.get(`/website-quotes?${params.toString()}`);
       setQuotes(res.data.data || []);
       setPagination(res.data.pagination || { page: 1, totalPages: 1, total: 0, limit: 20 });
@@ -105,11 +104,27 @@ const WebsiteQuotes: React.FC = () => {
       await api.put(`/website-quotes/${id}/status`, { status });
       toast.success('Status updated');
       fetchQuotes();
-      if (selectedQuote?.id === id) setSelectedQuote(prev => prev ? { ...prev, status } : null);
     } catch {
       toast.error('Failed to update status');
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  const handleDownloadPdf = async (quote: WebsiteQuote) => {
+    setDownloadingId(quote.id);
+    try {
+      const res = await api.get(`/website-quotes/${quote.id}/pdf`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `WebsiteQuote-${quote.quoteNo}.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Failed to download PDF');
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -119,7 +134,6 @@ const WebsiteQuotes: React.FC = () => {
       await api.delete(`/website-quotes/${id}`);
       toast.success('Deleted successfully');
       fetchQuotes();
-      if (selectedQuote?.id === id) setSelectedQuote(null);
     } catch {
       toast.error('Failed to delete');
     }
@@ -146,8 +160,11 @@ const WebsiteQuotes: React.FC = () => {
       title: 'Actions',
       render: (_: any, record: WebsiteQuote) => (
         <div className="flex gap-1">
-          <Button variant="ghost" size="sm" onClick={() => setSelectedQuote(record)} title="View Details">
-            <Eye className="h-4 w-4" />
+          <Button variant="ghost" size="sm" onClick={() => handleDownloadPdf(record)} title="Download PDF" disabled={downloadingId === record.id}>
+            <Download className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setEditingQuote(record)} title="Edit">
+            <Edit className="h-4 w-4" />
           </Button>
           <select
             value={record.status}
@@ -165,27 +182,15 @@ const WebsiteQuotes: React.FC = () => {
     },
   ];
 
-  const parsedProducts: WebsiteQuoteProduct[] = selectedQuote
-    ? (() => { try { return JSON.parse(selectedQuote.products); } catch { return []; } })()
-    : [];
-
   return (
     <div className="space-y-4">
       <PageHeader
         title="Website Quotes"
         searchPlaceholder="Search by company, email, quote no..."
         onSearch={debouncedSearch}
-        actions={[
-          {
-            label: 'Refresh',
-            icon: <RefreshCw className="h-4 w-4" />,
-            onClick: fetchQuotes,
-            variant: 'outline' as const,
-          },
-        ]}
+        actions={[{ label: 'Refresh', icon: <RefreshCw className="h-4 w-4" />, onClick: fetchQuotes, variant: 'outline' as const }]}
       />
 
-      {/* Filters */}
       <div className="card flex flex-wrap gap-3 p-4">
         <select
           value={statusFilter}
@@ -207,7 +212,6 @@ const WebsiteQuotes: React.FC = () => {
         <span className="text-sm text-gray-500 self-center">Total: {pagination.total} quotes</span>
       </div>
 
-      {/* Table */}
       <div className="card overflow-x-auto">
         <Table data={quotes} columns={columns} loading={loading} />
         <Pagination
@@ -220,117 +224,20 @@ const WebsiteQuotes: React.FC = () => {
         />
       </div>
 
-      {/* Detail Modal */}
-      {selectedQuote && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <div>
-                  <h2 className="text-xl font-bold">{selectedQuote.quoteNo}</h2>
-                  <p className="text-sm text-gray-500">{formatDate(selectedQuote.quoteDate)}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {statusBadge(selectedQuote.status)}
-                  <button onClick={() => setSelectedQuote(null)} className="text-gray-400 hover:text-gray-600">
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Customer Info */}
-              <div className="grid grid-cols-2 gap-3 mb-4 p-4 bg-gray-50 rounded-lg text-sm">
-                <div><span className="text-gray-500">Company:</span> <span className="font-medium">{selectedQuote.companyName}</span></div>
-                <div><span className="text-gray-500">Contact:</span> <span className="font-medium">{selectedQuote.contactPerson || '-'}</span></div>
-                <div><span className="text-gray-500">Email:</span> <span className="font-medium">{selectedQuote.email || '-'}</span></div>
-                <div><span className="text-gray-500">Mobile:</span> <span className="font-medium">{selectedQuote.mobile || '-'}</span></div>
-                <div><span className="text-gray-500">Type:</span> <span className="font-medium capitalize">{selectedQuote.orderType}</span></div>
-                {selectedQuote.orderType === 'domestic' ? (
-                  <>
-                    <div><span className="text-gray-500">GSTIN:</span> <span className="font-medium">{selectedQuote.gstin || '-'}</span></div>
-                    <div><span className="text-gray-500">City/State:</span> <span className="font-medium">{[selectedQuote.city, selectedQuote.state, selectedQuote.pincode].filter(Boolean).join(', ') || '-'}</span></div>
-                    <div className="col-span-2"><span className="text-gray-500">Billing Address:</span> <span className="font-medium">{selectedQuote.billingAddress || '-'}</span></div>
-                  </>
-                ) : (
-                  <>
-                    <div><span className="text-gray-500">Country:</span> <span className="font-medium">{selectedQuote.country || '-'}</span></div>
-                    <div><span className="text-gray-500">Delivery Terms:</span> <span className="font-medium">{selectedQuote.deliveryTerms || '-'}</span></div>
-                    <div><span className="text-gray-500">Port:</span> <span className="font-medium">{selectedQuote.portOfDischarge || '-'}</span></div>
-                    <div className="col-span-2"><span className="text-gray-500">Address:</span> <span className="font-medium">{selectedQuote.address || '-'}</span></div>
-                  </>
-                )}
-                {selectedQuote.additionalRequirements && (
-                  <div className="col-span-2"><span className="text-gray-500">Additional:</span> <span className="font-medium">{selectedQuote.additionalRequirements}</span></div>
-                )}
-              </div>
-
-              {/* Summary */}
-              <div className="grid grid-cols-3 gap-3 mb-4">
-                <div className="p-3 bg-green-50 rounded border text-center">
-                  <div className="text-xs text-gray-500">Total Pieces</div>
-                  <div className="font-bold text-green-700">{selectedQuote.totalPieces.toLocaleString()}</div>
-                </div>
-                <div className="p-3 bg-green-50 rounded border text-center">
-                  <div className="text-xs text-gray-500">Total Weight</div>
-                  <div className="font-bold text-green-700">{selectedQuote.totalWeight || '-'}</div>
-                </div>
-                <div className="p-3 bg-green-50 rounded border text-center">
-                  <div className="text-xs text-gray-500">Total CBM</div>
-                  <div className="font-bold text-green-700">{selectedQuote.totalCBM || '-'}</div>
-                </div>
-              </div>
-
-              {/* Products Table */}
-              <h3 className="font-semibold mb-2">Products ({parsedProducts.length})</h3>
-              <div className="overflow-x-auto rounded border">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">#</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Item Code</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                      <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Qty</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Unit</th>
-                      <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Total Pcs</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {parsedProducts.map((p, i) => (
-                      <tr key={i} className="hover:bg-gray-50">
-                        <td className="px-3 py-2 text-gray-500">{i + 1}</td>
-                        <td className="px-3 py-2 font-medium">{p.productName}</td>
-                        <td className="px-3 py-2 text-gray-500 font-mono text-xs">{p.itemCode}</td>
-                        <td className="px-3 py-2 text-gray-500">{p.category}</td>
-                        <td className="px-3 py-2 text-right">{p.quantity}</td>
-                        <td className="px-3 py-2 capitalize">{p.unit}</td>
-                        <td className="px-3 py-2 text-right font-medium">{p.totalPieces.toLocaleString()}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Status Update */}
-              <div className="mt-4 flex items-center gap-3">
-                <span className="text-sm font-medium text-gray-700">Update Status:</span>
-                {STATUS_OPTIONS.map(s => (
-                  <button
-                    key={s}
-                    onClick={() => handleStatusChange(selectedQuote.id, s)}
-                    disabled={selectedQuote.status === s || updatingId === selectedQuote.id}
-                    className={`px-3 py-1 rounded text-xs font-medium border transition-colors disabled:opacity-50 ${
-                      selectedQuote.status === s ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    {s.charAt(0).toUpperCase() + s.slice(1)}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        isOpen={!!editingQuote}
+        onClose={() => setEditingQuote(null)}
+        title="Edit Website Quote"
+        size="xl"
+      >
+        {editingQuote && (
+          <WebsiteQuoteForm
+            quote={editingQuote}
+            onClose={() => setEditingQuote(null)}
+            onSaved={fetchQuotes}
+          />
+        )}
+      </Modal>
     </div>
   );
 };
