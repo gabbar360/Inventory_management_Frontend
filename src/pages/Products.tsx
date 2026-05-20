@@ -10,7 +10,6 @@ import {
   createProduct,
   updateProduct,
   deleteProduct,
-  clearError,
 } from '@/slices/productSlice';
 import { fetchCategories } from '@/slices/categorySlice';
 import { bulkUploadService } from '@/services/bulkUploadService';
@@ -28,6 +27,7 @@ import PageHeader from '@/components/PageHeader';
 interface ProductFormData {
   name: string;
   sku?: string;
+  upc?: string;
   grade?: string;
   description?: string;
   categoryId: string;
@@ -36,6 +36,7 @@ interface ProductFormData {
 const productSchema = z.object({
   name: z.string().min(1, 'Product name is required'),
   sku: z.string().optional(),
+  upc: z.string().optional(),
   grade: z.string().optional(),
   description: z.string().optional(),
   categoryId: z.string().min(1, 'Category is required'),
@@ -43,7 +44,7 @@ const productSchema = z.object({
 
 const Products: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { products, pagination, loading, error } = useAppSelector(
+  const { products, pagination, loading } = useAppSelector(
     (state) => state.products
   );
   const { categories } = useAppSelector((state) => state.categories);
@@ -72,13 +73,6 @@ const Products: React.FC = () => {
     dispatch(fetchCategories({ limit: 100 }));
   }, [dispatch]);
 
-  useEffect(() => {
-    if (error) {
-      toast.error(error);
-      dispatch(clearError());
-    }
-  }, [error, dispatch]);
-
   const debouncedSearch = debounce((value: string) => {
     setSearch(value);
     setCurrentPage(1);
@@ -89,6 +83,7 @@ const Products: React.FC = () => {
       setEditingProduct(product);
       setValue('name', product.name);
       setValue('sku', product.sku || '');
+      setValue('upc', product.upc || '');
       setValue('grade', product.grade || '');
       setValue('description', product.description || '');
       setValue('categoryId', product.categoryId.toString());
@@ -115,8 +110,9 @@ const Products: React.FC = () => {
         toast.success('Product created successfully');
       }
       closeModal();
-    } catch (error) {
-      // Error handled by Redux
+    } catch (error: any) {
+      const errorMessage = typeof error === 'string' ? error : error?.message || 'An error occurred';
+      toast.error(errorMessage);
     }
   };
 
@@ -167,6 +163,11 @@ const Products: React.FC = () => {
     {
       key: 'sku',
       title: 'SKU',
+      render: (value: string) => value || '-',
+    },
+    {
+      key: 'upc',
+      title: 'UPC',
       render: (value: string) => value || '-',
     },
     {
@@ -268,6 +269,12 @@ const Products: React.FC = () => {
             label="SKU (Optional)"
             placeholder="Enter SKU number"
             {...register('sku')}
+          />
+
+          <Input
+            label="UPC Number (Optional)"
+            placeholder="Enter UPC number"
+            {...register('upc')}
           />
 
           <Input

@@ -9,44 +9,48 @@ import {
 
 export const dashboardService = {
   async getKPIs(
-    period: 'week' | 'month' | 'year' = 'month'
+    period: 'week' | 'month' | 'year' = 'month',
+    dateFrom?: string,
+    dateTo?: string
   ): Promise<DashboardKPIs> {
     const response = await api.get<ApiResponse<DashboardKPIs>>(
       '/dashboard/kpis',
       {
-        params: { period },
+        params: { period, dateFrom, dateTo },
       }
     );
     return response.data.data!;
   },
 
   async getRevenueChart(
-    period: 'week' | 'month' | 'year' = 'month'
+    period: 'week' | 'month' | 'year' = 'month',
+    dateFrom?: string,
+    dateTo?: string
   ): Promise<RevenueChartData[]> {
     const response = await api.get<ApiResponse<RevenueChartData[]>>(
       '/dashboard/revenue-chart',
       {
-        params: { period },
+        params: { period, dateFrom, dateTo },
       }
     );
     return response.data.data!;
   },
 
-  async getTopProducts(limit: number = 10): Promise<TopProduct[]> {
+  async getTopProducts(limit: number = 10, dateFrom?: string, dateTo?: string): Promise<TopProduct[]> {
     const response = await api.get<ApiResponse<TopProduct[]>>(
       '/dashboard/top-products',
       {
-        params: { limit },
+        params: { limit, dateFrom, dateTo },
       }
     );
     return response.data.data!;
   },
 
-  async getTopCustomers(limit: number = 10): Promise<TopCustomer[]> {
+  async getTopCustomers(limit: number = 10, dateFrom?: string, dateTo?: string): Promise<TopCustomer[]> {
     const response = await api.get<ApiResponse<TopCustomer[]>>(
       '/dashboard/top-customers',
       {
-        params: { limit },
+        params: { limit, dateFrom, dateTo },
       }
     );
     return response.data.data!;
@@ -60,12 +64,14 @@ export const dashboardService = {
   },
 
   async getPerformanceMetrics(
-    period: 'week' | 'month' | 'year' = 'month'
+    period: 'week' | 'month' | 'year' = 'month',
+    dateFrom?: string,
+    dateTo?: string
   ): Promise<any> {
     const response = await api.get<ApiResponse<any>>(
       '/dashboard/performance-metrics',
       {
-        params: { period },
+        params: { period, dateFrom, dateTo },
       }
     );
     return response.data.data!;

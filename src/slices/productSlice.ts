@@ -34,15 +34,23 @@ export const fetchProductById = createAsyncThunk(
 
 export const createProduct = createAsyncThunk(
   'products/create',
-  async (data: ProductFormData) => {
-    return await productService.create(data);
+  async (data: ProductFormData, { rejectWithValue }) => {
+    try {
+      return await productService.create(data);
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to create product');
+    }
   }
 );
 
 export const updateProduct = createAsyncThunk(
   'products/update',
-  async ({ id, data }: { id: string; data: Partial<ProductFormData> }) => {
-    return await productService.update(id, data);
+  async ({ id, data }: { id: string; data: Partial<ProductFormData> }, { rejectWithValue }) => {
+    try {
+      return await productService.update(id, data);
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to update product');
+    }
   }
 );
 
@@ -83,8 +91,18 @@ const productSlice = createSlice({
       .addCase(fetchProductById.fulfilled, (state, action) => {
         state.currentProduct = action.payload;
       })
+      .addCase(createProduct.pending, (state) => {
+        state.error = null;
+      })
       .addCase(createProduct.fulfilled, (state, action) => {
         state.products.push(action.payload);
+        state.error = null;
+      })
+      .addCase(createProduct.rejected, (state, action) => {
+        state.error = action.payload as string || 'Failed to create product';
+      })
+      .addCase(updateProduct.pending, (state) => {
+        state.error = null;
       })
       .addCase(updateProduct.fulfilled, (state, action) => {
         const index = state.products.findIndex(
@@ -93,6 +111,10 @@ const productSlice = createSlice({
         if (index !== -1) {
           state.products[index] = action.payload;
         }
+        state.error = null;
+      })
+      .addCase(updateProduct.rejected, (state, action) => {
+        state.error = action.payload as string || 'Failed to update product';
       })
       .addCase(deleteProduct.fulfilled, (state, action) => {
         state.products = state.products.filter((p) => p.id !== action.payload);
