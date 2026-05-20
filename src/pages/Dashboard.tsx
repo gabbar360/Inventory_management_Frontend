@@ -154,10 +154,13 @@ const Dashboard: React.FC = () => {
 
   const loadDashboardData = async () => {
     try {
-      dispatch(fetchKPIs(period));
-      dispatch(fetchRevenueChart(period));
-      dispatch(fetchTopProducts(10));
-      dispatch(fetchTopCustomers(10));
+      const dateFrom = filters.dateFrom || undefined;
+      const dateTo = filters.dateTo || undefined;
+      
+      dispatch(fetchKPIs({ period, dateFrom, dateTo }));
+      dispatch(fetchRevenueChart({ period, dateFrom, dateTo }));
+      dispatch(fetchTopProducts({ limit: 10, dateFrom, dateTo }));
+      dispatch(fetchTopCustomers({ limit: 10, dateFrom, dateTo }));
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     }

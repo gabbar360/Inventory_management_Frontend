@@ -26,16 +26,24 @@ export const productService = {
   },
 
   async create(data: ProductFormData): Promise<Product> {
-    const response = await api.post<ApiResponse<Product>>('/add-products', data);
-    return response.data.data!;
+    try {
+      const response = await api.post<ApiResponse<Product>>('/add-products', data);
+      return response.data.data!;
+    } catch (error: any) {
+      throw new Error(error);
+    }
   },
 
   async update(id: string, data: Partial<ProductFormData>): Promise<Product> {
-    const response = await api.put<ApiResponse<Product>>(
-      `/update-products/${id}`,
-      data
-    );
-    return response.data.data!;
+    try {
+      const response = await api.put<ApiResponse<Product>>(
+        `/update-products/${id}`,
+        data
+      );
+      return response.data.data!;
+    } catch (error: any) {
+      throw new Error(error);
+    }
   },
 
   async delete(id: string): Promise<void> {

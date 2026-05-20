@@ -22,6 +22,7 @@ export interface Product {
   name: string;
   code: string;
   sku?: string;
+  upc?: string;
   grade?: string;
   description?: string;
   categoryId: string;

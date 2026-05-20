@@ -33,6 +33,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
     name: '',
     grade: '',
     sku: '',
+    upc: '',
     categoryId: '',
     description: '',
     specifications: '',
@@ -88,6 +89,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
         name: '',
         grade: '',
         sku: '',
+        upc: '',
         categoryId: '',
         description: '',
         specifications: '',
@@ -117,6 +119,13 @@ const ProductForm: React.FC<ProductFormProps> = ({
       if (!formData.name?.trim()) newErrors.name = 'Product name is required';
       if (!formData.categoryId) newErrors.categoryId = 'Category is required';
       if (!formData.unit) newErrors.unit = 'Unit is required';
+      
+      if (formData.sku?.trim() && formData.sku.length < 2) {
+        newErrors.sku = 'SKU must be at least 2 characters';
+      }
+      if (formData.upc?.trim() && formData.upc.length < 8) {
+        newErrors.upc = 'UPC must be at least 8 characters';
+      }
     }
 
     if (step === 2) {
@@ -206,6 +215,15 @@ const ProductForm: React.FC<ProductFormProps> = ({
             setFormData((prev) => ({ ...prev, sku: e.target.value }))
           }
           placeholder="e.g., SKU-001"
+        />
+
+        <Input
+          label="UPC Number"
+          value={formData.upc || ''}
+          onChange={(e) =>
+            setFormData((prev) => ({ ...prev, upc: e.target.value }))
+          }
+          placeholder="e.g., 123456789012"
         />
 
         <Input
@@ -552,6 +570,9 @@ const ProductForm: React.FC<ProductFormProps> = ({
           </div>
           <div>
             <span className="font-medium">SKU:</span> {formData.sku || '-'}
+          </div>
+          <div>
+            <span className="font-medium">UPC:</span> {formData.upc || '-'}
           </div>
           <div>
             <span className="font-medium">Name:</span> {formData.name}
