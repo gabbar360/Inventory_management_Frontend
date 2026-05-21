@@ -45,9 +45,11 @@ export const createProduct = createAsyncThunk(
 
 export const updateProduct = createAsyncThunk(
   'products/update',
-  async ({ id, data }: { id: string; data: Partial<ProductFormData> }, { rejectWithValue }) => {
+  async ({ id, data, pagination }: { id: string; data: Partial<ProductFormData>; pagination?: any }, { rejectWithValue }) => {
     try {
-      return await productService.update(id, data);
+      await productService.update(id, data);
+      // Re-fetch products to maintain proper sorting
+      return await productService.getAll(pagination);
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to update product');
     }
@@ -105,12 +107,8 @@ const productSlice = createSlice({
         state.error = null;
       })
       .addCase(updateProduct.fulfilled, (state, action) => {
-        const index = state.products.findIndex(
-          (p) => p.id === action.payload.id
-        );
-        if (index !== -1) {
-          state.products[index] = action.payload;
-        }
+        state.products = action.payload.data;
+        state.pagination = action.payload.pagination;
         state.error = null;
       })
       .addCase(updateProduct.rejected, (state, action) => {

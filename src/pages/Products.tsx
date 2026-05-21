@@ -26,7 +26,7 @@ import PageHeader from '@/components/PageHeader';
 
 interface ProductFormData {
   name: string;
-  sku?: string;
+  sku: string;
   upc?: string;
   grade?: string;
   description?: string;
@@ -35,7 +35,7 @@ interface ProductFormData {
 
 const productSchema = z.object({
   name: z.string().min(1, 'Product name is required'),
-  sku: z.string().optional(),
+  sku: z.string().min(1, 'SKU number is required'),
   upc: z.string().optional(),
   grade: z.string().optional(),
   description: z.string().optional(),
@@ -54,6 +54,8 @@ const Products: React.FC = () => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [sortBy, setSortBy] = useState('sku');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const {
     register,
@@ -66,8 +68,8 @@ const Products: React.FC = () => {
   });
 
   useEffect(() => {
-    dispatch(fetchProducts({ page: currentPage, limit: 10, search }));
-  }, [dispatch, search, currentPage]);
+    dispatch(fetchProducts({ page: currentPage, limit: 10, search, sortBy, sortOrder }));
+  }, [dispatch, search, currentPage, sortBy, sortOrder]);
 
   useEffect(() => {
     dispatch(fetchCategories({ limit: 100 }));
@@ -77,6 +79,16 @@ const Products: React.FC = () => {
     setSearch(value);
     setCurrentPage(1);
   });
+
+  const handleSort = (key: string) => {
+    if (sortBy === key) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(key);
+      setSortOrder('asc');
+    }
+    setCurrentPage(1);
+  };
 
   const openModal = (product?: Product) => {
     if (product) {
@@ -103,7 +115,11 @@ const Products: React.FC = () => {
   const onSubmit = async (data: ProductFormData) => {
     try {
       if (editingProduct) {
-        await dispatch(updateProduct({ id: editingProduct.id, data })).unwrap();
+        await dispatch(updateProduct({ 
+          id: editingProduct.id, 
+          data,
+          pagination: { page: currentPage, limit: 10, search, sortBy, sortOrder }
+        })).unwrap();
         toast.success('Product updated successfully');
       } else {
         await dispatch(createProduct(data)).unwrap();
@@ -129,7 +145,7 @@ const Products: React.FC = () => {
 
   const handleBulkUploadSuccess = () => {
     setBulkUploadOpen(false);
-    dispatch(fetchProducts({ page: currentPage, limit: 10, search }));
+    dispatch(fetchProducts({ page: currentPage, limit: 10, search, sortBy, sortOrder }));
   };
 
   const handleExport = async () => {
@@ -159,10 +175,13 @@ const Products: React.FC = () => {
       key: 'name',
       title: 'Name',
       sortable: true,
+      onSort: () => handleSort('name'),
     },
     {
       key: 'sku',
       title: 'SKU',
+      sortable: true,
+      onSort: () => handleSort('sku'),
       render: (value: string) => value || '-',
     },
     {
@@ -266,8 +285,9 @@ const Products: React.FC = () => {
           />
 
           <Input
-            label="SKU (Optional)"
+            label="SKU Number *"
             placeholder="Enter SKU number"
+            error={errors.sku?.message}
             {...register('sku')}
           />
 
