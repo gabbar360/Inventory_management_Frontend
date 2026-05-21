@@ -14,7 +14,7 @@ interface ProductSearchProps {
 const ProductSearch: React.FC<ProductSearchProps> = ({
   value,
   onChange,
-  placeholder = 'Search and select product...',
+  placeholder = 'Search and select product and SKU',
   error,
   disabled = false,
 }) => {
@@ -34,7 +34,7 @@ const ProductSearch: React.FC<ProductSearchProps> = ({
   useEffect(() => {
     if (search) {
       const filtered = allProducts.filter((p) =>
-        `${p.name} ${p.grade || ''}`.toLowerCase().includes(search.toLowerCase())
+        `${p.name} ${p.grade || ''} ${p.sku || ''}`.toLowerCase().includes(search.toLowerCase())
       );
       setProducts(filtered);
     } else {
@@ -171,6 +171,11 @@ const ProductSearch: React.FC<ProductSearchProps> = ({
                   {product.grade && (
                     <span className="ml-2 text-sm text-gray-600">
                       ({product.grade})
+                    </span>
+                  )}
+                  {product.sku && (
+                    <span className="ml-2 text-sm text-blue-600">
+                      SKU: {product.sku}
                     </span>
                   )}
                 </div>
