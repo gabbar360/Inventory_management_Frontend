@@ -148,21 +148,28 @@ const Dashboard: React.FC = () => {
       dispatch(fetchVendors({ limit: 100 }));
       dispatch(fetchCustomers({ limit: 100 }));
     } catch (error) {
-      console.error('Failed to load master data:', error);
+      // Error loading master data
     }
   };
 
   const loadDashboardData = async () => {
     try {
-      const dateFrom = filters.dateFrom || undefined;
-      const dateTo = filters.dateTo || undefined;
+      const filterParams = {
+        period,
+        ...(filters.dateFrom && { dateFrom: filters.dateFrom }),
+        ...(filters.dateTo && { dateTo: filters.dateTo }),
+        ...(filters.location && { location: filters.location }),
+        ...(filters.category && { category: filters.category }),
+        ...(filters.vendor && { vendor: filters.vendor }),
+        ...(filters.customer && { customer: filters.customer }),
+      };
       
-      dispatch(fetchKPIs({ period, dateFrom, dateTo }));
-      dispatch(fetchRevenueChart({ period, dateFrom, dateTo }));
-      dispatch(fetchTopProducts({ limit: 10, dateFrom, dateTo }));
-      dispatch(fetchTopCustomers({ limit: 10, dateFrom, dateTo }));
+      dispatch(fetchKPIs(filterParams));
+      dispatch(fetchRevenueChart(filterParams));
+      dispatch(fetchTopProducts({ limit: 10, ...filterParams }));
+      dispatch(fetchTopCustomers({ limit: 10, ...filterParams }));
     } catch (error) {
-      console.error('Failed to load dashboard data:', error);
+      // Error loading dashboard data
     }
   };
 
@@ -173,15 +180,18 @@ const Dashboard: React.FC = () => {
   };
 
   const handleFilterChange = (key: string, value: string) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
+    setFilters((prev) => {
+      return { ...prev, [key]: value };
+    });
   };
 
   const applyFilters = async () => {
+    setShowFilters(false);
     await loadDashboardData();
   };
 
   const clearFilters = () => {
-    setFilters({
+    const clearedFilters = {
       location: '',
       category: '',
       vendor: '',
@@ -190,7 +200,8 @@ const Dashboard: React.FC = () => {
       dateTo: '',
       minAmount: '',
       maxAmount: '',
-    });
+    };
+    setFilters(clearedFilters);
   };
 
   if (loading) {
@@ -333,26 +344,6 @@ const Dashboard: React.FC = () => {
                 type="date"
                 value={filters.dateTo}
                 onChange={(e) => handleFilterChange('dateTo', e.target.value)}
-              />
-
-              <Input
-                label="Min Amount"
-                type="number"
-                placeholder="₹0"
-                value={filters.minAmount}
-                onChange={(e) =>
-                  handleFilterChange('minAmount', e.target.value)
-                }
-              />
-
-              <Input
-                label="Max Amount"
-                type="number"
-                placeholder="₹999999"
-                value={filters.maxAmount}
-                onChange={(e) =>
-                  handleFilterChange('maxAmount', e.target.value)
-                }
               />
             </div>
         </div>

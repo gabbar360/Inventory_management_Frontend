@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Eye, Download, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Plus, Edit, Trash2, Eye, Download, Loader2, MoreVertical, FileText, Package } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { salesOrderService } from '@/services/salesOrderService';
-import { fetchSalesOrders, deleteSalesOrder, updateSalesOrder, createSalesOrder } from '@/slices/salesOrderSlice';
+import { fetchSalesOrders, deleteSalesOrder, updateSalesOrder, createSalesOrder, convertSalesOrderToInvoice } from '@/slices/salesOrderSlice';
 import { fetchCustomers } from '@/slices/customerSlice';
-import { SalesOrder, Product } from '@/types';
+import { fetchAvailableStock } from '@/slices/inventorySlice';
+import { SalesOrder, SalesOrderItem, Product, StockBatch } from '@/types';
 import { formatDate, debounce } from '@/utils';
 import Button from '@/components/Button';
 import Modal from '@/components/Modal';
@@ -296,6 +298,22 @@ const SalesOrders: React.FC = () => {
   const [editOrder, setEditOrder] = useState<SalesOrder | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [invoiceModalOrder, setInvoiceModalOrder] = useState<SalesOrder | null>(null);
+  const [batchSelections, setBatchSelections] = useState<Record<string, { stockBatchId: string; saleUnit: string }>>({});
+  const [stockCache, setStockCache] = useState<Record<string, StockBatch[]>>({});
+  const [stockLoading, setStockLoading] = useState(false);
+  const [submittingInvoice, setSubmittingInvoice] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpenMenuId(null);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const [formData, setFormData] = useState({
     customerId: '',
@@ -433,6 +451,49 @@ const SalesOrders: React.FC = () => {
     } catch (e: any) { toast.error(e?.message || 'Failed to delete'); }
   };
 
+  const openInvoiceModal = async (order: SalesOrder) => {
+    setInvoiceModalOrder(order);
+    setBatchSelections({});
+    setStockCache({});
+    setStockLoading(true);
+    const items = order.items || [];
+    const uniqueProductIds = [...new Set(items.map((i: SalesOrderItem) => i.productId.toString()))];
+    const results = await Promise.all(
+      uniqueProductIds.map((pid) => dispatch(fetchAvailableStock({ productId: pid })).unwrap())
+    );
+    const cache: Record<string, StockBatch[]> = {};
+    uniqueProductIds.forEach((pid, idx) => { cache[pid] = results[idx]; });
+    setStockCache(cache);
+    setStockLoading(false);
+  };
+
+  const handleInvoiceSubmit = async () => {
+    if (!invoiceModalOrder) return;
+    const items = invoiceModalOrder.items || [];
+    for (const item of items) {
+      if (!batchSelections[item.id]?.stockBatchId) {
+        toast.error(`Please select stock batch for: ${item.product?.name || item.productId}`);
+        return;
+      }
+    }
+    const itemsPayload = items.map((item: SalesOrderItem) => ({
+      salesOrderItemId: item.id,
+      stockBatchId: batchSelections[item.id].stockBatchId,
+      saleUnit: batchSelections[item.id].saleUnit,
+    }));
+    setSubmittingInvoice(true);
+    try {
+      await dispatch(convertSalesOrderToInvoice({ id: invoiceModalOrder.id, items: itemsPayload })).unwrap();
+      toast.success(`Invoice created from ${invoiceModalOrder.orderNo}`);
+      setInvoiceModalOrder(null);
+      navigate('/outward');
+    } catch (e: any) {
+      toast.error(e?.message || e || 'Failed to convert to invoice');
+    } finally {
+      setSubmittingInvoice(false);
+    }
+  };
+
   const customerOptions = customers.map((c) => ({ value: c.id.toString(), label: `${c.code} - ${c.name}` }));
   const statusOptions = Object.entries(STATUS_CONFIG).map(([v, c]) => ({ value: v, label: c.label }));
 
@@ -457,13 +518,30 @@ const SalesOrders: React.FC = () => {
     {
       key: 'actions', title: 'Actions',
       render: (_: any, r: SalesOrder) => (
-        <div className="flex gap-1">
+        <div className="flex gap-1 items-center">
           <Button variant="ghost" size="sm" onClick={() => setViewOrder(r)} title="View"><Eye className="h-4 w-4" /></Button>
           <Button variant="ghost" size="sm" onClick={() => handleDownloadPDF(r)} title="Download PDF" disabled={downloadingId === r.id}>
             {downloadingId === r.id ? <Loader2 className="h-4 w-4 animate-spin text-blue-500" /> : <Download className="h-4 w-4" />}
           </Button>
           <Button variant="ghost" size="sm" onClick={() => openEdit(r)} title="Edit"><Edit className="h-4 w-4" /></Button>
           <Button variant="ghost" size="sm" onClick={() => handleDelete(r)} className="text-red-600 hover:text-red-700" title="Delete"><Trash2 className="h-4 w-4" /></Button>
+          {/* Three-dot menu */}
+          <div className="relative" ref={openMenuId === r.id ? menuRef : null}>
+            <Button variant="ghost" size="sm" onClick={() => setOpenMenuId(openMenuId === r.id ? null : r.id)} title="More options">
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+            {openMenuId === r.id && (
+              <div className="absolute right-0 mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                <button
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  onClick={() => { setOpenMenuId(null); openInvoiceModal(r); }}
+                >
+                  <FileText className="h-4 w-4 text-blue-600" />
+                  Convert to Invoice
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       ),
     },
@@ -510,6 +588,72 @@ const SalesOrders: React.FC = () => {
             <Button onClick={handleUpdate}>Update Sales Order</Button>
           </div>
         </div>
+      </Modal>
+
+      {/* Convert to Invoice Modal */}
+      <Modal isOpen={!!invoiceModalOrder} onClose={() => setInvoiceModalOrder(null)} title={`Convert to Invoice - ${invoiceModalOrder?.orderNo}`} size="lg">
+        {invoiceModalOrder && (
+          <div className="space-y-4">
+            {stockLoading ? (
+              <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-blue-500" /></div>
+            ) : (
+              <>
+                <p className="text-sm text-gray-600">Select stock batch and sale unit for each item to create an outward invoice.</p>
+                <div className="space-y-3">
+                  {(invoiceModalOrder.items || []).map((item: SalesOrderItem) => {
+                    const batches = stockCache[item.productId.toString()] || [];
+                    const sel = batchSelections[item.id] || { stockBatchId: '', saleUnit: item.unit || 'box' };
+                    return (
+                      <div key={item.id} className="border rounded-lg p-3 bg-gray-50">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <span className="font-medium text-sm">{item.product?.name || `Product #${item.productId}`}</span>
+                            {item.description && <p className="text-xs text-gray-500">{item.description}</p>}
+                          </div>
+                          <span className="text-sm text-gray-600">Qty: {item.quantity} {item.unit}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Stock Batch *</label>
+                            <select
+                              className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                              value={sel.stockBatchId}
+                              onChange={(e) => setBatchSelections((prev) => ({ ...prev, [item.id]: { ...sel, stockBatchId: e.target.value } }))}
+                            >
+                              <option value="">Select batch...</option>
+                              {batches.map((b: StockBatch) => (
+                                <option key={b.id} value={b.id}>
+                                  [{b.location?.name}] {b.vendor?.name} - {formatDate(b.inwardDate)} | {b.remainingBoxes} boxes, {b.packPerBox} pack/box, {b.remainingPacks} packs, {b.packPerPiece} pcs/pack, {b.remainingPcs} pcs
+                                </option>
+                              ))}
+                            </select>
+                            {batches.length === 0 && <p className="text-xs text-red-500 mt-1">No stock available</p>}
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Sale Unit *</label>
+                            <select
+                              className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                              value={sel.saleUnit}
+                              onChange={(e) => setBatchSelections((prev) => ({ ...prev, [item.id]: { ...sel, saleUnit: e.target.value } }))}
+                            >
+                              {unitOptions.map((u) => <option key={u} value={u}>{u}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex justify-end gap-2 pt-2 border-t">
+                  <Button variant="outline" onClick={() => setInvoiceModalOrder(null)}>Cancel</Button>
+                  <Button onClick={handleInvoiceSubmit} disabled={submittingInvoice}>
+                    {submittingInvoice ? <><Loader2 className="h-4 w-4 animate-spin mr-1" />Creating...</> : <><Package className="h-4 w-4 mr-1" />Create Invoice</>}
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </Modal>
 
       {/* View Modal */}

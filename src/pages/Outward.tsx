@@ -58,6 +58,7 @@ interface OutwardInvoiceFormData {
     saleUnit: 'box' | 'pack' | 'piece';
     quantity: number;
     ratePerUnit: number;
+    description: string;
   }[];
 }
 
@@ -80,6 +81,7 @@ const outwardSchema = z.object({
         }),
         quantity: z.number().min(1, 'Quantity must be at least 1'),
         ratePerUnit: z.number().min(0, 'Rate per unit must be positive'),
+        description: z.string().optional().default(''),
       })
     )
     .min(1, 'At least one item is required'),
@@ -328,6 +330,7 @@ const Outward: React.FC = () => {
           saleUnit: 'box',
           quantity: 1,
           ratePerUnit: 0,
+          description: '',
         },
       ],
     });
@@ -365,6 +368,7 @@ const Outward: React.FC = () => {
             saleUnit: item.saleUnit,
             quantity: item.quantity,
             ratePerUnit: item.ratePerUnit,
+            description: item.description || '',
           })) || [
             {
               productId: '',
@@ -373,6 +377,7 @@ const Outward: React.FC = () => {
               saleUnit: 'box',
               quantity: 1,
               ratePerUnit: 0,
+              description: '',
             },
           ],
         };
@@ -448,6 +453,7 @@ const Outward: React.FC = () => {
     setValue(`items.${index}.stockBatchId`, '');
     setValue(`items.${index}.locationId`, '');
     setValue(`items.${index}.ratePerUnit`, 0);
+    setValue(`items.${index}.description`, product?.description || '');
 
     if (product) {
       setProductsCache(prev => ({ ...prev, [productId]: product }));
@@ -1010,6 +1016,12 @@ const saleTypeOptions = [
                     </div>
                   )}
 
+                  <Input
+                    label="Description"
+                    placeholder="Auto-filled from product, editable"
+                    {...register(`items.${index}.description`)}
+                  />
+
                   {item?.productId && stockBatchOptions.length === 0 && (
                     <div className="bg-yellow-50 p-3 rounded text-xs sm:text-sm">
                       <div className="font-medium text-yellow-900">
@@ -1039,6 +1051,7 @@ const saleTypeOptions = [
                   saleUnit: 'box',
                   quantity: 1,
                   ratePerUnit: 0,
+                  description: '',
                 });
                 setExpandedItems(new Set([newIndex]));
               }}

@@ -139,6 +139,7 @@ export interface OutwardItem {
   quantity: number;
   ratePerUnit: number;
   totalCost: number;
+  description?: string;
   product?: Product;
   stockBatch?: StockBatch;
   location?: Location;

@@ -31,33 +31,33 @@ const initialState: DashboardState = {
 
 export const fetchKPIs = createAsyncThunk(
   'dashboard/fetchKPIs',
-  async (params: { period?: 'week' | 'month' | 'year'; dateFrom?: string; dateTo?: string } = {}) => {
-    const { period = 'month', dateFrom, dateTo } = params;
-    return await dashboardService.getKPIs(period, dateFrom, dateTo);
+  async (params: any = {}) => {
+    const { period = 'month', dateFrom, dateTo, location, category, vendor, customer } = params;
+    return await dashboardService.getKPIs(period, dateFrom, dateTo, location, category, vendor, customer);
   }
 );
 
 export const fetchRevenueChart = createAsyncThunk(
   'dashboard/fetchRevenueChart',
-  async (params: { period?: 'week' | 'month' | 'year'; dateFrom?: string; dateTo?: string } = {}) => {
-    const { period = 'month', dateFrom, dateTo } = params;
-    return await dashboardService.getRevenueChart(period, dateFrom, dateTo);
+  async (params: any = {}) => {
+    const { period = 'month', dateFrom, dateTo, location, category, vendor, customer } = params;
+    return await dashboardService.getRevenueChart(period, dateFrom, dateTo, location, category, vendor, customer);
   }
 );
 
 export const fetchTopProducts = createAsyncThunk(
   'dashboard/fetchTopProducts',
-  async (params: { limit?: number; dateFrom?: string; dateTo?: string } = {}) => {
-    const { limit = 10, dateFrom, dateTo } = params;
-    return await dashboardService.getTopProducts(limit, dateFrom, dateTo);
+  async (params: any = {}) => {
+    const { limit = 10, dateFrom, dateTo, location, category, vendor, customer } = params;
+    return await dashboardService.getTopProducts(limit, dateFrom, dateTo, location, category, vendor, customer);
   }
 );
 
 export const fetchTopCustomers = createAsyncThunk(
   'dashboard/fetchTopCustomers',
-  async (params: { limit?: number; dateFrom?: string; dateTo?: string } = {}) => {
-    const { limit = 10, dateFrom, dateTo } = params;
-    return await dashboardService.getTopCustomers(limit, dateFrom, dateTo);
+  async (params: any = {}) => {
+    const { limit = 10, dateFrom, dateTo, location, category, vendor, customer } = params;
+    return await dashboardService.getTopCustomers(limit, dateFrom, dateTo, location, category, vendor, customer);
   }
 );
 
@@ -70,9 +70,9 @@ export const fetchInventoryAlerts = createAsyncThunk(
 
 export const fetchPerformanceMetrics = createAsyncThunk(
   'dashboard/fetchPerformanceMetrics',
-  async (params: { period?: 'week' | 'month' | 'year'; dateFrom?: string; dateTo?: string } = {}) => {
-    const { period = 'month', dateFrom, dateTo } = params;
-    return await dashboardService.getPerformanceMetrics(period, dateFrom, dateTo);
+  async (params: any = {}) => {
+    const { period = 'month', dateFrom, dateTo, location, category, vendor, customer } = params;
+    return await dashboardService.getPerformanceMetrics(period, dateFrom, dateTo, location, category, vendor, customer);
   }
 );
 
