@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Download, Loader2, ShoppingCart } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Plus, Edit, Trash2, Download, Loader2, MoreVertical, ShoppingCart, FileText, Package } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -7,9 +7,11 @@ import {
   fetchQuotes,
   deleteQuote,
   downloadQuotePDF,
+  convertQuoteToInvoice,
 } from '@/slices/quoteSlice';
 import { convertQuoteToSalesOrder } from '@/slices/salesOrderSlice';
-import { Quote } from '@/types';
+import { fetchAvailableStock } from '@/slices/inventorySlice';
+import { Quote, QuoteItem, StockBatch } from '@/types';
 import { formatDate, debounce } from '@/utils';
 import Button from '@/components/Button';
 import Modal from '@/components/Modal';
@@ -30,7 +32,27 @@ const Quotes: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [downloadingId, setDownloadingId] = useState<string | number | null>(null);
   const [convertingId, setConvertingId] = useState<string | number | null>(null);
+  const [convertingInvoiceId, setConvertingInvoiceId] = useState<string | number | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | number | null>(null);
+  const [invoiceModalQuote, setInvoiceModalQuote] = useState<Quote | null>(null);
+  // batchSelections: { [quoteItemId]: { stockBatchId, saleUnit } }
+  const [batchSelections, setBatchSelections] = useState<Record<string, { stockBatchId: string; saleUnit: string }>>({});
+  // stockCache: { [productId]: StockBatch[] }
+  const [stockCache, setStockCache] = useState<Record<string, StockBatch[]>>({});
+  const [stockLoading, setStockLoading] = useState(false);
+  const [submittingInvoice, setSubmittingInvoice] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenuId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     dispatch(fetchQuotes({ page: currentPage, limit: 10, search }));
@@ -79,6 +101,51 @@ const Quotes: React.FC = () => {
       toast.error(e?.message || 'Failed to convert');
     } finally {
       setConvertingId(null);
+    }
+  };
+
+  const openInvoiceModal = async (quote: Quote) => {
+    setInvoiceModalQuote(quote);
+    setBatchSelections({});
+    setStockCache({});
+    setStockLoading(true);
+    // Load stock for all items in parallel
+    const items = quote.items || [];
+    const uniqueProductIds = [...new Set(items.map((i: QuoteItem) => i.productId.toString()))];
+    const results = await Promise.all(
+      uniqueProductIds.map((pid) => dispatch(fetchAvailableStock({ productId: pid })).unwrap())
+    );
+    const cache: Record<string, StockBatch[]> = {};
+    uniqueProductIds.forEach((pid, idx) => { cache[pid] = results[idx]; });
+    setStockCache(cache);
+    setStockLoading(false);
+  };
+
+  const handleInvoiceSubmit = async () => {
+    if (!invoiceModalQuote) return;
+    const items = invoiceModalQuote.items || [];
+    // Validate all items have batch selected
+    for (const item of items) {
+      if (!batchSelections[item.id]?.stockBatchId) {
+        toast.error(`Please select stock batch for: ${item.product?.name || item.productId}`);
+        return;
+      }
+    }
+    const itemsPayload = items.map((item: QuoteItem) => ({
+      quoteItemId: item.id,
+      stockBatchId: batchSelections[item.id].stockBatchId,
+      saleUnit: batchSelections[item.id].saleUnit,
+    }));
+    setSubmittingInvoice(true);
+    try {
+      await dispatch(convertQuoteToInvoice({ id: invoiceModalQuote.id, items: itemsPayload })).unwrap();
+      toast.success(`Invoice created from ${invoiceModalQuote.quoteNo}`);
+      setInvoiceModalQuote(null);
+      navigate('/outward');
+    } catch (e: any) {
+      toast.error(e?.message || e || 'Failed to convert to invoice');
+    } finally {
+      setSubmittingInvoice(false);
     }
   };
 
@@ -147,10 +214,7 @@ const Quotes: React.FC = () => {
       key: 'actions',
       title: 'Actions',
       render: (_: any, record: Quote) => (
-        <div className="flex gap-1 sm:gap-2">
-          <Button variant="ghost" size="sm" onClick={() => handleConvertToSalesOrder(record)} title="Convert to Sales Order" className="text-green-600 hover:text-green-700" disabled={convertingId === record.id}>
-            {convertingId === record.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShoppingCart className="h-4 w-4" />}
-          </Button>
+        <div className="flex gap-1 sm:gap-2 items-center">
           <Button variant="ghost" size="sm" onClick={() => handleDownloadPDF(record)} title="Download PDF" disabled={downloadingId === record.id.toString()}>
             {downloadingId === record.id.toString()
               ? <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
@@ -167,6 +231,39 @@ const Quotes: React.FC = () => {
           >
             <Trash2 className="h-4 w-4" />
           </Button>
+          {/* Three-dot menu */}
+          <div className="relative" ref={openMenuId === record.id ? menuRef : null}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setOpenMenuId(openMenuId === record.id ? null : record.id)}
+              title="More options"
+            >
+              {(convertingId === record.id || convertingInvoiceId === record.id)
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <MoreVertical className="h-4 w-4" />}
+            </Button>
+            {openMenuId === record.id && (
+              <div className="absolute right-0 mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                <button
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  onClick={() => { setOpenMenuId(null); handleConvertToSalesOrder(record); }}
+                  disabled={convertingId === record.id}
+                >
+                  <ShoppingCart className="h-4 w-4 text-green-600" />
+                  Convert to Sales Order
+                </button>
+                <button
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  onClick={() => { setOpenMenuId(null); openInvoiceModal(record); }}
+                  disabled={convertingInvoiceId === record.id}
+                >
+                  <FileText className="h-4 w-4 text-blue-600" />
+                  Convert to Invoice
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       ),
     },
@@ -210,6 +307,89 @@ const Quotes: React.FC = () => {
         size="xl"
       >
         <QuoteForm quote={editingQuote || undefined} onClose={closeModal} />
+      </Modal>
+
+      {/* Convert to Invoice Modal */}
+      <Modal
+        isOpen={!!invoiceModalQuote}
+        onClose={() => setInvoiceModalQuote(null)}
+        title={`Convert ${invoiceModalQuote?.quoteNo} to Invoice`}
+        size="xl"
+      >
+        {invoiceModalQuote && (
+          <div className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+              Customer: <span className="font-semibold">{invoiceModalQuote.customer?.name}</span>
+              &nbsp;&bull;&nbsp; Quote Date: <span className="font-semibold">{formatDate(invoiceModalQuote.quoteDate)}</span>
+            </div>
+
+            {stockLoading ? (
+              <div className="flex items-center justify-center py-10 gap-3">
+                <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                <span className="text-sm text-gray-500">Loading stock batches...</span>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {(invoiceModalQuote.items || []).map((item: QuoteItem) => {
+                  const batches: StockBatch[] = stockCache[item.productId.toString()] || [];
+                  const sel = batchSelections[item.id] || { stockBatchId: '', saleUnit: 'box' };
+                  return (
+                    <div key={item.id} className="border border-gray-200 rounded-lg p-4 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Package className="h-4 w-4 text-gray-400" />
+                        <span className="font-semibold text-gray-900">{item.product?.name || `Product #${item.productId}`}</span>
+                        {item.product?.grade && <span className="text-xs text-gray-500">({item.product.grade})</span>}
+                        <span className="ml-auto text-sm font-medium text-gray-700">Qty: {item.quantity} {item.unit}</span>
+                        <span className="text-sm font-medium text-gray-700">Rate: ₹{item.rate}</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Stock Batch <span className="text-red-500">*</span></label>
+                          {batches.length === 0 ? (
+                            <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">No stock available</div>
+                          ) : (
+                            <select
+                              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              value={sel.stockBatchId}
+                              onChange={(e) => setBatchSelections(prev => ({ ...prev, [item.id]: { ...sel, stockBatchId: e.target.value } }))}
+                            >
+                              <option value="">Select batch...</option>
+                              {batches.map((b: StockBatch) => (
+                                <option key={b.id} value={b.id}>
+                                  {(b as any).location?.name} — {(b as any).vendor?.name} | Boxes: {b.remainingBoxes} | Packs: {b.remainingPacks} | Pcs: {b.remainingPcs}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Sale Unit</label>
+                          <select
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            value={sel.saleUnit}
+                            onChange={(e) => setBatchSelections(prev => ({ ...prev, [item.id]: { ...sel, saleUnit: e.target.value } }))}
+                          >
+                            <option value="box">Box</option>
+                            <option value="pack">Pack</option>
+                            <option value="piece">Piece</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3 pt-2 border-t border-gray-200">
+              <Button variant="outline" onClick={() => setInvoiceModalQuote(null)}>Cancel</Button>
+              <Button onClick={handleInvoiceSubmit} loading={submittingInvoice} disabled={stockLoading}>
+                Create Invoice
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

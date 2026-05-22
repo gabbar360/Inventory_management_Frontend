@@ -31,6 +31,11 @@ export const salesOrderService = {
     return response.data.data;
   },
 
+  convertSalesOrderToInvoice: async (id: string | number, items: { salesOrderItemId: string; stockBatchId: string; saleUnit: string }[]): Promise<any> => {
+    const response = await api.post(`/sales-orders/${id}/convert-to-invoice`, { items });
+    return response.data.data;
+  },
+
   downloadPDF: async (id: string | number): Promise<Blob> => {
     const response = await api.get(`/sales-orders/${id}/pdf`, { responseType: 'blob' });
     return response.data;

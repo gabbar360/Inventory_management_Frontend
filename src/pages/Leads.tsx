@@ -264,6 +264,7 @@ const Leads: React.FC = () => {
   }, [error, dispatch]);
 
   const filtered = leads.filter((l) => {
+    if (l.source === 'website' && l.formType === 'QuoteCartForm') return false;
     const matchesSearch =
       l.name.toLowerCase().includes(search.toLowerCase()) ||
       l.email?.toLowerCase().includes(search.toLowerCase()) ||

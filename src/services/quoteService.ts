@@ -37,4 +37,9 @@ export const quoteService = {
     });
     return response.data;
   },
+
+  convertQuoteToInvoice: async (id: string | number, items: { quoteItemId: string; stockBatchId: string; saleUnit: string }[]) => {
+    const response = await api.post(`/quotes/${id}/convert-to-invoice`, { items });
+    return response.data.data || response.data;
+  },
 };

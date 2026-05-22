@@ -37,6 +37,17 @@ export const convertQuoteToSalesOrder = createAsyncThunk('salesOrders/convertFro
   return await salesOrderService.convertFromQuote(quoteId);
 });
 
+export const convertSalesOrderToInvoice = createAsyncThunk(
+  'salesOrders/convertToInvoice',
+  async ({ id, items }: { id: string; items: { salesOrderItemId: string; stockBatchId: string; saleUnit: string }[] }, { rejectWithValue }) => {
+    try {
+      return await salesOrderService.convertSalesOrderToInvoice(id, items);
+    } catch (e: any) {
+      return rejectWithValue(e?.response?.data?.error || e.message || 'Failed to convert');
+    }
+  }
+);
+
 const salesOrderSlice = createSlice({
   name: 'salesOrders',
   initialState,

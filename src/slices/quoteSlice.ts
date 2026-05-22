@@ -58,6 +58,17 @@ export const downloadQuotePDF = createAsyncThunk(
   }
 );
 
+export const convertQuoteToInvoice = createAsyncThunk(
+  'quotes/convertQuoteToInvoice',
+  async ({ id, items }: { id: string; items: { quoteItemId: string; stockBatchId: string; saleUnit: string }[] }, { rejectWithValue }) => {
+    try {
+      return await quoteService.convertQuoteToInvoice(id, items);
+    } catch (e: any) {
+      return rejectWithValue(e?.response?.data?.error || e.message || 'Failed to convert');
+    }
+  }
+);
+
 interface QuoteState {
   quotes: Quote[];
   currentQuote: Quote | null;
