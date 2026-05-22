@@ -32,7 +32,7 @@ const Quotes: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [downloadingId, setDownloadingId] = useState<string | number | null>(null);
   const [convertingId, setConvertingId] = useState<string | number | null>(null);
-  const [convertingInvoiceId, setConvertingInvoiceId] = useState<string | number | null>(null);
+  const [convertingInvoiceId, _setConvertingInvoiceId] = useState<string | number | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | number | null>(null);
   const [invoiceModalQuote, setInvoiceModalQuote] = useState<Quote | null>(null);
   // batchSelections: { [quoteItemId]: { stockBatchId, saleUnit } }
