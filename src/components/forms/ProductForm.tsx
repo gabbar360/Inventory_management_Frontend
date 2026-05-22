@@ -120,10 +120,15 @@ const ProductForm: React.FC<ProductFormProps> = ({
       if (!formData.categoryId) newErrors.categoryId = 'Category is required';
       if (!formData.unit) newErrors.unit = 'Unit is required';
       
-      if (formData.sku?.trim() && formData.sku.length < 2) {
+      if (!formData.sku?.trim()) {
+        newErrors.sku = 'SKU number is required';
+      } else if (formData.sku.length < 2) {
         newErrors.sku = 'SKU must be at least 2 characters';
       }
-      if (formData.upc?.trim() && formData.upc.length < 8) {
+
+      if (!formData.upc?.trim()) {
+        newErrors.upc = 'UPC number is required';
+      } else if (formData.upc.length < 8) {
         newErrors.upc = 'UPC must be at least 8 characters';
       }
     }
@@ -209,20 +214,22 @@ const ProductForm: React.FC<ProductFormProps> = ({
         />
 
         <Input
-          label="SKU Number"
+          label="SKU Number *"
           value={formData.sku || ''}
           onChange={(e) =>
             setFormData((prev) => ({ ...prev, sku: e.target.value }))
           }
+          error={errors.sku}
           placeholder="e.g., SKU-001"
         />
 
         <Input
-          label="UPC Number"
+          label="UPC Number *"
           value={formData.upc || ''}
           onChange={(e) =>
             setFormData((prev) => ({ ...prev, upc: e.target.value }))
           }
+          error={errors.upc}
           placeholder="e.g., 123456789012"
         />
 

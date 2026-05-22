@@ -27,7 +27,7 @@ import PageHeader from '@/components/PageHeader';
 interface ProductFormData {
   name: string;
   sku: string;
-  upc?: string;
+  upc: string;
   grade?: string;
   description?: string;
   categoryId: string;
@@ -36,7 +36,7 @@ interface ProductFormData {
 const productSchema = z.object({
   name: z.string().min(1, 'Product name is required'),
   sku: z.string().min(1, 'SKU number is required'),
-  upc: z.string().optional(),
+  upc: z.string().min(1, 'UPC number is required'),
   grade: z.string().optional(),
   description: z.string().optional(),
   categoryId: z.string().min(1, 'Category is required'),
@@ -115,11 +115,7 @@ const Products: React.FC = () => {
   const onSubmit = async (data: ProductFormData) => {
     try {
       if (editingProduct) {
-        await dispatch(updateProduct({ 
-          id: editingProduct.id, 
-          data,
-          pagination: { page: currentPage, limit: 10, search, sortBy, sortOrder }
-        })).unwrap();
+        await dispatch(updateProduct({ id: editingProduct.id, data })).unwrap();
         toast.success('Product updated successfully');
       } else {
         await dispatch(createProduct(data)).unwrap();
@@ -278,7 +274,7 @@ const Products: React.FC = () => {
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <Input
-            label="Product Name"
+            label="Product Name *"
             placeholder="Enter product name"
             error={errors.name?.message}
             {...register('name')}
@@ -292,8 +288,9 @@ const Products: React.FC = () => {
           />
 
           <Input
-            label="UPC Number (Optional)"
+            label="UPC Number *"
             placeholder="Enter UPC number"
+            error={errors.upc?.message}
             {...register('upc')}
           />
 
@@ -312,7 +309,7 @@ const Products: React.FC = () => {
           />
 
           <Select
-            label="Category"
+            label="Category *"
             placeholder="Select category"
             options={categoryOptions}
             error={errors.categoryId?.message}
