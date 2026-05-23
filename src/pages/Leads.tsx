@@ -427,33 +427,35 @@ const Leads: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* ── Page Header ────────────────────────────────────────────────────── */}
-      <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200 flex flex-col xl:flex-row xl:items-center justify-between gap-5">
-        <div>
+      <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-200 flex flex-col xl:flex-row xl:items-center justify-between gap-4 xl:gap-5">
+        <div className="min-w-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-slate-900 flex items-center justify-center shadow-sm">
+            <div className="w-10 h-10 rounded-lg bg-slate-900 flex items-center justify-center shadow-sm flex-shrink-0">
               <TrendingUp className="h-5 w-5 text-white" />
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Lead Pipeline Manager</h1>
-              <p className="text-sm text-gray-500 mt-0.5">
-                <span className="font-semibold text-slate-700">{leads.length} Active Leads</span> &bull; <span className="font-semibold text-emerald-600">{conversionRate}% Conversion</span>
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Lead Pipeline Manager</h1>
+              <p className="text-xs sm:text-sm text-gray-500 mt-0.5 flex flex-wrap items-center gap-x-1.5">
+                <span className="font-semibold text-slate-700">{leads.length} Active Leads</span>
+                <span>&bull;</span>
+                <span className="font-semibold text-emerald-600">{conversionRate}% Conversion</span>
               </p>
             </div>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
           {/* View Toggle */}
-          <div className="bg-slate-100 p-1 rounded-lg flex items-center border border-slate-200">
+          <div className="bg-slate-100 p-1 rounded-lg flex items-center border border-slate-200 w-full sm:w-auto">
             <button
               onClick={() => setViewMode('kanban')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-semibold transition-all ${viewMode === 'kanban' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-sm font-semibold transition-all ${viewMode === 'kanban' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
             >
               <LayoutDashboard className="w-4 h-4" /> Board
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-semibold transition-all ${viewMode === 'list' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-sm font-semibold transition-all ${viewMode === 'list' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
             >
               <List className="w-4 h-4" /> List
             </button>
@@ -462,15 +464,16 @@ const Leads: React.FC = () => {
           <div className="h-8 w-px bg-slate-200 hidden sm:block"></div>
 
           {/* Search & Filters */}
-          <div className="flex items-center gap-2">
-            <div className="relative">
+          <div className="flex flex-wrap items-center gap-2 flex-1 sm:flex-initial w-full sm:w-auto">
+            {/* Search Box */}
+            <div className="relative flex-1 sm:flex-initial w-full sm:w-auto">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search leads..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600 w-full sm:w-56 transition-all placeholder:text-gray-400"
+                className="pl-9 pr-8 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600 w-full sm:w-44 md:w-52 transition-all placeholder:text-gray-400"
               />
               {search && (
                 <button
@@ -482,11 +485,12 @@ const Leads: React.FC = () => {
               )}
             </div>
 
-            <div className="relative group">
+            {/* Filter Dropdown */}
+            <div className="relative flex-1 sm:flex-initial w-full sm:w-auto">
               <select
                 value={filterSource}
                 onChange={(e) => setFilterSource(e.target.value)}
-                className="appearance-none pl-9 pr-8 py-2 text-sm border border-gray-300 rounded-lg bg-white hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-600 font-medium text-slate-700 cursor-pointer transition-all"
+                className="appearance-none w-full pl-9 pr-8 py-2 text-sm border border-gray-300 rounded-lg bg-white hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-600 font-medium text-slate-700 cursor-pointer transition-all min-w-[130px]"
               >
                 <option value="all">All Sources</option>
                 <option value="website">Website</option>
@@ -497,10 +501,12 @@ const Leads: React.FC = () => {
             </div>
           </div>
 
-          {/* Add */}
+          <div className="h-8 w-px bg-slate-200 hidden sm:block"></div>
+
+          {/* Add Button */}
           <button
             onClick={() => setShowModal(true)}
-            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg active:scale-95 transition-all shadow-sm"
+            className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg active:scale-95 transition-all shadow-sm w-full sm:w-auto flex-shrink-0"
           >
             <Plus className="h-4 w-4" />
             New Lead
