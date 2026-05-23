@@ -334,6 +334,35 @@ export interface SalesOrder {
   createdAt: string;
   updatedAt: string;
   items?: SalesOrderItem[];
+  dispatch?: OrderDispatch;
+}
+
+export interface OrderDispatch {
+  id: number;
+  dispatchNo: string;
+  salesOrderId: number;
+  salesOrder?: SalesOrder;
+  dispatchDate: string;
+  status: 'pending' | 'dispatched' | 'in_transit' | 'delivered' | 'cancelled';
+  shippingMethod: string;
+  trackingNumber?: string;
+  carrier?: string;
+  estimatedDelivery?: string;
+  actualDelivery?: string;
+  shippingAddress: string;
+  shippingCity: string;
+  shippingState: string;
+  shippingPincode: string;
+  shippingCountry: string;
+  weight?: number;
+  dimensions?: string;
+  packageCount: number;
+  shippingCost: number;
+  insuranceAmount: number;
+  notes?: string;
+  toTheOrder?: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Lead {

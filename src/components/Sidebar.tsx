@@ -21,6 +21,7 @@ import {
   ChevronDown,
   ChevronRight,
   Globe,
+  Truck,
 } from 'lucide-react';
 import { useAppDispatch } from '@/store/hooks';
 import { logoutUser } from '@/slices/authSlice';
@@ -45,6 +46,7 @@ const salesItems = [
   { name: 'Customers', href: '/customers', icon: Users },
   { name: 'Quotes', href: '/quotes', icon: FileText },
   { name: 'Sales Orders', href: '/sales-orders', icon: ClipboardList },
+  { name: 'Order Dispatch', href: '/order-dispatch', icon: Truck },
   { name: 'Outward', href: '/outward', icon: ArrowUpFromLine },
 ];
 
