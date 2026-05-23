@@ -74,6 +74,7 @@ export interface Customer {
   phone?: string;
   address?: string;
   gstNumber?: string;
+  state?: string;
   createdAt: string;
   updatedAt: string;
   _count?: {
@@ -153,6 +154,8 @@ export interface OutwardInvoice {
   saleType: 'export' | 'domestic';
   expense: number;
   totalCost: number;
+  adjustment?: number;
+  amountReceived?: number;
   createdAt: string;
   updatedAt: string;
   customer?: Customer;
@@ -326,6 +329,8 @@ export interface SalesOrder {
   expectedShipmentDate?: string;
   placeOfSupply?: string;
   deliveryMethod?: string;
+  adjustment?: number;
+  amountReceived?: number;
   createdAt: string;
   updatedAt: string;
   items?: SalesOrderItem[];

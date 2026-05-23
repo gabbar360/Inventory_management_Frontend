@@ -51,6 +51,8 @@ interface OutwardInvoiceFormData {
   customerId: string;
   saleType: 'export' | 'domestic';
   expense: number;
+  adjustment: string;
+  amountReceived: string;
   items: {
     productId: string;
     stockBatchId: string;
@@ -70,6 +72,8 @@ const outwardSchema = z.object({
     required_error: 'Sale type is required',
   }),
   expense: z.number().min(0, 'Expense must be positive').default(0),
+  adjustment: z.string().optional().default('0'),
+  amountReceived: z.string().optional().default('0'),
   items: z
     .array(
       z.object({
@@ -232,6 +236,8 @@ const Outward: React.FC = () => {
         },
       ],
       expense: 0,
+      adjustment: '0',
+      amountReceived: '0',
     },
   });
 
@@ -241,6 +247,9 @@ const Outward: React.FC = () => {
   });
 
   const watchedItems = watch('items');
+  const watchedExpense = watch('expense') || 0;
+  const watchedAdjustment = watch('adjustment') || '0';
+  const watchedReceived = watch('amountReceived') || '0';
 
   const calculateGrandTotal = () => {
     let totalBase = 0;
@@ -262,7 +271,13 @@ const Outward: React.FC = () => {
       totalGst += gstAmount;
     });
 
-    return { totalBase, totalGst, grandTotal: totalBase + totalGst };
+    const expenseVal = parseFloat(watchedExpense.toString()) || 0;
+    const adjustmentVal = parseFloat(watchedAdjustment.toString()) || 0;
+    const grandTotal = totalBase + totalGst + expenseVal - adjustmentVal;
+    const receivedVal = parseFloat(watchedReceived.toString()) || 0;
+    const balanceDue = grandTotal - receivedVal;
+
+    return { totalBase, totalGst, expenseVal, adjustmentVal, grandTotal, receivedVal, balanceDue };
   };
 
   useEffect(() => {
@@ -322,6 +337,8 @@ const Outward: React.FC = () => {
       customerId: '',
       saleType: 'domestic',
       expense: 0,
+      adjustment: '0',
+      amountReceived: '0',
       items: [
         {
           productId: '',
@@ -361,6 +378,8 @@ const Outward: React.FC = () => {
           customerId: fullInvoice.customerId,
           saleType: fullInvoice.saleType,
           expense: fullInvoice.expense,
+          adjustment: (fullInvoice.adjustment ?? 0).toString(),
+          amountReceived: (fullInvoice.amountReceived ?? 0).toString(),
           items: fullInvoice.items?.map((item) => ({
             productId: item.productId,
             stockBatchId: item.stockBatchId,
@@ -505,7 +524,13 @@ const Outward: React.FC = () => {
       gstCost += itemGst;
     });
 
-    return { baseCost, gstCost, grandTotal: baseCost + gstCost };
+    const expense = invoice.expense || 0;
+    const adjustment = invoice.adjustment || 0;
+    const amountReceived = invoice.amountReceived || 0;
+    const grandTotal = baseCost + gstCost + expense - adjustment;
+    const balanceDue = grandTotal - amountReceived;
+
+    return { baseCost, gstCost, expense, adjustment, grandTotal, amountReceived, balanceDue };
   };
 
   const handleExport = async () => {
@@ -633,6 +658,21 @@ const saleTypeOptions = [
       render: (_: any, record: OutwardInvoice) => (
         <span className="font-semibold">{formatCurrency(calculateInvoiceBreakdown(record).grandTotal)}</span>
       ),
+    },
+    {
+      key: 'balanceDue',
+      title: 'Balance Due',
+      render: (_: any, record: OutwardInvoice) => {
+        const { balanceDue } = calculateInvoiceBreakdown(record);
+        return (
+          <span className={cn(
+            "font-semibold",
+            balanceDue > 0 ? "text-red-600" : "text-gray-900"
+          )}>
+            {formatCurrency(balanceDue)}
+          </span>
+        );
+      },
     },
     {
       key: 'grossProfit',
@@ -1062,27 +1102,73 @@ const saleTypeOptions = [
             </Button>
           </div>
 
+          {/* Rounding & Received inputs */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
+            <Input
+              label="Amount Rounding"
+              type="number"
+              step="0.01"
+              error={errors.adjustment?.message}
+              {...register('adjustment')}
+              placeholder="e.g. -0.50 or 0.50"
+            />
+            <Input
+              label="Amount Received"
+              type="number"
+              step="0.01"
+              min="0"
+              error={errors.amountReceived?.message}
+              {...register('amountReceived')}
+              placeholder="e.g. 5000"
+            />
+          </div>
+
           {/* Grand Total */}
           <div className="border-t pt-4">
             <div className="flex justify-end">
-              <div className="w-full sm:w-auto sm:min-w-[300px] bg-green-50 p-4 rounded-lg">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Total Cost:</span>
-                    <span className="font-semibold text-gray-900">{formatCurrency(calculateGrandTotal().totalBase)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Total GST:</span>
-                    <span className="font-semibold text-gray-900">{formatCurrency(calculateGrandTotal().totalGst)}</span>
-                  </div>
-                  <div className="border-t border-green-200 pt-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Grand Total:</span>
-                      <span className="text-lg sm:text-xl font-bold text-green-700">{formatCurrency(calculateGrandTotal().grandTotal)}</span>
+              {(() => {
+                const { totalBase, totalGst, expenseVal, adjustmentVal, grandTotal, receivedVal, balanceDue } = calculateGrandTotal();
+                return (
+                  <div className="w-full sm:w-auto sm:min-w-[300px] bg-green-50 p-4 rounded-lg space-y-2">
+                    <div className="flex justify-between text-sm text-gray-600">
+                      <span>Total Cost (Base):</span>
+                      <span className="font-semibold text-gray-900">{formatCurrency(totalBase)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm text-gray-600">
+                      <span>Total GST:</span>
+                      <span className="font-semibold text-gray-900">{formatCurrency(totalGst)}</span>
+                    </div>
+                    {expenseVal > 0 && (
+                      <div className="flex justify-between text-sm text-gray-600">
+                        <span>Additional Expense:</span>
+                        <span className="font-semibold text-gray-900">{formatCurrency(expenseVal)}</span>
+                      </div>
+                    )}
+                    {adjustmentVal !== 0 && (
+                      <div className="flex justify-between text-sm text-gray-600">
+                        <span>Round Off:</span>
+                        <span className="font-semibold text-gray-900">
+                          {adjustmentVal > 0 ? '-' : '+'}{formatCurrency(Math.abs(adjustmentVal))}
+                        </span>
+                      </div>
+                    )}
+                    <div className="border-t border-green-200 pt-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm font-semibold text-gray-700">Grand Total:</span>
+                        <span className="text-lg sm:text-xl font-bold text-green-700">{formatCurrency(grandTotal)}</span>
+                      </div>
+                    </div>
+                    <div className="flex justify-between text-sm text-emerald-600 font-medium">
+                      <span>Amount Received:</span>
+                      <span>{formatCurrency(receivedVal)}</span>
+                    </div>
+                    <div className={`flex justify-between text-sm font-bold border-t border-dashed border-green-300 pt-2 ${balanceDue > 0 ? 'text-red-600' : 'text-gray-700'}`}>
+                      <span>Balance Due:</span>
+                      <span>{formatCurrency(balanceDue)}</span>
                     </div>
                   </div>
-                </div>
-              </div>
+                );
+              })()}
             </div>
           </div>
 
@@ -1132,6 +1218,14 @@ const saleTypeOptions = [
                   {selectedInvoice.customer?.code})
                 </div>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Place of Supply
+                </label>
+                <div className="text-gray-900">
+                  {selectedInvoice.customer?.state || '—'}
+                </div>
+              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">
@@ -1147,6 +1241,41 @@ const saleTypeOptions = [
                 </label>
                 <div className="text-gray-900">
                   {formatCurrency(selectedInvoice.expense)}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Adjustment / Rounding
+                </label>
+                <div className="text-gray-900">
+                  {(selectedInvoice.adjustment ?? 0) > 0 ? '-' : (selectedInvoice.adjustment ?? 0) < 0 ? '+' : ''}{formatCurrency(Math.abs(selectedInvoice.adjustment ?? 0))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Grand Total
+                </label>
+                <div className="text-gray-900 font-semibold">
+                  {formatCurrency(calculateInvoiceBreakdown(selectedInvoice).grandTotal)}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Amount Received
+                </label>
+                <div className="text-emerald-600 font-semibold">
+                  {formatCurrency(selectedInvoice.amountReceived || 0)}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Balance Due
+                </label>
+                <div className={cn(
+                  "font-bold",
+                  calculateInvoiceBreakdown(selectedInvoice).balanceDue > 0 ? "text-red-600" : "text-gray-900"
+                )}>
+                  {formatCurrency(calculateInvoiceBreakdown(selectedInvoice).balanceDue)}
                 </div>
               </div>
             </div>

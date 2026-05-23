@@ -51,7 +51,19 @@ const StatusBadge = ({ status }: { status: string }) => {
 
 // ── Standalone form component (outside SalesOrders) to prevent remount on state change ──
 interface OrderFormProps {
-  formData: { customerId: string; orderDate: string; saleType: string; status: string; notes: string; reference: string; expectedShipmentDate: string; placeOfSupply: string; deliveryMethod: string };
+  formData: {
+    customerId: string;
+    orderDate: string;
+    saleType: string;
+    status: string;
+    notes: string;
+    reference: string;
+    expectedShipmentDate: string;
+    placeOfSupply: string;
+    deliveryMethod: string;
+    adjustment: string;
+    amountReceived: string;
+  };
   setFormData: React.Dispatch<React.SetStateAction<OrderFormProps['formData']>>;
   items: OrderItem[];
   setItems: React.Dispatch<React.SetStateAction<OrderItem[]>>;
@@ -75,8 +87,9 @@ const CustomerCombobox: React.FC<{
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    const selected = options.find((o) => o.value === value);
+    const selected = options.find((o) => o.value.toString() === value?.toString());
     if (selected) setSearch(selected.label);
+    else if (!value) setSearch('');
   }, [value, options]);
 
   const filtered = options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()));
@@ -149,10 +162,18 @@ const OrderForm: React.FC<OrderFormProps> = ({
           onChange={(e) => setFormData({ ...formData, reference: e.target.value })} />
         <Input label="Expected Shipment Date" type="date" value={formData.expectedShipmentDate}
           onChange={(e) => setFormData({ ...formData, expectedShipmentDate: e.target.value })} />
-        <Input label="Place of Supply" value={formData.placeOfSupply}
-          onChange={(e) => setFormData({ ...formData, placeOfSupply: e.target.value })} />
-        <Input label="Delivery Method" value={formData.deliveryMethod}
-          onChange={(e) => setFormData({ ...formData, deliveryMethod: e.target.value })} />
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Method</label>
+          <select
+            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+            value={formData.deliveryMethod}
+            onChange={(e) => setFormData({ ...formData, deliveryMethod: e.target.value })}
+          >
+            <option value="">Select delivery method...</option>
+            <option value="ex_works">Ex-Works</option>
+            <option value="for">FOR</option>
+          </select>
+        </div>
       </div>
 
       {/* Items */}
@@ -261,21 +282,67 @@ const OrderForm: React.FC<OrderFormProps> = ({
         )}
       </div>
 
-      {/* Totals */}
-      <div className="bg-gray-100 p-3 rounded">
-        <div className="flex justify-between mb-1 text-sm">
-          <span>Subtotal:</span>
-          <span>₹{items.reduce((s, i) => s + i.quantity * i.rate, 0).toFixed(2)}</span>
-        </div>
-        <div className="flex justify-between mb-1 text-sm">
-          <span>Total Tax:</span>
-          <span>+₹{items.reduce((s, i) => s + i.quantity * i.rate * i.taxRate / 100, 0).toFixed(2)}</span>
-        </div>
-        <div className="flex justify-between font-bold text-base border-t pt-2">
-          <span>Total:</span>
-          <span>₹{calcTotal().toFixed(2)}</span>
-        </div>
+      {/* Rounding & Received inputs */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
+        <Input
+          label="Amount Rounding"
+          type="number"
+          step="0.01"
+          value={formData.adjustment}
+          onChange={(e) => setFormData({ ...formData, adjustment: e.target.value })}
+          placeholder="e.g. -0.50 or 0.50"
+        />
+        <Input
+          label="Amount Received"
+          type="number"
+          step="0.01"
+          min="0"
+          value={formData.amountReceived}
+          onChange={(e) => setFormData({ ...formData, amountReceived: e.target.value })}
+          placeholder="e.g. 5000"
+        />
       </div>
+
+      {/* Totals */}
+      {(() => {
+        const subtotal = items.reduce((s, i) => s + i.quantity * i.rate, 0);
+        const totalTax = items.reduce((s, i) => s + i.quantity * i.rate * i.taxRate / 100, 0);
+        const adjustmentVal = parseFloat(formData.adjustment) || 0;
+        const grandTotal = calcTotal();
+        const receivedVal = parseFloat(formData.amountReceived) || 0;
+        const balanceDue = grandTotal - receivedVal;
+
+        return (
+          <div className="bg-gray-100 p-4 rounded-lg space-y-2">
+            <div className="flex justify-between text-sm text-gray-600">
+              <span>Subtotal:</span>
+              <span>₹{subtotal.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-sm text-gray-600">
+              <span>Total Tax:</span>
+              <span>+₹{totalTax.toFixed(2)}</span>
+            </div>
+            {adjustmentVal !== 0 && (
+              <div className="flex justify-between text-sm text-gray-600">
+                <span>Round Off:</span>
+                <span>{adjustmentVal > 0 ? '-' : '+'}₹{Math.abs(adjustmentVal).toFixed(2)}</span>
+              </div>
+            )}
+            <div className="flex justify-between font-bold text-base border-t border-gray-200 pt-2 text-gray-800">
+              <span>Grand Total:</span>
+              <span>₹{grandTotal.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-sm text-emerald-600 font-medium">
+              <span>Amount Received:</span>
+              <span>₹{receivedVal.toFixed(2)}</span>
+            </div>
+            <div className={`flex justify-between text-sm font-bold border-t border-dashed border-gray-300 pt-2 ${balanceDue > 0 ? 'text-red-600' : 'text-gray-700'}`}>
+              <span>Balance Due:</span>
+              <span>₹{balanceDue.toFixed(2)}</span>
+            </div>
+          </div>
+        );
+      })()}
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
@@ -325,6 +392,8 @@ const SalesOrders: React.FC = () => {
     expectedShipmentDate: '',
     placeOfSupply: '',
     deliveryMethod: '',
+    adjustment: '0',
+    amountReceived: '0',
   });
   const [items, setItems] = useState<OrderItem[]>([]);
   const [newItem, setNewItem] = useState<OrderItem>(emptyItem());
@@ -345,7 +414,7 @@ const SalesOrders: React.FC = () => {
   });
 
   const resetForm = () => {
-    setFormData({ customerId: '', orderDate: new Date().toISOString().split('T')[0], saleType: 'domestic', status: 'pending', notes: '', reference: '', expectedShipmentDate: '', placeOfSupply: '', deliveryMethod: '' });
+    setFormData({ customerId: '', orderDate: new Date().toISOString().split('T')[0], saleType: 'domestic', status: 'pending', notes: '', reference: '', expectedShipmentDate: '', placeOfSupply: '', deliveryMethod: '', adjustment: '0', amountReceived: '0' });
     setItems([]);
     setNewItem(emptyItem());
     setEditingItem(null);
@@ -357,7 +426,7 @@ const SalesOrders: React.FC = () => {
   const openEdit = (order: SalesOrder) => {
     setEditOrder(order);
     setFormData({
-      customerId: order.customerId,
+      customerId: order.customerId.toString(),
       orderDate: order.orderDate.split('T')[0],
       saleType: order.saleType,
       status: order.status,
@@ -366,6 +435,8 @@ const SalesOrders: React.FC = () => {
       expectedShipmentDate: order.expectedShipmentDate ? order.expectedShipmentDate.split('T')[0] : '',
       placeOfSupply: order.placeOfSupply || '',
       deliveryMethod: order.deliveryMethod || '',
+      adjustment: (order.adjustment ?? 0).toString(),
+      amountReceived: (order.amountReceived ?? 0).toString(),
     });
     setItems(
       order.items && order.items.length > 0
@@ -377,11 +448,14 @@ const SalesOrders: React.FC = () => {
     setEditingData(null);
   };
 
-  const calcTotal = () =>
-    items.reduce((sum, item) => {
+  const calcTotal = () => {
+    const itemsTotal = items.reduce((sum, item) => {
       const base = item.quantity * item.rate;
       return sum + base + base * (item.taxRate / 100);
     }, 0);
+    const adj = parseFloat(formData.adjustment) || 0;
+    return itemsTotal - adj;
+  };
 
   const buildPayload = () => ({
     customerId: parseInt(formData.customerId),
@@ -394,6 +468,8 @@ const SalesOrders: React.FC = () => {
     placeOfSupply: formData.placeOfSupply,
     deliveryMethod: formData.deliveryMethod,
     totalAmount: calcTotal(),
+    adjustment: parseFloat(formData.adjustment) || 0,
+    amountReceived: parseFloat(formData.amountReceived) || 0,
     items: items.filter((i) => i.productId).map((i) => ({
       productId: parseInt(i.productId),
       quantity: i.quantity,
@@ -665,11 +741,22 @@ const SalesOrders: React.FC = () => {
               <div><span className="font-medium text-gray-600">Order Date:</span><div>{formatDate(viewOrder.orderDate)}</div></div>
               <div><span className="font-medium text-gray-600">Status:</span><div><StatusBadge status={viewOrder.status} /></div></div>
               <div><span className="font-medium text-gray-600">Sale Type:</span><div className="capitalize">{viewOrder.saleType}</div></div>
-              <div><span className="font-medium text-gray-600">Total Amount:</span><div className="font-semibold">₹{viewOrder.totalAmount?.toFixed(2)}</div></div>
+              <div><span className="font-medium text-gray-600">Grand Total:</span><div className="font-semibold text-slate-900">₹{viewOrder.totalAmount?.toFixed(2)}</div></div>
+              <div>
+                <span className="font-medium text-gray-600">Adjustment / Rounding:</span>
+                <div>{(viewOrder.adjustment ?? 0) > 0 ? '-' : (viewOrder.adjustment ?? 0) < 0 ? '+' : ''}₹{Math.abs(viewOrder.adjustment ?? 0).toFixed(2)}</div>
+              </div>
+              <div><span className="font-medium text-gray-600">Amount Received:</span><div className="text-emerald-600 font-semibold">₹{(viewOrder.amountReceived || 0).toFixed(2)}</div></div>
+              <div>
+                <span className="font-medium text-gray-600">Balance Due:</span>
+                <div className={`font-bold ${(viewOrder.totalAmount - (viewOrder.amountReceived || 0)) > 0 ? 'text-red-600' : 'text-slate-900'}`}>
+                  ₹{(viewOrder.totalAmount - (viewOrder.amountReceived || 0)).toFixed(2)}
+                </div>
+              </div>
               {viewOrder.quote && <div><span className="font-medium text-gray-600">From Quote:</span><div className="text-blue-600">{viewOrder.quote.quoteNo}</div></div>}
               {viewOrder.reference && <div><span className="font-medium text-gray-600">Reference:</span><div>{viewOrder.reference}</div></div>}
               {viewOrder.expectedShipmentDate && <div><span className="font-medium text-gray-600">Expected Shipment:</span><div>{formatDate(viewOrder.expectedShipmentDate)}</div></div>}
-              {viewOrder.placeOfSupply && <div><span className="font-medium text-gray-600">Place of Supply:</span><div>{viewOrder.placeOfSupply}</div></div>}
+              <div><span className="font-medium text-gray-600">Place of Supply:</span><div>{viewOrder.customer?.state || viewOrder.placeOfSupply || '—'}</div></div>
               {viewOrder.deliveryMethod && <div><span className="font-medium text-gray-600">Delivery Method:</span><div className="capitalize">{viewOrder.deliveryMethod.replace('_', ' ')}</div></div>}
               {viewOrder.notes && <div className="col-span-2"><span className="font-medium text-gray-600">Notes:</span><div>{viewOrder.notes}</div></div>}
             </div>
