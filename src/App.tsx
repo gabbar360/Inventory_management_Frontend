@@ -18,6 +18,7 @@ import Inventory from '@/pages/Inventory';
 import Samples from '@/pages/Samples';
 import Quotes from '@/pages/Quotes';
 import SalesOrders from '@/pages/SalesOrders';
+import OrderDispatchPage from '@/pages/OrderDispatchPage';
 import Settings from '@/pages/Settings';
 import Leads from '@/pages/Leads';
 import WebsiteQuotes from '@/pages/WebsiteQuotes';
@@ -102,6 +103,7 @@ function App() {
         <Route path="samples" element={<Samples />} />
         <Route path="quotes" element={<Quotes />} />
         <Route path="sales-orders" element={<SalesOrders />} />
+        <Route path="order-dispatch" element={<OrderDispatchPage />} />
         <Route path="settings" element={<Settings />} />
       </Route>
     </Routes>

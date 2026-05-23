@@ -14,6 +14,7 @@ import quoteSlice from '../slices/quoteSlice';
 import settingsSlice from '../slices/settingsSlice';
 import leadSlice from '../slices/leadSlice';
 import salesOrderSlice from '../slices/salesOrderSlice';
+import orderDispatchSlice from '../slices/orderDispatchSlice';
 
 export const store = configureStore({
   reducer: {
@@ -32,6 +33,7 @@ export const store = configureStore({
     settings: settingsSlice,
     leads: leadSlice,
     salesOrders: salesOrderSlice,
+    orderDispatch: orderDispatchSlice,
   },
 });
 
