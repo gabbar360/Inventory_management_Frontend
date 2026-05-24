@@ -413,4 +413,6 @@ export interface PaginationQuery {
   search?: string;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+  startDate?: string;
+  endDate?: string;
 }
