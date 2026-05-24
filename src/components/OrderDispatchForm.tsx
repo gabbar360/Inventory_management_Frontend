@@ -3,6 +3,8 @@ import { OrderDispatch, SalesOrder } from '@/types';
 import { orderDispatchService } from '@/services/orderDispatchService';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchSalesOrders } from '@/slices/salesOrderSlice';
+import { useLocationData } from '@/hooks/useLocationData';
+import { SearchableDropdown } from './SearchableDropdown';
 import toast from 'react-hot-toast';
 
 interface OrderDispatchFormProps {
@@ -16,9 +18,23 @@ export const OrderDispatchForm = ({ salesOrderId, dispatchId, onSuccess, onCance
   const dispatch = useAppDispatch();
   const { orders: salesOrders } = useAppSelector((state) => state.salesOrders);
   
+  const {
+    countries,
+    states,
+    cities,
+    selectedCountry,
+    selectedState,
+    selectedCity,
+    setSelectedCountry,
+    setSelectedState,
+    setSelectedCity,
+    loading: locationLoading,
+  } = useLocationData();
+
   const [loading, setLoading] = useState(false);
   const [selectedSalesOrder, setSelectedSalesOrder] = useState<SalesOrder | null>(null);
   const [dispatchedOrderIds, setDispatchedOrderIds] = useState<Set<number>>(new Set());
+
   const [formData, setFormData] = useState({
     salesOrderId: salesOrderId || '',
     dispatchDate: new Date().toISOString().split('T')[0],
@@ -29,22 +45,32 @@ export const OrderDispatchForm = ({ salesOrderId, dispatchId, onSuccess, onCance
     estimatedDelivery: '',
     actualDelivery: '',
     shippingAddress: '',
-    shippingCity: '',
-    shippingState: '',
     shippingPincode: '',
-    shippingCountry: 'India',
     weight: '',
     packageCount: '1',
     shippingCost: '0',
     insuranceAmount: '0',
     notes: '',
     toTheOrder: false,
+    courierName: '',
+    courierPhone: '',
+    truckNumber: '',
+    driverName: '',
+    driverPhone: '',
+    airlineCode: '',
+    flightNumber: '',
+    containerNumber: '',
+    vesselName: '',
+    portOfLoading: '',
+    portOfDischarge: '',
   });
 
   useEffect(() => {
     dispatch(fetchSalesOrders({ page: 1, limit: 1000, status: 'confirmed' }));
     loadDispatchedOrderIds();
   }, [dispatch]);
+
+
 
   const loadDispatchedOrderIds = async () => {
     try {
@@ -83,17 +109,30 @@ export const OrderDispatchForm = ({ salesOrderId, dispatchId, onSuccess, onCance
         estimatedDelivery: dispatchData.estimatedDelivery ? dispatchData.estimatedDelivery.split('T')[0] : '',
         actualDelivery: dispatchData.actualDelivery ? dispatchData.actualDelivery.split('T')[0] : '',
         shippingAddress: dispatchData.shippingAddress,
-        shippingCity: dispatchData.shippingCity,
-        shippingState: dispatchData.shippingState,
         shippingPincode: dispatchData.shippingPincode,
-        shippingCountry: dispatchData.shippingCountry,
         weight: dispatchData.weight?.toString() || '',
         packageCount: dispatchData.packageCount.toString(),
         shippingCost: dispatchData.shippingCost.toString(),
         insuranceAmount: dispatchData.insuranceAmount.toString(),
         notes: dispatchData.notes || '',
         toTheOrder: dispatchData.toTheOrder || false,
+        courierName: dispatchData.courierName || '',
+        courierPhone: dispatchData.courierPhone || '',
+        truckNumber: dispatchData.truckNumber || '',
+        driverName: dispatchData.driverName || '',
+        driverPhone: dispatchData.driverPhone || '',
+        airlineCode: dispatchData.airlineCode || '',
+        flightNumber: dispatchData.flightNumber || '',
+        containerNumber: dispatchData.containerNumber || '',
+        vesselName: dispatchData.vesselName || '',
+        portOfLoading: dispatchData.portOfLoading || '',
+        portOfDischarge: dispatchData.portOfDischarge || '',
       });
+      
+      // Set location values
+      setSelectedCountry(dispatchData.shippingCountry);
+      setSelectedState(dispatchData.shippingState);
+      setSelectedCity(dispatchData.shippingCity);
     } catch (error) {
       console.error('Error loading dispatch:', error);
       toast.error('Failed to load dispatch');
@@ -107,9 +146,6 @@ export const OrderDispatchForm = ({ salesOrderId, dispatchId, onSuccess, onCance
       ...prev,
       salesOrderId: order.id.toString(),
       shippingAddress: order.customer?.address || '',
-      shippingCity: '',
-      shippingState: '',
-      shippingPincode: '',
     }));
   };
 
@@ -127,7 +163,25 @@ export const OrderDispatchForm = ({ salesOrderId, dispatchId, onSuccess, onCance
     if (type === 'checkbox') {
       setFormData(prev => ({ ...prev, [name]: (e.target as HTMLInputElement).checked }));
     } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
+      setFormData(prev => {
+        const updated = { ...prev, [name]: value };
+        if (name === 'shippingMethod') {
+          updated.courierName = '';
+          updated.courierPhone = '';
+          updated.trackingNumber = '';
+          updated.carrier = '';
+          updated.truckNumber = '';
+          updated.driverName = '';
+          updated.driverPhone = '';
+          updated.airlineCode = '';
+          updated.flightNumber = '';
+          updated.containerNumber = '';
+          updated.vesselName = '';
+          updated.portOfLoading = '';
+          updated.portOfDischarge = '';
+        }
+        return updated;
+      });
     }
   };
 
@@ -136,6 +190,16 @@ export const OrderDispatchForm = ({ salesOrderId, dispatchId, onSuccess, onCance
     
     if (!formData.salesOrderId) {
       toast.error('Please select a sales order');
+      return;
+    }
+
+    if (!selectedCountry || !selectedState || !selectedCity) {
+      toast.error('Please select Country, State, and City');
+      return;
+    }
+
+    if (!formData.shippingPincode) {
+      toast.error('Please enter Pincode');
       return;
     }
 
@@ -151,16 +215,27 @@ export const OrderDispatchForm = ({ salesOrderId, dispatchId, onSuccess, onCance
         estimatedDelivery: formData.estimatedDelivery || null,
         actualDelivery: formData.actualDelivery || null,
         shippingAddress: formData.shippingAddress,
-        shippingCity: formData.shippingCity,
-        shippingState: formData.shippingState,
+        shippingCity: selectedCity,
+        shippingState: selectedState,
         shippingPincode: formData.shippingPincode,
-        shippingCountry: formData.shippingCountry,
+        shippingCountry: selectedCountry,
         weight: formData.weight ? parseFloat(formData.weight) : null,
         packageCount: parseInt(formData.packageCount),
         shippingCost: parseFloat(formData.shippingCost),
         insuranceAmount: parseFloat(formData.insuranceAmount),
         notes: formData.notes || null,
         toTheOrder: formData.toTheOrder || false,
+        courierName: formData.courierName || null,
+        courierPhone: formData.courierPhone || null,
+        truckNumber: formData.truckNumber || null,
+        driverName: formData.driverName || null,
+        driverPhone: formData.driverPhone || null,
+        airlineCode: formData.airlineCode || null,
+        flightNumber: formData.flightNumber || null,
+        containerNumber: formData.containerNumber || null,
+        vesselName: formData.vesselName || null,
+        portOfLoading: formData.portOfLoading || null,
+        portOfDischarge: formData.portOfDischarge || null,
       };
 
       if (dispatchId) {
@@ -180,6 +255,9 @@ export const OrderDispatchForm = ({ salesOrderId, dispatchId, onSuccess, onCance
   };
 
   const availableSalesOrders = salesOrders.filter(order => !dispatchedOrderIds.has(Number(order.id)));
+  const countryOptions = countries.map(c => ({ name: c.name, code: c.code }));
+  const stateOptions = states.map(s => ({ name: s.name, code: s.code }));
+  const cityOptions = cities.map(c => ({ name: c }));
 
   if (loading && !selectedSalesOrder && dispatchId) {
     return <div className="p-4">Loading...</div>;
@@ -293,28 +371,187 @@ export const OrderDispatchForm = ({ salesOrderId, dispatchId, onSuccess, onCance
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">Tracking Number</label>
-          <input
-            type="text"
-            name="trackingNumber"
-            value={formData.trackingNumber}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border rounded-lg"
-          />
+      {formData.shippingMethod === 'courier' && (
+        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+          <h4 className="font-semibold text-blue-900 mb-3">Courier Details</h4>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Courier Name</label>
+              <input
+                type="text"
+                name="courierName"
+                value={formData.courierName}
+                onChange={handleChange}
+                placeholder="e.g., FedEx, DHL, UPS"
+                className="w-full px-3 py-2 border rounded-lg"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Courier Phone</label>
+              <input
+                type="tel"
+                name="courierPhone"
+                value={formData.courierPhone}
+                onChange={handleChange}
+                placeholder="Contact number"
+                className="w-full px-3 py-2 border rounded-lg"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Tracking Number</label>
+              <input
+                type="text"
+                name="trackingNumber"
+                value={formData.trackingNumber}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border rounded-lg"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Carrier/Logistics Company</label>
+              <input
+                type="text"
+                name="carrier"
+                value={formData.carrier}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border rounded-lg"
+              />
+            </div>
+          </div>
         </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Carrier/Logistics Company</label>
-          <input
-            type="text"
-            name="carrier"
-            value={formData.carrier}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border rounded-lg"
-          />
+      )}
+
+      {formData.shippingMethod === 'truck' && (
+        <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+          <h4 className="font-semibold text-yellow-900 mb-3">Truck Details</h4>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Truck Number *</label>
+              <input
+                type="text"
+                name="truckNumber"
+                value={formData.truckNumber}
+                onChange={handleChange}
+                placeholder="e.g., MH-01-AB-1234"
+                required={formData.shippingMethod === 'truck'}
+                className="w-full px-3 py-2 border rounded-lg"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Driver Name *</label>
+              <input
+                type="text"
+                name="driverName"
+                value={formData.driverName}
+                onChange={handleChange}
+                placeholder="Driver name"
+                required={formData.shippingMethod === 'truck'}
+                className="w-full px-3 py-2 border rounded-lg"
+              />
+            </div>
+            <div className="col-span-2">
+              <label className="block text-sm font-medium mb-1">Driver Phone *</label>
+              <input
+                type="tel"
+                name="driverPhone"
+                value={formData.driverPhone}
+                onChange={handleChange}
+                placeholder="Driver contact number"
+                required={formData.shippingMethod === 'truck'}
+                className="w-full px-3 py-2 border rounded-lg"
+              />
+            </div>
+          </div>
         </div>
-      </div>
+      )}
+
+      {formData.shippingMethod === 'air' && (
+        <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+          <h4 className="font-semibold text-purple-900 mb-3">Air Cargo Details</h4>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Airline Code *</label>
+              <input
+                type="text"
+                name="airlineCode"
+                value={formData.airlineCode}
+                onChange={handleChange}
+                placeholder="e.g., AI, 6E, SG"
+                required={formData.shippingMethod === 'air'}
+                className="w-full px-3 py-2 border rounded-lg"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Flight Number *</label>
+              <input
+                type="text"
+                name="flightNumber"
+                value={formData.flightNumber}
+                onChange={handleChange}
+                placeholder="e.g., AI-101"
+                required={formData.shippingMethod === 'air'}
+                className="w-full px-3 py-2 border rounded-lg"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {formData.shippingMethod === 'sea' && (
+        <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+          <h4 className="font-semibold text-green-900 mb-3">Sea Cargo Details</h4>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Container Number *</label>
+              <input
+                type="text"
+                name="containerNumber"
+                value={formData.containerNumber}
+                onChange={handleChange}
+                placeholder="e.g., CONT-123456"
+                required={formData.shippingMethod === 'sea'}
+                className="w-full px-3 py-2 border rounded-lg"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Vessel Name *</label>
+              <input
+                type="text"
+                name="vesselName"
+                value={formData.vesselName}
+                onChange={handleChange}
+                placeholder="Ship/Vessel name"
+                required={formData.shippingMethod === 'sea'}
+                className="w-full px-3 py-2 border rounded-lg"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Port of Loading *</label>
+              <input
+                type="text"
+                name="portOfLoading"
+                value={formData.portOfLoading}
+                onChange={handleChange}
+                placeholder="e.g., Port of Mumbai"
+                required={formData.shippingMethod === 'sea'}
+                className="w-full px-3 py-2 border rounded-lg"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Port of Discharge *</label>
+              <input
+                type="text"
+                name="portOfDischarge"
+                value={formData.portOfDischarge}
+                onChange={handleChange}
+                placeholder="e.g., Port of Singapore"
+                required={formData.shippingMethod === 'sea'}
+                className="w-full px-3 py-2 border rounded-lg"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4">
         <div>
@@ -352,32 +589,33 @@ export const OrderDispatchForm = ({ salesOrderId, dispatchId, onSuccess, onCance
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">City *</label>
-          <input
-            type="text"
-            name="shippingCity"
-            value={formData.shippingCity}
-            onChange={handleChange}
-            required
-            className="w-full px-3 py-2 border rounded-lg"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">State *</label>
-          <input
-            type="text"
-            name="shippingState"
-            value={formData.shippingState}
-            onChange={handleChange}
-            required
-            className="w-full px-3 py-2 border rounded-lg"
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-4 gap-4">
+        <SearchableDropdown
+          label="Country"
+          value={selectedCountry}
+          options={countryOptions}
+          onChange={setSelectedCountry}
+          loading={locationLoading.countries}
+          required
+        />
+        <SearchableDropdown
+          label="State"
+          value={selectedState}
+          options={stateOptions}
+          onChange={setSelectedState}
+          disabled={!selectedCountry}
+          loading={locationLoading.states}
+          required
+        />
+        <SearchableDropdown
+          label="City"
+          value={selectedCity}
+          options={cityOptions}
+          onChange={setSelectedCity}
+          disabled={!selectedState}
+          loading={locationLoading.cities}
+          required
+        />
         <div>
           <label className="block text-sm font-medium mb-1">Pincode *</label>
           <input
@@ -385,17 +623,8 @@ export const OrderDispatchForm = ({ salesOrderId, dispatchId, onSuccess, onCance
             name="shippingPincode"
             value={formData.shippingPincode}
             onChange={handleChange}
+            placeholder="Enter pincode"
             required
-            className="w-full px-3 py-2 border rounded-lg"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Country</label>
-          <input
-            type="text"
-            name="shippingCountry"
-            value={formData.shippingCountry}
-            onChange={handleChange}
             className="w-full px-3 py-2 border rounded-lg"
           />
         </div>
