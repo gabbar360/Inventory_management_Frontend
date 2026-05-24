@@ -63,6 +63,7 @@ interface OrderFormProps {
     deliveryMethod: string;
     adjustment: string;
     amountReceived: string;
+    shippingCharge: string;
   };
   setFormData: React.Dispatch<React.SetStateAction<OrderFormProps['formData']>>;
   items: OrderItem[];
@@ -282,8 +283,16 @@ const OrderForm: React.FC<OrderFormProps> = ({
         )}
       </div>
 
-      {/* Rounding & Received inputs */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
+        <Input
+          label="Shipping Charge"
+          type="number"
+          step="0.01"
+          min="0"
+          value={formData.shippingCharge}
+          onChange={(e) => setFormData({ ...formData, shippingCharge: e.target.value })}
+          placeholder="e.g. 500"
+        />
         <Input
           label="Amount Rounding"
           type="number"
@@ -307,6 +316,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
       {(() => {
         const subtotal = items.reduce((s, i) => s + i.quantity * i.rate, 0);
         const totalTax = items.reduce((s, i) => s + i.quantity * i.rate * i.taxRate / 100, 0);
+        const shippingVal = parseFloat(formData.shippingCharge) || 0;
         const adjustmentVal = parseFloat(formData.adjustment) || 0;
         const grandTotal = calcTotal();
         const receivedVal = parseFloat(formData.amountReceived) || 0;
@@ -322,6 +332,12 @@ const OrderForm: React.FC<OrderFormProps> = ({
               <span>Total Tax:</span>
               <span>+₹{totalTax.toFixed(2)}</span>
             </div>
+            {shippingVal > 0 && (
+              <div className="flex justify-between text-sm text-gray-600">
+                <span>Shipping Charge:</span>
+                <span>+₹{shippingVal.toFixed(2)}</span>
+              </div>
+            )}
             {adjustmentVal !== 0 && (
               <div className="flex justify-between text-sm text-gray-600">
                 <span>Round Off:</span>
@@ -394,6 +410,7 @@ const SalesOrders: React.FC = () => {
     deliveryMethod: '',
     adjustment: '0',
     amountReceived: '0',
+    shippingCharge: '0',
   });
   const [items, setItems] = useState<OrderItem[]>([]);
   const [newItem, setNewItem] = useState<OrderItem>(emptyItem());
@@ -414,7 +431,7 @@ const SalesOrders: React.FC = () => {
   });
 
   const resetForm = () => {
-    setFormData({ customerId: '', orderDate: new Date().toISOString().split('T')[0], saleType: 'domestic', status: 'pending', notes: '', reference: '', expectedShipmentDate: '', placeOfSupply: '', deliveryMethod: '', adjustment: '0', amountReceived: '0' });
+    setFormData({ customerId: '', orderDate: new Date().toISOString().split('T')[0], saleType: 'domestic', status: 'pending', notes: '', reference: '', expectedShipmentDate: '', placeOfSupply: '', deliveryMethod: '', adjustment: '0', amountReceived: '0', shippingCharge: '0' });
     setItems([]);
     setNewItem(emptyItem());
     setEditingItem(null);
@@ -437,6 +454,7 @@ const SalesOrders: React.FC = () => {
       deliveryMethod: order.deliveryMethod || '',
       adjustment: (order.adjustment ?? 0).toString(),
       amountReceived: (order.amountReceived ?? 0).toString(),
+      shippingCharge: (order.shippingCharge ?? 0).toString(),
     });
     setItems(
       order.items && order.items.length > 0
@@ -453,8 +471,9 @@ const SalesOrders: React.FC = () => {
       const base = item.quantity * item.rate;
       return sum + base + base * (item.taxRate / 100);
     }, 0);
+    const shipping = parseFloat(formData.shippingCharge) || 0;
     const adj = parseFloat(formData.adjustment) || 0;
-    return itemsTotal - adj;
+    return itemsTotal + shipping - adj;
   };
 
   const buildPayload = () => ({
@@ -470,6 +489,7 @@ const SalesOrders: React.FC = () => {
     totalAmount: calcTotal(),
     adjustment: parseFloat(formData.adjustment) || 0,
     amountReceived: parseFloat(formData.amountReceived) || 0,
+    shippingCharge: parseFloat(formData.shippingCharge) || 0,
     items: items.filter((i) => i.productId).map((i) => ({
       productId: parseInt(i.productId),
       quantity: i.quantity,
@@ -754,6 +774,7 @@ const SalesOrders: React.FC = () => {
                 </div>
               </div>
               {viewOrder.quote && <div><span className="font-medium text-gray-600">From Quote:</span><div className="text-blue-600">{viewOrder.quote.quoteNo}</div></div>}
+              {(viewOrder.shippingCharge ?? 0) > 0 && <div><span className="font-medium text-gray-600">Shipping Charge:</span><div>₹{(viewOrder.shippingCharge ?? 0).toFixed(2)}</div></div>}
               {viewOrder.reference && <div><span className="font-medium text-gray-600">Reference:</span><div>{viewOrder.reference}</div></div>}
               {viewOrder.expectedShipmentDate && <div><span className="font-medium text-gray-600">Expected Shipment:</span><div>{formatDate(viewOrder.expectedShipmentDate)}</div></div>}
               <div><span className="font-medium text-gray-600">Place of Supply:</span><div>{viewOrder.customer?.state || viewOrder.placeOfSupply || '—'}</div></div>
