@@ -420,10 +420,11 @@ const Outward: React.FC = () => {
 
         // Load stock for existing items before opening modal, including sold-out batches
         if (fullInvoice.items) {
-          const uniqueProductIds = [...new Set(fullInvoice.items.map(i => i.productId))];
+          const items = fullInvoice.items;
+          const uniqueProductIds = [...new Set(items.map(i => i.productId))];
           await Promise.all(
             uniqueProductIds.map(pid => {
-              const batchIdsForProduct = fullInvoice.items
+              const batchIdsForProduct = items
                 .filter(i => i.productId === pid)
                 .map(i => i.stockBatchId.toString());
               return loadAvailableStock(pid.toString(), batchIdsForProduct);
