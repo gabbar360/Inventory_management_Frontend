@@ -364,6 +364,17 @@ export interface OrderDispatch {
   insuranceAmount: number;
   notes?: string;
   toTheOrder?: boolean;
+  courierName?: string;
+  courierPhone?: string;
+  truckNumber?: string;
+  driverName?: string;
+  driverPhone?: string;
+  airlineCode?: string;
+  flightNumber?: string;
+  containerNumber?: string;
+  vesselName?: string;
+  portOfLoading?: string;
+  portOfDischarge?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -402,4 +413,6 @@ export interface PaginationQuery {
   search?: string;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+  startDate?: string;
+  endDate?: string;
 }
