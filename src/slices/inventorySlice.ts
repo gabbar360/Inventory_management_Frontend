@@ -28,11 +28,13 @@ export const fetchAvailableStock = createAsyncThunk(
   async ({
     productId,
     locationId,
+    includeIds,
   }: {
     productId: string;
     locationId?: string;
+    includeIds?: string[];
   }) => {
-    return await inventoryService.getAvailableStock(productId, locationId);
+    return await inventoryService.getAvailableStock(productId, locationId, includeIds);
   }
 );
 

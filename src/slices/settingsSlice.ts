@@ -14,6 +14,44 @@ export interface Settings {
   ifscCode: string;
   bankAddress: string;
   swiftCode?: string;
+
+  // Number Series
+  customerPrefix?: string;
+  customerMiddle?: string;
+  customerSuffix?: string;
+  customerPadding?: number;
+  customerCurrent?: number;
+
+  vendorPrefix?: string;
+  vendorMiddle?: string;
+  vendorSuffix?: string;
+  vendorPadding?: number;
+  vendorCurrent?: number;
+
+  poPrefix?: string;
+  poMiddle?: string;
+  poSuffix?: string;
+  poPadding?: number;
+  poCurrent?: number;
+
+  quotePrefix?: string;
+  quoteMiddle?: string;
+  quoteSuffix?: string;
+  quotePadding?: number;
+  quoteCurrent?: number;
+
+  salesOrderPrefix?: string;
+  salesOrderMiddle?: string;
+  salesOrderSuffix?: string;
+  salesOrderPadding?: number;
+  salesOrderCurrent?: number;
+
+  invoicePrefix?: string;
+  invoiceMiddle?: string;
+  invoiceSuffix?: string;
+  invoicePadding?: number;
+  invoiceCurrent?: number;
+
   createdAt?: string;
   updatedAt?: string;
 }
