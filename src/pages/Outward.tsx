@@ -218,13 +218,21 @@ const Outward: React.FC = () => {
   const [selectedInvoice, setSelectedInvoice] = useState<OutwardInvoice | null>(
     null
   );
+  const [recordingPayment, setRecordingPayment] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [paymentMethod, setPaymentMethod] = useState('UPI');
+  const [paymentTxnId, setPaymentTxnId] = useState('');
+  const [paymentNotes, setPaymentNotes] = useState('');
+  const [submittingPayment, setSubmittingPayment] = useState(false);
+  const [downloadingReceiptId, setDownloadingReceiptId] = useState<number | null>(null);
   const [editingInvoice, setEditingInvoice] = useState<OutwardInvoice | null>(
     null
   );
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
-  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | number | null>(null);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
@@ -656,6 +664,69 @@ const Outward: React.FC = () => {
     }
   };
 
+  const handleRecordPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedInvoice) return;
+    const amount = parseFloat(paymentAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Please enter a valid payment amount');
+      return;
+    }
+    
+    const { balanceDue } = calculateInvoiceBreakdown(selectedInvoice);
+    if (amount > balanceDue + 0.01) {
+      toast.error(`Payment amount exceeds the outstanding balance of ${formatCurrency(balanceDue)}`);
+      return;
+    }
+
+    setSubmittingPayment(true);
+    try {
+      await outwardService.recordPayment(selectedInvoice.id.toString(), {
+        amount,
+        paymentDate,
+        paymentMethod,
+        transactionId: paymentTxnId,
+        notes: paymentNotes
+      });
+      toast.success('Payment recorded successfully');
+      
+      // Reset payment form state
+      setPaymentAmount('');
+      setPaymentTxnId('');
+      setPaymentNotes('');
+      setRecordingPayment(false);
+
+      // Fetch fresh details for selected invoice and list
+      const fullInvoice = await dispatch(fetchOutwardInvoiceById(selectedInvoice.id)).unwrap();
+      setSelectedInvoice(fullInvoice);
+      dispatch(fetchOutwardInvoices({ page: currentPage, limit: 10, search }));
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || err?.message || 'Failed to record payment');
+    } finally {
+      setSubmittingPayment(false);
+    }
+  };
+
+  const handleDownloadReceipt = async (receiptId: number, receiptNo: string) => {
+    setDownloadingReceiptId(receiptId);
+    try {
+      const blob = await outwardService.downloadReceiptPDF(receiptId.toString());
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Receipt-${receiptNo}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success('Receipt PDF downloaded successfully');
+    } catch (err: any) {
+      toast.error('Failed to download receipt');
+    } finally {
+      setDownloadingReceiptId(null);
+    }
+  };
+
   const customerOptions = customers.map((c) => ({
     value: c.id.toString(),
     label: `${c.code} - ${c.name}`,
@@ -758,6 +829,29 @@ const saleTypeOptions = [
           </span>
         );
       },
+    },
+    {
+      key: 'paymentStatus',
+      title: 'Payment Status',
+      render: (_: any, record: OutwardInvoice) => {
+        const { balanceDue, amountReceived } = calculateInvoiceBreakdown(record);
+        let status = 'Unpaid';
+        let bgClass = 'bg-red-100 text-red-800 border-red-200';
+        
+        if (balanceDue <= 0.01) {
+          status = 'Paid';
+          bgClass = 'bg-green-100 text-green-800 border-green-200';
+        } else if (amountReceived > 0) {
+          status = 'Partially Paid';
+          bgClass = 'bg-amber-100 text-amber-800 border-amber-200';
+        }
+        
+        return (
+          <span className={cn("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border", bgClass)}>
+            {status}
+          </span>
+        );
+      }
     },
     {
       key: 'grossProfit',
@@ -1507,6 +1601,173 @@ const saleTypeOptions = [
                   </tbody>
                 </table>
               </div>
+            </div>
+
+            {/* Payments History & Action Panel */}
+            <div className="border-t border-gray-200 pt-6 mt-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
+                  <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                  Payment Records
+                </h3>
+                {calculateInvoiceBreakdown(selectedInvoice).balanceDue > 0.01 && !recordingPayment && (
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setRecordingPayment(true);
+                      setPaymentAmount(calculateInvoiceBreakdown(selectedInvoice).balanceDue.toFixed(2));
+                    }}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 text-xs font-semibold py-1.5 px-3 rounded-lg"
+                  >
+                    Record Payment
+                  </Button>
+                )}
+              </div>
+
+              {/* Record Payment Form */}
+              {recordingPayment && (
+                <form onSubmit={handleRecordPayment} className="bg-emerald-50/50 border border-emerald-100 rounded-xl p-4 mb-6 space-y-4 shadow-sm animate-fadeIn">
+                  <h4 className="text-sm font-semibold text-emerald-800">Record New Payment</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                        Amount Paid (₹) <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        required
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                        value={paymentAmount}
+                        onChange={(e) => setPaymentAmount(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                        Payment Date
+                      </label>
+                      <input
+                        type="date"
+                        required
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                        value={paymentDate}
+                        onChange={(e) => setPaymentDate(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                        Payment Method
+                      </label>
+                      <select
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                        value={paymentMethod}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                      >
+                        <option value="UPI">UPI / Scan to Pay</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                        <option value="Cash">Cash</option>
+                        <option value="Cheque">Cheque</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                        Transaction Ref ID
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. UPI Txn ID, bank reference"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                        value={paymentTxnId}
+                        onChange={(e) => setPaymentTxnId(e.target.value)}
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                        Notes
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Internal payment description..."
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                        value={paymentNotes}
+                        onChange={(e) => setPaymentNotes(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2 pt-2 border-t border-emerald-100">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setRecordingPayment(false)}
+                      className="text-xs"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      loading={submittingPayment}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold py-1.5 px-4"
+                    >
+                      Save Payment
+                    </Button>
+                  </div>
+                </form>
+              )}
+
+              {/* Payments History List */}
+              {(!selectedInvoice.paymentReceipts || selectedInvoice.paymentReceipts.length === 0) ? (
+                <div className="text-center py-6 border border-dashed border-gray-200 rounded-xl bg-gray-50/50">
+                  <p className="text-sm text-gray-500">No payment receipts have been recorded for this invoice yet.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto border border-gray-200 rounded-xl shadow-sm">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Receipt No</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Date</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Method</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Ref ID</th>
+                        <th className="px-4 py-2 text-right text-xs font-semibold text-gray-600 uppercase">Amount</th>
+                        <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Receipt</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 bg-white">
+                      {(selectedInvoice.paymentReceipts as any[]).map((receipt) => (
+                        <tr key={receipt.id} className="hover:bg-gray-50/50">
+                          <td className="px-4 py-2.5 text-sm font-semibold text-gray-900">{receipt.receiptNo}</td>
+                          <td className="px-4 py-2.5 text-sm text-gray-500">{formatDate(receipt.paymentDate)}</td>
+                          <td className="px-4 py-2.5 text-sm text-gray-700">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                              {receipt.paymentMethod}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2.5 text-sm text-gray-500 font-mono text-xs">{receipt.transactionId || '—'}</td>
+                          <td className="px-4 py-2.5 text-sm text-right font-bold text-emerald-600">{formatCurrency(receipt.amount)}</td>
+                          <td className="px-4 py-2.5 text-sm text-center">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDownloadReceipt(receipt.id, receipt.receiptNo)}
+                              title="Download PDF Receipt"
+                              disabled={downloadingReceiptId === receipt.id}
+                              className="text-blue-600 hover:text-blue-700 p-1 h-auto"
+                            >
+                              {downloadingReceiptId === receipt.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Download className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         )}
