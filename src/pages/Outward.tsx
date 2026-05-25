@@ -12,6 +12,7 @@ import {
   ChevronDown,
   ChevronRight,
   Loader2,
+  X,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -24,7 +25,7 @@ import {
   clearError,
 } from '@/slices/outwardSlice';
 import { fetchAvailableStock } from '@/slices/inventorySlice';
-import { fetchCustomers } from '@/slices/customerSlice';
+import { fetchCustomers, createCustomer } from '@/slices/customerSlice';
 import { bulkUploadService } from '@/services/bulkUploadService';
 import { outwardService } from '@/services/outwardService';
 import { OutwardInvoice, StockBatch, Product } from '@/types';
@@ -207,6 +208,13 @@ const Outward: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [addCustomerModalOpen, setAddCustomerModalOpen] = useState(false);
+  const [newCustomerData, setNewCustomerData] = useState({ name: '', email: '', phone: '', address: '', state: '', gstNumber: '' });
+  const [stateSearch, setStateSearch] = useState('');
+  const [showStateDropdown, setShowStateDropdown] = useState(false);
+  const stateDropdownRef = useRef<HTMLDivElement>(null);
+  const [indianStates, setIndianStates] = useState<string[]>([]);
+  const [loadingStates, setLoadingStates] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<OutwardInvoice | null>(
     null
   );
@@ -301,6 +309,49 @@ const Outward: React.FC = () => {
       dispatch(clearError());
     }
   }, [error, dispatch]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        stateDropdownRef.current &&
+        !stateDropdownRef.current.contains(event.target as Node)
+      ) {
+        setShowStateDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  useEffect(() => {
+    const fetchStates = async () => {
+      setLoadingStates(true);
+      try {
+        const response = await fetch('https://countriesnow.space/api/v0.1/countries/states', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ country: 'India' }),
+        });
+        const result = await response.json();
+        if (!result.error && result.data && result.data.states) {
+          const statesList = result.data.states.map((s: { name: string }) => s.name);
+          setIndianStates(statesList);
+        } else {
+          throw new Error('Failed to fetch from API');
+        }
+      } catch (err) {
+        console.error('Error fetching Indian states:', err);
+      } finally {
+        setLoadingStates(false);
+      }
+    };
+
+    fetchStates();
+  }, []);
 
   const loadMasterData = async () => {
     dispatch(fetchCustomers({ limit: 1000 }));
@@ -907,6 +958,18 @@ const saleTypeOptions = [
                           <li key={o.value} onMouseDown={() => { field.onChange(o.value.toString()); setCustSearch(o.label); setCustOpen(false); }}
                             className="px-3 py-2 cursor-pointer hover:bg-blue-50 text-sm">{o.label}</li>
                         ))}
+                        <li className="border-t border-gray-200 px-3 py-2 sticky bottom-0 bg-gray-50">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAddCustomerModalOpen(true);
+                            }}
+                            className="w-full text-left text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-2"
+                          >
+                            <Plus className="h-4 w-4" />
+                            Add New Customer
+                          </button>
+                        </li>
                         {filtered.length === 0 && <li className="px-3 py-2 text-sm text-gray-400">No customers found</li>}
                       </ul>
                     )}
@@ -1460,6 +1523,184 @@ const saleTypeOptions = [
           )
         }
       />
+
+      {/* Add Customer Modal */}
+      <Modal
+        isOpen={addCustomerModalOpen}
+        onClose={() => {
+          setAddCustomerModalOpen(false);
+          setNewCustomerData({ name: '', email: '', phone: '', address: '', state: '', gstNumber: '' });
+          setStateSearch('');
+          setShowStateDropdown(false);
+        }}
+        title="Add New Customer"
+        size="lg"
+      >
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            try {
+              await dispatch(createCustomer({
+                name: newCustomerData.name,
+                email: newCustomerData.email,
+                phone: newCustomerData.phone,
+                address: newCustomerData.address,
+                state: newCustomerData.state,
+                gstNumber: newCustomerData.gstNumber,
+              })).unwrap();
+              toast.success('Customer added successfully');
+              await dispatch(fetchCustomers({ limit: 1000 }));
+              setAddCustomerModalOpen(false);
+              setNewCustomerData({ name: '', email: '', phone: '', address: '', state: '', gstNumber: '' });
+              setStateSearch('');
+              setShowStateDropdown(false);
+            } catch (error: any) {
+              toast.error(error?.message || 'Failed to add customer');
+            }
+          }}
+          className="space-y-4"
+        >
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Customer Name"
+              placeholder="Enter customer name"
+              value={newCustomerData.name}
+              onChange={(e) => setNewCustomerData({ ...newCustomerData, name: e.target.value })}
+              required
+            />
+            <Input
+              label="Email"
+              type="email"
+              placeholder="Enter email address"
+              value={newCustomerData.email}
+              onChange={(e) => setNewCustomerData({ ...newCustomerData, email: e.target.value })}
+            />
+            <Input
+              label="Phone"
+              placeholder="Enter phone number"
+              value={newCustomerData.phone}
+              onChange={(e) => setNewCustomerData({ ...newCustomerData, phone: e.target.value })}
+            />
+            <Input
+              label="Address"
+              placeholder="Enter address"
+              value={newCustomerData.address}
+              onChange={(e) => setNewCustomerData({ ...newCustomerData, address: e.target.value })}
+            />
+            
+            {/* Searchable State Dropdown */}
+            <div className="relative space-y-1" ref={stateDropdownRef}>
+              <label className="block text-xs sm:text-sm font-medium text-gray-700">
+                State (Optional)
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search or select Indian state/UT"
+                  className={cn(
+                    'flex h-10 w-full rounded-md border border-gray-300 bg-white pl-3 pr-10 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200'
+                  )}
+                  value={stateSearch}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setStateSearch(val);
+                    setNewCustomerData({ ...newCustomerData, state: val });
+                    setShowStateDropdown(true);
+                  }}
+                  onFocus={() => setShowStateDropdown(true)}
+                />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  {stateSearch && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStateSearch('');
+                        setNewCustomerData({ ...newCustomerData, state: '' });
+                        setShowStateDropdown(true);
+                      }}
+                      className="text-gray-400 hover:text-gray-600 p-0.5 rounded-full hover:bg-gray-100 transition-colors"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowStateDropdown(!showStateDropdown)}
+                    className="text-gray-400 hover:text-gray-600 p-0.5 rounded-full hover:bg-gray-100 transition-colors"
+                  >
+                    <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", showStateDropdown && "transform rotate-180")} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Dropdown Suggestions */}
+              {showStateDropdown && (
+                <div className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-md bg-white py-1 text-sm shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none border border-gray-200 divide-y divide-gray-50 scrollbar-thin">
+                  {loadingStates ? (
+                    <div className="px-4 py-3 text-gray-500 text-xs flex items-center gap-2">
+                      <span className="w-3.5 h-3.5 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></span>
+                      <span>Fetching states dynamically...</span>
+                    </div>
+                  ) : indianStates.filter((state) =>
+                    state.toLowerCase().includes(stateSearch.toLowerCase())
+                  ).length > 0 ? (
+                    indianStates.filter((state) =>
+                      state.toLowerCase().includes(stateSearch.toLowerCase())
+                    ).map((state) => (
+                      <button
+                        key={state}
+                        type="button"
+                        className={cn(
+                          'w-full text-left px-4 py-2 hover:bg-primary-50 hover:text-primary-900 transition-colors flex items-center justify-between',
+                          stateSearch.toLowerCase() === state.toLowerCase() && 'bg-primary-50 text-primary-900 font-medium'
+                        )}
+                        onClick={() => {
+                          setStateSearch(state);
+                          setNewCustomerData({ ...newCustomerData, state });
+                          setShowStateDropdown(false);
+                        }}
+                      >
+                        <span>{state}</span>
+                        {stateSearch.toLowerCase() === state.toLowerCase() && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary-600"></span>
+                        )}
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-4 py-3 text-gray-500 text-xs italic">
+                      No matching Indian states or Union Territories found. You can keep typing to enter a custom state.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <Input
+              label="GST Number"
+              placeholder="Enter GST number"
+              value={newCustomerData.gstNumber || ''}
+              onChange={(e) => setNewCustomerData({ ...newCustomerData, gstNumber: e.target.value })}
+            />
+          </div>
+          <div className="flex gap-2 justify-end pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setAddCustomerModalOpen(false);
+                setNewCustomerData({ name: '', email: '', phone: '', address: '', state: '', gstNumber: '' });
+                setStateSearch('');
+                setShowStateDropdown(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
+              Add Customer
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };

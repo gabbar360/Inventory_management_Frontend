@@ -6,6 +6,8 @@ export interface CustomerFormData {
   email?: string;
   phone?: string;
   address?: string;
+  state?: string;
+  gstNumber?: string;
 }
 
 export const customerService = {
