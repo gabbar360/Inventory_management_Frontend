@@ -63,6 +63,7 @@ interface OrderFormProps {
     deliveryMethod: string;
     adjustment: string;
     amountReceived: string;
+    shippingCharge: string;
   };
   setFormData: React.Dispatch<React.SetStateAction<OrderFormProps['formData']>>;
   items: OrderItem[];
@@ -282,8 +283,16 @@ const OrderForm: React.FC<OrderFormProps> = ({
         )}
       </div>
 
-      {/* Rounding & Received inputs */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
+        <Input
+          label="Shipping Charge"
+          type="number"
+          step="0.01"
+          min="0"
+          value={formData.shippingCharge}
+          onChange={(e) => setFormData({ ...formData, shippingCharge: e.target.value })}
+          placeholder="e.g. 500"
+        />
         <Input
           label="Amount Rounding"
           type="number"
@@ -307,6 +316,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
       {(() => {
         const subtotal = items.reduce((s, i) => s + i.quantity * i.rate, 0);
         const totalTax = items.reduce((s, i) => s + i.quantity * i.rate * i.taxRate / 100, 0);
+        const shippingVal = parseFloat(formData.shippingCharge) || 0;
         const adjustmentVal = parseFloat(formData.adjustment) || 0;
         const grandTotal = calcTotal();
         const receivedVal = parseFloat(formData.amountReceived) || 0;
@@ -322,6 +332,12 @@ const OrderForm: React.FC<OrderFormProps> = ({
               <span>Total Tax:</span>
               <span>+₹{totalTax.toFixed(2)}</span>
             </div>
+            {shippingVal > 0 && (
+              <div className="flex justify-between text-sm text-gray-600">
+                <span>Shipping Charge:</span>
+                <span>+₹{shippingVal.toFixed(2)}</span>
+              </div>
+            )}
             {adjustmentVal !== 0 && (
               <div className="flex justify-between text-sm text-gray-600">
                 <span>Round Off:</span>
@@ -371,6 +387,8 @@ const SalesOrders: React.FC = () => {
   const [stockCache, setStockCache] = useState<Record<string, StockBatch[]>>({});
   const [stockLoading, setStockLoading] = useState(false);
   const [submittingInvoice, setSubmittingInvoice] = useState(false);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
@@ -394,6 +412,7 @@ const SalesOrders: React.FC = () => {
     deliveryMethod: '',
     adjustment: '0',
     amountReceived: '0',
+    shippingCharge: '0',
   });
   const [items, setItems] = useState<OrderItem[]>([]);
   const [newItem, setNewItem] = useState<OrderItem>(emptyItem());
@@ -401,8 +420,8 @@ const SalesOrders: React.FC = () => {
   const [editingData, setEditingData] = useState<OrderItem | null>(null);
 
   useEffect(() => {
-    dispatch(fetchSalesOrders({ page: currentPage, limit: 10, search }));
-  }, [dispatch, search, currentPage]);
+    dispatch(fetchSalesOrders({ page: currentPage, limit: 10, search, startDate, endDate }));
+  }, [dispatch, search, currentPage, startDate, endDate]);
 
   useEffect(() => {
     dispatch(fetchCustomers({ limit: 1000 }));
@@ -413,8 +432,20 @@ const SalesOrders: React.FC = () => {
     setCurrentPage(1);
   });
 
+  const handleDateFilter = (start: string, end: string) => {
+    setStartDate(start);
+    setEndDate(end);
+    setCurrentPage(1);
+  };
+
+  const clearDateFilter = () => {
+    setStartDate('');
+    setEndDate('');
+    setCurrentPage(1);
+  };
+
   const resetForm = () => {
-    setFormData({ customerId: '', orderDate: new Date().toISOString().split('T')[0], saleType: 'domestic', status: 'pending', notes: '', reference: '', expectedShipmentDate: '', placeOfSupply: '', deliveryMethod: '', adjustment: '0', amountReceived: '0' });
+    setFormData({ customerId: '', orderDate: new Date().toISOString().split('T')[0], saleType: 'domestic', status: 'pending', notes: '', reference: '', expectedShipmentDate: '', placeOfSupply: '', deliveryMethod: '', adjustment: '0', amountReceived: '0', shippingCharge: '0' });
     setItems([]);
     setNewItem(emptyItem());
     setEditingItem(null);
@@ -437,6 +468,7 @@ const SalesOrders: React.FC = () => {
       deliveryMethod: order.deliveryMethod || '',
       adjustment: (order.adjustment ?? 0).toString(),
       amountReceived: (order.amountReceived ?? 0).toString(),
+      shippingCharge: (order.shippingCharge ?? 0).toString(),
     });
     setItems(
       order.items && order.items.length > 0
@@ -453,8 +485,9 @@ const SalesOrders: React.FC = () => {
       const base = item.quantity * item.rate;
       return sum + base + base * (item.taxRate / 100);
     }, 0);
+    const shipping = parseFloat(formData.shippingCharge) || 0;
     const adj = parseFloat(formData.adjustment) || 0;
-    return itemsTotal - adj;
+    return itemsTotal + shipping - adj;
   };
 
   const buildPayload = () => ({
@@ -470,6 +503,7 @@ const SalesOrders: React.FC = () => {
     totalAmount: calcTotal(),
     adjustment: parseFloat(formData.adjustment) || 0,
     amountReceived: parseFloat(formData.amountReceived) || 0,
+    shippingCharge: parseFloat(formData.shippingCharge) || 0,
     items: items.filter((i) => i.productId).map((i) => ({
       productId: parseInt(i.productId),
       quantity: i.quantity,
@@ -632,6 +666,56 @@ const SalesOrders: React.FC = () => {
         actions={[{ label: 'Add Sales Order', icon: <Plus className="h-4 w-4" />, onClick: openCreate, variant: 'primary' as const }]}
       />
 
+      {/* Date Filter */}
+      <div className="card">
+        <div className="p-4 border-b border-gray-200">
+          <div className="flex flex-col sm:flex-row gap-3 items-end">
+            <div className="flex-1 min-w-0">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Start Date
+              </label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                End Date
+              </label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              />
+            </div>
+            <Button
+              onClick={() => handleDateFilter(startDate, endDate)}
+              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              Apply Filter
+            </Button>
+            {(startDate || endDate) && (
+              <Button
+                onClick={clearDateFilter}
+                variant="outline"
+                className="w-full sm:w-auto"
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+          {(startDate || endDate) && (
+            <div className="mt-2 text-sm text-gray-600">
+              Showing data from {startDate || 'start'} to {endDate || 'end'}
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="card overflow-x-auto">
         <Table data={orders} columns={columns} loading={loading} />
         <Pagination
@@ -754,6 +838,7 @@ const SalesOrders: React.FC = () => {
                 </div>
               </div>
               {viewOrder.quote && <div><span className="font-medium text-gray-600">From Quote:</span><div className="text-blue-600">{viewOrder.quote.quoteNo}</div></div>}
+              {(viewOrder.shippingCharge ?? 0) > 0 && <div><span className="font-medium text-gray-600">Shipping Charge:</span><div>₹{(viewOrder.shippingCharge ?? 0).toFixed(2)}</div></div>}
               {viewOrder.reference && <div><span className="font-medium text-gray-600">Reference:</span><div>{viewOrder.reference}</div></div>}
               {viewOrder.expectedShipmentDate && <div><span className="font-medium text-gray-600">Expected Shipment:</span><div>{formatDate(viewOrder.expectedShipmentDate)}</div></div>}
               <div><span className="font-medium text-gray-600">Place of Supply:</span><div>{viewOrder.customer?.state || viewOrder.placeOfSupply || '—'}</div></div>

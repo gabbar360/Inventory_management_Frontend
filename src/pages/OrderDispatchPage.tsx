@@ -120,11 +120,11 @@ const OrderDispatchPage: React.FC = () => {
         </span>
       ),
     },
-    {
-      key: 'trackingNumber',
-      title: 'Tracking No',
-      render: (v: string) => v || '-',
-    },
+    // {
+    //   key: 'trackingNumber',
+    //   title: 'Tracking No',
+    //   render: (v: string) => v || '-',
+    // },
     {
       key: 'status',
       title: 'Status',

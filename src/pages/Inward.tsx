@@ -37,6 +37,7 @@ import Button from '@/components/Button';
 import Input from '@/components/Input';
 import Select from '@/components/Select';
 import Modal from '@/components/Modal';
+import ProductSearch from '@/components/ProductSearch';
 import ConfirmModal from '@/components/ConfirmModal';
 import Table from '@/components/Table';
 import BulkUpload from '@/components/BulkUpload';
@@ -116,7 +117,13 @@ const Inward: React.FC = () => {
     null
   );
   const [search, setSearch] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [dateSortOrder, setDateSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  const [vendorSearch, setVendorSearch] = useState('');
+  const [showVendorDropdown, setShowVendorDropdown] = useState(false);
 
   const {
     register,
@@ -124,6 +131,7 @@ const Inward: React.FC = () => {
     reset,
     control,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<InwardInvoiceFormData>({
     resolver: zodResolver(inwardSchema),
@@ -150,9 +158,9 @@ const Inward: React.FC = () => {
   const watchedItems = watch('items');
 
   useEffect(() => {
-    dispatch(fetchInwardInvoices({ page: currentPage, limit: 10, search }));
+    dispatch(fetchInwardInvoices({ page: currentPage, limit: 10, search, startDate, endDate }));
     loadMasterData();
-  }, [dispatch, search, currentPage]);
+  }, [dispatch, search, currentPage, startDate, endDate]);
 
   useEffect(() => {
     if (error) {
@@ -202,6 +210,17 @@ const Inward: React.FC = () => {
     setCurrentPage(1);
   });
 
+  const handleDateFilter = (start: string, end: string) => {
+    setStartDate(start);
+    setEndDate(end);
+    setCurrentPage(1);
+  };
+
+  const clearDateFilter = () => {
+    setStartDate('');
+    setEndDate('');
+    setCurrentPage(1);
+  };
 
   const openModal = async () => {
     await loadMasterData();
@@ -222,12 +241,14 @@ const Inward: React.FC = () => {
         },
       ],
     });
+    setVendorSearch('');
     setModalOpen(true);
   };
 
   const closeModal = () => {
     setModalOpen(false);
     setEditingInvoice(null);
+    setVendorSearch('');
     reset();
   };
 
@@ -238,6 +259,8 @@ const Inward: React.FC = () => {
       console.log('Fetched full invoice:', fullInvoice);
       
       setEditingInvoice(fullInvoice);
+      const selectedVendor = vendors.find((v: any) => v.id === fullInvoice.vendorId || String(v.id) === String(fullInvoice.vendorId));
+      if (selectedVendor) setVendorSearch(`${(selectedVendor as any).code} - ${(selectedVendor as any).name}`);
 
       // Populate form with existing data
       reset({
@@ -407,16 +430,6 @@ const Inward: React.FC = () => {
     }
   };
 
-  const productOptions = products.map((p) => ({
-    value: p.id,
-    label: `${p.name} ${p.grade ? `(${p.grade})` : ''}`,
-  }));
-
-  const vendorOptions = vendors.map((v) => ({
-    value: v.id,
-    label: `${v.code} - ${v.name}`,
-  }));
-
   const locationOptions = locations.map((l) => ({
     value: l.id,
     label: l.name,
@@ -513,9 +526,69 @@ const Inward: React.FC = () => {
         ]}
       />
 
+      {/* Date Filter */}
+      <div className="card">
+        <div className="p-4 border-b border-gray-200">
+          <div className="flex flex-col sm:flex-row gap-3 items-end">
+            <div className="flex-1 min-w-0">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Start Date
+              </label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                End Date
+              </label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              />
+            </div>
+            <Button
+              onClick={() => handleDateFilter(startDate, endDate)}
+              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              Apply Filter
+            </Button>
+            {(startDate || endDate) && (
+              <Button
+                onClick={clearDateFilter}
+                variant="outline"
+                className="w-full sm:w-auto"
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+          {(startDate || endDate) && (
+            <div className="mt-2 text-sm text-gray-600">
+              Showing data from {startDate || 'start'} to {endDate || 'end'}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Table */}
       <div className="card overflow-x-auto">
-        <Table data={invoices} columns={columns} loading={loading} />
+        <Table
+          data={[...invoices].sort((a, b) => {
+            const diff = new Date(a.date).getTime() - new Date(b.date).getTime();
+            return dateSortOrder === 'asc' ? diff : -diff;
+          })}
+          columns={columns}
+          loading={loading}
+          sortBy="date"
+          sortOrder={dateSortOrder}
+          onSort={() => setDateSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+        />
 
         <Pagination
           currentPage={pagination?.page || 1}
@@ -550,13 +623,47 @@ const Inward: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Select
-              label="Vendor"
-              options={vendorOptions}
-              placeholder="Select vendor"
-              error={errors.vendorId?.message}
-              {...register('vendorId')}
-            />
+            <div className="relative">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Vendor <span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                placeholder="Search vendor..."
+                value={vendorSearch}
+                onChange={(e) => {
+                  setVendorSearch(e.target.value);
+                  setValue('vendorId', '');
+                  setShowVendorDropdown(true);
+                }}
+                onFocus={() => setShowVendorDropdown(true)}
+                onBlur={() => setTimeout(() => setShowVendorDropdown(false), 150)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                autoComplete="off"
+              />
+              <input type="text" required value={watch('vendorId')} onChange={() => {}} className="sr-only" tabIndex={-1} />
+              {errors.vendorId && <p className="mt-1 text-sm text-red-600">{errors.vendorId.message}</p>}
+              {showVendorDropdown && (
+                <ul className="absolute z-50 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto mt-1">
+                  {vendors
+                    .filter((v: any) => `${v.code} ${v.name}`.toLowerCase().includes(vendorSearch.toLowerCase()))
+                    .map((v: any) => (
+                      <li
+                        key={v.id}
+                        onMouseDown={() => {
+                          setValue('vendorId', String(v.id));
+                          setVendorSearch(`${v.code} - ${v.name}`);
+                          setShowVendorDropdown(false);
+                        }}
+                        className="px-3 py-2 cursor-pointer hover:bg-blue-50 text-sm"
+                      >
+                        {v.code} - {v.name}
+                      </li>
+                    ))}
+                  {vendors.filter((v: any) => `${v.code} ${v.name}`.toLowerCase().includes(vendorSearch.toLowerCase())).length === 0 && (
+                    <li className="px-3 py-2 text-sm text-gray-400">No vendors found</li>
+                  )}
+                </ul>
+              )}
+            </div>
             <Select
               label="Location"
               options={locationOptions}
@@ -636,13 +743,13 @@ const Inward: React.FC = () => {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Select
-                      label="Product"
-                      options={productOptions}
-                      placeholder="Select product"
-                      error={errors.items?.[index]?.productId?.message}
-                      {...register(`items.${index}.productId`)}
-                    />
+                    <div>
+                      <ProductSearch
+                        value={watch(`items.${index}.productId`)}
+                        onChange={(productId) => setValue(`items.${index}.productId`, productId)}
+                        error={errors.items?.[index]?.productId?.message}
+                      />
+                    </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Category & GST

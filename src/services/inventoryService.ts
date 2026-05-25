@@ -33,12 +33,13 @@ export const inventoryService = {
 
   async getAvailableStock(
     productId: string,
-    locationId?: string
+    locationId?: string,
+    includeIds?: string[]
   ): Promise<StockBatch[]> {
     const response = await api.get<ApiResponse<StockBatch[]>>(
       '/inventory/available-stock',
       {
-        params: { productId, locationId },
+        params: { productId, locationId, includeIds },
       }
     );
     return response.data.data!;

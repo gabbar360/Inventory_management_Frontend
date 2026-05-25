@@ -77,14 +77,106 @@ export const OrderDispatchDetails = ({ dispatch, onClose, onEdit }: OrderDispatc
               <span className="text-gray-600 block text-xs font-medium mb-1">Shipping Method</span>
               <p className="font-medium capitalize">{dispatch.shippingMethod}</p>
             </div>
-            <div>
-              <span className="text-gray-600 block text-xs font-medium mb-1">Carrier</span>
-              <p className="font-medium">{dispatch.carrier || '-'}</p>
-            </div>
-            <div>
-              <span className="text-gray-600 block text-xs font-medium mb-1">Tracking Number</span>
-              <p className="font-medium">{dispatch.trackingNumber || '-'}</p>
-            </div>
+            {dispatch.shippingMethod === 'courier' && (
+              <>
+                {dispatch.courierName && (
+                  <div>
+                    <span className="text-gray-600 block text-xs font-medium mb-1">Courier Name</span>
+                    <p className="font-medium">{dispatch.courierName}</p>
+                  </div>
+                )}
+                {dispatch.courierPhone && (
+                  <div>
+                    <span className="text-gray-600 block text-xs font-medium mb-1">Courier Phone</span>
+                    <p className="font-medium">{dispatch.courierPhone}</p>
+                  </div>
+                )}
+                {dispatch.trackingNumber && (
+                  <div>
+                    <span className="text-gray-600 block text-xs font-medium mb-1">Tracking Number</span>
+                    <p className="font-medium">{dispatch.trackingNumber}</p>
+                  </div>
+                )}
+                {dispatch.carrier && (
+                  <div>
+                    <span className="text-gray-600 block text-xs font-medium mb-1">Carrier</span>
+                    <p className="font-medium">{dispatch.carrier}</p>
+                  </div>
+                )}
+              </>
+            )}
+            {dispatch.shippingMethod === 'truck' && (
+              <>
+                {dispatch.truckNumber && (
+                  <div>
+                    <span className="text-gray-600 block text-xs font-medium mb-1">Truck Number</span>
+                    <p className="font-medium">{dispatch.truckNumber}</p>
+                  </div>
+                )}
+                {dispatch.driverName && (
+                  <div>
+                    <span className="text-gray-600 block text-xs font-medium mb-1">Driver Name</span>
+                    <p className="font-medium">{dispatch.driverName}</p>
+                  </div>
+                )}
+                {dispatch.driverPhone && (
+                  <div>
+                    <span className="text-gray-600 block text-xs font-medium mb-1">Driver Phone</span>
+                    <p className="font-medium">{dispatch.driverPhone}</p>
+                  </div>
+                )}
+              </>
+            )}
+            {dispatch.shippingMethod === 'air' && (
+              <>
+                {dispatch.airlineCode && (
+                  <div>
+                    <span className="text-gray-600 block text-xs font-medium mb-1">Airline Code</span>
+                    <p className="font-medium">{dispatch.airlineCode}</p>
+                  </div>
+                )}
+                {dispatch.flightNumber && (
+                  <div>
+                    <span className="text-gray-600 block text-xs font-medium mb-1">Flight Number</span>
+                    <p className="font-medium">{dispatch.flightNumber}</p>
+                  </div>
+                )}
+              </>
+            )}
+            {dispatch.shippingMethod === 'sea' && (
+              <>
+                {dispatch.vesselName && (
+                  <div>
+                    <span className="text-gray-600 block text-xs font-medium mb-1">Vessel Name</span>
+                    <p className="font-medium">{dispatch.vesselName}</p>
+                  </div>
+                )}
+                {dispatch.containerNumber && (
+                  <div>
+                    <span className="text-gray-600 block text-xs font-medium mb-1">Container Number</span>
+                    <p className="font-medium">{dispatch.containerNumber}</p>
+                  </div>
+                )}
+                {dispatch.portOfLoading && (
+                  <div>
+                    <span className="text-gray-600 block text-xs font-medium mb-1">Port of Loading</span>
+                    <p className="font-medium">{dispatch.portOfLoading}</p>
+                  </div>
+                )}
+                {dispatch.portOfDischarge && (
+                  <div>
+                    <span className="text-gray-600 block text-xs font-medium mb-1">Port of Discharge</span>
+                    <p className="font-medium">{dispatch.portOfDischarge}</p>
+                  </div>
+                )}
+              </>
+            )}
+            {dispatch.estimatedDelivery && (
+              <div>
+                <span className="text-gray-600 block text-xs font-medium mb-1">Estimated Delivery</span>
+                <p className="font-medium">{formatDate(dispatch.estimatedDelivery)}</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -145,6 +237,104 @@ export const OrderDispatchDetails = ({ dispatch, onClose, onEdit }: OrderDispatc
           </div>
         </div>
       </div>
+
+      {dispatch.shippingMethod === 'courier' && (dispatch.courierName || dispatch.courierPhone) && (
+        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+          <h3 className="font-semibold mb-3 text-blue-900">Courier Details</h3>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            {dispatch.courierName && (
+              <div>
+                <span className="text-blue-700 block text-xs font-medium mb-1">Courier Name</span>
+                <p className="font-medium">{dispatch.courierName}</p>
+              </div>
+            )}
+            {dispatch.courierPhone && (
+              <div>
+                <span className="text-blue-700 block text-xs font-medium mb-1">Phone</span>
+                <p className="font-medium">{dispatch.courierPhone}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {dispatch.shippingMethod === 'truck' && (dispatch.truckNumber || dispatch.driverName || dispatch.driverPhone) && (
+        <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+          <h3 className="font-semibold mb-3 text-yellow-900">Truck Details</h3>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            {dispatch.truckNumber && (
+              <div>
+                <span className="text-yellow-700 block text-xs font-medium mb-1">Truck Number</span>
+                <p className="font-medium">{dispatch.truckNumber}</p>
+              </div>
+            )}
+            {dispatch.driverName && (
+              <div>
+                <span className="text-yellow-700 block text-xs font-medium mb-1">Driver Name</span>
+                <p className="font-medium">{dispatch.driverName}</p>
+              </div>
+            )}
+            {dispatch.driverPhone && (
+              <div className="col-span-2">
+                <span className="text-yellow-700 block text-xs font-medium mb-1">Driver Phone</span>
+                <p className="font-medium">{dispatch.driverPhone}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {dispatch.shippingMethod === 'air' && (dispatch.airlineCode || dispatch.flightNumber) && (
+        <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+          <h3 className="font-semibold mb-3 text-purple-900">Air Cargo Details</h3>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            {dispatch.airlineCode && (
+              <div>
+                <span className="text-purple-700 block text-xs font-medium mb-1">Airline Code</span>
+                <p className="font-medium">{dispatch.airlineCode}</p>
+              </div>
+            )}
+            {dispatch.flightNumber && (
+              <div>
+                <span className="text-purple-700 block text-xs font-medium mb-1">Flight Number</span>
+                <p className="font-medium">{dispatch.flightNumber}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {dispatch.shippingMethod === 'sea' && (dispatch.vesselName || dispatch.containerNumber || dispatch.portOfLoading || dispatch.portOfDischarge) && (
+        <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+          <h3 className="font-semibold mb-3 text-green-900">Sea Cargo Details</h3>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            {dispatch.vesselName && (
+              <div>
+                <span className="text-green-700 block text-xs font-medium mb-1">Vessel Name</span>
+                <p className="font-medium">{dispatch.vesselName}</p>
+              </div>
+            )}
+            {dispatch.containerNumber && (
+              <div>
+                <span className="text-green-700 block text-xs font-medium mb-1">Container Number</span>
+                <p className="font-medium">{dispatch.containerNumber}</p>
+              </div>
+            )}
+            {dispatch.portOfLoading && (
+              <div>
+                <span className="text-green-700 block text-xs font-medium mb-1">Port of Loading</span>
+                <p className="font-medium">{dispatch.portOfLoading}</p>
+              </div>
+            )}
+            {dispatch.portOfDischarge && (
+              <div>
+                <span className="text-green-700 block text-xs font-medium mb-1">Port of Discharge</span>
+                <p className="font-medium">{dispatch.portOfDischarge}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {dispatch.notes && (
         <div className="bg-gray-50 p-4 rounded-lg">

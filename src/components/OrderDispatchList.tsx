@@ -106,50 +106,67 @@ export const OrderDispatchList = ({ onEdit, onDelete, onViewDetails }: OrderDisp
                   <th className="px-4 py-2 text-left">Order No</th>
                   <th className="px-4 py-2 text-left">Customer</th>
                   <th className="px-4 py-2 text-left">Dispatch Date</th>
-                  <th className="px-4 py-2 text-left">Tracking No</th>
-                  <th className="px-4 py-2 text-left">Status</th>
                   <th className="px-4 py-2 text-left">Shipping Method</th>
+                  <th className="px-4 py-2 text-left">Details</th>
+                  <th className="px-4 py-2 text-left">Status</th>
                   <th className="px-4 py-2 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {dispatches.map((dispatch) => (
-                  <tr key={dispatch.id} className="border-b hover:bg-gray-50">
-                    <td className="px-4 py-2 font-medium">{dispatch.dispatchNo}</td>
-                    <td className="px-4 py-2">{dispatch.salesOrder?.orderNo}</td>
-                    <td className="px-4 py-2">{dispatch.salesOrder?.customer?.name}</td>
-                    <td className="px-4 py-2">{new Date(dispatch.dispatchDate).toLocaleDateString()}</td>
-                    <td className="px-4 py-2">{dispatch.trackingNumber || '-'}</td>
-                    <td className="px-4 py-2">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusBadge(dispatch.status)}`}>
-                        {dispatch.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2">{dispatch.shippingMethod}</td>
-                    <td className="px-4 py-2 text-center">
-                      <div className="flex gap-2 justify-center">
-                        <button
-                          onClick={() => onViewDetails?.(dispatch)}
-                          className="text-blue-600 hover:text-blue-800 text-xs"
-                        >
-                          View
-                        </button>
-                        <button
-                          onClick={() => onEdit?.(dispatch)}
-                          className="text-green-600 hover:text-green-800 text-xs"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(dispatch.id)}
-                          className="text-red-600 hover:text-red-800 text-xs"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {dispatches.map((dispatch) => {
+                  const getShippingDetails = () => {
+                    switch (dispatch.shippingMethod) {
+                      case 'courier':
+                        return dispatch.courierName || dispatch.trackingNumber || '-';
+                      case 'truck':
+                        return dispatch.truckNumber || dispatch.driverName || '-';
+                      case 'air':
+                        return dispatch.flightNumber || dispatch.airlineCode || '-';
+                      case 'sea':
+                        return dispatch.vesselName || dispatch.containerNumber || '-';
+                      default:
+                        return '-';
+                    }
+                  };
+
+                  return (
+                    <tr key={dispatch.id} className="border-b hover:bg-gray-50">
+                      <td className="px-4 py-2 font-medium">{dispatch.dispatchNo}</td>
+                      <td className="px-4 py-2">{dispatch.salesOrder?.orderNo}</td>
+                      <td className="px-4 py-2">{dispatch.salesOrder?.customer?.name}</td>
+                      <td className="px-4 py-2">{new Date(dispatch.dispatchDate).toLocaleDateString()}</td>
+                      <td className="px-4 py-2 capitalize">{dispatch.shippingMethod}</td>
+                      <td className="px-4 py-2 text-sm text-gray-600">{getShippingDetails()}</td>
+                      <td className="px-4 py-2">
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusBadge(dispatch.status)}`}>
+                          {dispatch.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-center">
+                        <div className="flex gap-2 justify-center">
+                          <button
+                            onClick={() => onViewDetails?.(dispatch)}
+                            className="text-blue-600 hover:text-blue-800 text-xs"
+                          >
+                            View
+                          </button>
+                          <button
+                            onClick={() => onEdit?.(dispatch)}
+                            className="text-green-600 hover:text-green-800 text-xs"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(dispatch.id)}
+                            className="text-red-600 hover:text-red-800 text-xs"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
