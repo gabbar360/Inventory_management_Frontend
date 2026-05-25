@@ -146,6 +146,19 @@ export interface OutwardItem {
   location?: Location;
 }
 
+export interface PaymentReceipt {
+  id: number;
+  receiptNo: string;
+  outwardInvoiceId: number;
+  amount: number;
+  paymentDate: string;
+  paymentMethod: string;
+  transactionId?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface OutwardInvoice {
   id: string;
   invoiceNo: string;
@@ -162,6 +175,7 @@ export interface OutwardInvoice {
   updatedAt: string;
   customer?: Customer;
   items?: OutwardItem[];
+  paymentReceipts?: PaymentReceipt[];
 }
 
 export interface StockBatch {
