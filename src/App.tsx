@@ -23,6 +23,8 @@ import Settings from '@/pages/Settings';
 import Leads from '@/pages/Leads';
 import WebsiteQuotes from '@/pages/WebsiteQuotes';
 import ProfitLossAnalysis from '@/pages/ProfitLossAnalysis';
+import Users from '@/pages/Users';
+import Roles from '@/pages/Roles';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -105,6 +107,8 @@ function App() {
         <Route path="sales-orders" element={<SalesOrders />} />
         <Route path="order-dispatch" element={<OrderDispatchPage />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="roles" element={<Roles />} />
+        <Route path="users" element={<Users />} />
       </Route>
     </Routes>
   );

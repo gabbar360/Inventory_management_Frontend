@@ -50,6 +50,11 @@ const salesItems = [
   { name: 'Outward', href: '/outward', icon: ArrowUpFromLine },
 ];
 
+const userManagementItems = [
+  { name: 'Roles', href: '/roles', icon: Users },
+  { name: 'Users', href: '/users', icon: Users },
+];
+
 const bottomNavigation = [
   { name: 'Warehouse', href: '/locations', icon: MapPin },
   { name: 'Inventory', href: '/inventory', icon: Warehouse },
@@ -72,6 +77,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
   );
   const [salesOpen, setSalesOpen] = useState(
     salesItems.some((i) => location.pathname === i.href)
+  );
+  const [userManagementOpen, setUserManagementOpen] = useState(
+    userManagementItems.some((i) => location.pathname === i.href)
   );
 
   const handleLogout = async () => {
@@ -210,6 +218,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
 
             {dropdownGroup('Purchase', ShoppingCart, purchaseItems, purchaseOpen, setPurchaseOpen)}
             {dropdownGroup('Sales', ShoppingBag, salesItems, salesOpen, setSalesOpen)}
+            {dropdownGroup('User Management', Users, userManagementItems, userManagementOpen, setUserManagementOpen)}
 
             {bottomNavigation.map(navLink)}
           </nav>

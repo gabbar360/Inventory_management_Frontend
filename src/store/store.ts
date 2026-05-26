@@ -15,6 +15,8 @@ import settingsSlice from '../slices/settingsSlice';
 import leadSlice from '../slices/leadSlice';
 import salesOrderSlice from '../slices/salesOrderSlice';
 import orderDispatchSlice from '../slices/orderDispatchSlice';
+import userSlice from '../slices/userSlice';
+import roleSlice from '../slices/roleSlice';
 
 export const store = configureStore({
   reducer: {
@@ -34,6 +36,8 @@ export const store = configureStore({
     leads: leadSlice,
     salesOrders: salesOrderSlice,
     orderDispatch: orderDispatchSlice,
+    users: userSlice,
+    roles: roleSlice,
   },
 });
 
