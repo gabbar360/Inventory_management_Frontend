@@ -145,7 +145,7 @@ const Users: React.FC = () => {
           toast.error('Password is required for new users');
           return;
         }
-        await dispatch(createUser(data)).unwrap();
+        await dispatch(createUser({ ...data, password: data.password })).unwrap();
         toast.success('User created successfully');
       }
       closeModal();
