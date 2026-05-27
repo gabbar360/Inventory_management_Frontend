@@ -14,7 +14,6 @@ import Input from '@/components/Input';
 import Select from '@/components/Select';
 import ConfirmModal from '@/components/ConfirmModal';
 import { Download, Plus, Edit2, Trash2, Eye } from 'lucide-react';
-import Pagination from '@/components/Pagination';
 import toast from 'react-hot-toast';
 import { PurchaseOrder, PurchaseOrderItem, Product } from '@/types';
 import ProductSearch from '@/components/ProductSearch';
@@ -51,7 +50,7 @@ const poSchema = z.object({
 
 const PurchaseOrders: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { orders, loading, pagination } = useAppSelector((state) => state.purchaseOrders);
+  const { orders, loading } = useAppSelector((state) => state.purchaseOrders);
   const { vendors } = useAppSelector((state) => state.vendors);
   const { products } = useAppSelector((state) => state.products);
 
@@ -132,7 +131,7 @@ const PurchaseOrders: React.FC = () => {
     if (!itemForm.quantity || itemForm.quantity <= 0) errors.quantity = 'Quantity must be greater than 0';
     if (!itemForm.unit) errors.unit = 'Unit is required';
     if (!itemForm.rate || itemForm.rate <= 0) errors.rate = 'Rate must be greater than 0';
-    if (itemForm.taxRate === undefined || itemForm.taxRate === null || itemForm.taxRate === '') errors.taxRate = 'Tax rate is required';
+    if (itemForm.taxRate === undefined || itemForm.taxRate === null) errors.taxRate = 'Tax rate is required';
     if (itemForm.taxRate < 0 || itemForm.taxRate > 100) errors.taxRate = 'Tax rate must be between 0 and 100';
     return errors;
   };
@@ -171,7 +170,7 @@ const PurchaseOrders: React.FC = () => {
 
   const handleEditItem = (index: number) => {
     const item = formData.items[index];
-    const description = item.description || item.product?.description || getProductDescription(item.productId);
+    const description = item.description || (item.product as any)?.description || getProductDescription(item.productId);
     setItemForm({
       productId: item.productId,
       quantity: item.quantity,
@@ -325,7 +324,7 @@ const PurchaseOrders: React.FC = () => {
       />
 
       <div className="card overflow-hidden">
-        <Table columns={columns} data={orders} loading={loading} pagination={pagination} onPageChange={setPage} />
+        <Table columns={columns} data={orders} loading={loading} />
       </div>
 
       <Modal isOpen={isModalOpen} onClose={closeModal} title={editingId ? 'Edit Purchase Order' : 'Add Purchase Order'} size="xl">
@@ -447,7 +446,7 @@ const PurchaseOrders: React.FC = () => {
               </div>
               <div>
                 <p className="text-gray-600 text-sm">Expected Delivery</p>
-                <p className="font-semibold">{selectedOrder.expectedDelivery ? new Date(selectedOrder.expectedDelivery).toLocaleDateString() : selectedOrder.expectedDeliveryDate ? new Date(selectedOrder.expectedDeliveryDate).toLocaleDateString() : 'N/A'}</p>
+                <p className="font-semibold">{selectedOrder.expectedDeliveryDate ? new Date(selectedOrder.expectedDeliveryDate).toLocaleDateString() : 'N/A'}</p>
               </div>
               <div>
                 <p className="text-gray-600 text-sm">Status</p>
@@ -475,7 +474,7 @@ const PurchaseOrders: React.FC = () => {
                   <tbody>
                     {selectedOrder.items?.map((item, idx) => {
                       const itemTotal = (item.amount || item.quantity * item.rate) * (1 + (item.taxRate || 0) / 100);
-                      const description = item.description || item.product?.description || '';
+                      const description = item.description || (item.product as any)?.description || '';
                       return (
                         <tr key={idx} className="border-b">
                           <td className="px-3 py-2">
