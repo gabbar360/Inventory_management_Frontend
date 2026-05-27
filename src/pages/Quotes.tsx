@@ -29,7 +29,6 @@ const Quotes: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
   const [search, setSearch] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
   const [downloadingId, setDownloadingId] = useState<string | number | null>(null);
   const [convertingId, setConvertingId] = useState<string | number | null>(null);
   const [convertingInvoiceId, _setConvertingInvoiceId] = useState<string | number | null>(null);
@@ -55,8 +54,8 @@ const Quotes: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    dispatch(fetchQuotes({ page: currentPage, limit: 10, search, startDate, endDate }));
-  }, [dispatch, search, currentPage, startDate, endDate]);
+    dispatch(fetchQuotes({ search, startDate, endDate }));
+  }, [dispatch, search, startDate, endDate]);
 
   useEffect(() => {
     if (error) {
@@ -66,19 +65,16 @@ const Quotes: React.FC = () => {
 
   const debouncedSearch = debounce((value: string) => {
     setSearch(value);
-    setCurrentPage(1);
   });
 
   const handleDateFilter = (start: string, end: string) => {
     setStartDate(start);
     setEndDate(end);
-    setCurrentPage(1);
   };
 
   const clearDateFilter = () => {
     setStartDate('');
     setEndDate('');
-    setCurrentPage(1);
   };
 
   const openModal = (quote?: Quote) => {
@@ -348,15 +344,6 @@ const Quotes: React.FC = () => {
       </div>
       <div className="card overflow-x-auto">
         <Table data={quotes} columns={columns} loading={loading} />
-
-        <Pagination
-          currentPage={pagination?.page || 1}
-          totalPages={pagination?.totalPages || 1}
-          total={pagination?.total || 0}
-          limit={pagination?.limit || 10}
-          onPageChange={setCurrentPage}
-          loading={loading}
-        />
       </div>
 
       {/* Create/Edit Modal */}
