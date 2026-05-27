@@ -219,9 +219,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
 
             {dropdownGroup('Purchase', ShoppingCart, purchaseItems, purchaseOpen, setPurchaseOpen)}
             {dropdownGroup('Sales', ShoppingBag, salesItems, salesOpen, setSalesOpen)}
-            {dropdownGroup('User Management', Users, userManagementItems, userManagementOpen, setUserManagementOpen)}
 
             {bottomNavigation.map(navLink)}
+
+            {dropdownGroup('User Management', Users, userManagementItems, userManagementOpen, setUserManagementOpen)}
           </nav>
 
           {/* Logout */}
