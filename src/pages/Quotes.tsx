@@ -16,15 +16,15 @@ import { formatDate, debounce } from '@/utils';
 import Button from '@/components/Button';
 import Modal from '@/components/Modal';
 import Table from '@/components/Table';
-import Pagination from '@/components/Pagination';
+
 import PageHeader from '@/components/PageHeader';
 import QuoteForm from '@/components/forms/QuoteForm';
 
 const Quotes: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { quotes, pagination, loading, error } = useAppSelector(
+  const { quotes, loading, error } = useAppSelector(
     (state) => state.quotes
-  ) as { quotes: Quote[]; pagination: { page: number; totalPages: number; total: number; limit: number }; loading: boolean; error: string | null };
+  ) as { quotes: Quote[]; loading: boolean; error: string | null };
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
