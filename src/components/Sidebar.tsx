@@ -39,6 +39,7 @@ const topNavigation = [
 
 const purchaseItems = [
   { name: 'Vendors', href: '/vendors', icon: Users },
+  { name: 'Purchase Orders', href: '/purchase-orders', icon: ShoppingCart },
   { name: 'Inward', href: '/inward', icon: ArrowDownToLine },
 ];
 
