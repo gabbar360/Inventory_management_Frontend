@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -23,7 +23,7 @@ import {
   clearError,
 } from '@/slices/inwardSlice';
 import { fetchProducts } from '@/slices/productSlice';
-import { fetchVendors } from '@/slices/vendorSlice';
+import { fetchVendors, createVendor } from '@/slices/vendorSlice';
 import { fetchLocations } from '@/slices/locationSlice';
 import { bulkUploadService } from '@/services/bulkUploadService';
 import { InwardInvoice } from '@/types';
@@ -124,6 +124,19 @@ const Inward: React.FC = () => {
 
   const [vendorSearch, setVendorSearch] = useState('');
   const [showVendorDropdown, setShowVendorDropdown] = useState(false);
+  const [addVendorModalOpen, setAddVendorModalOpen] = useState(false);
+  const [newVendorData, setNewVendorData] = useState({ name: '', email: '', phone: '', address: '' });
+  const vendorDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (vendorDropdownRef.current && !vendorDropdownRef.current.contains(e.target as Node)) {
+        setShowVendorDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const {
     register,
@@ -623,7 +636,7 @@ const Inward: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="relative">
+            <div className="relative" ref={vendorDropdownRef}>
               <label className="block text-sm font-medium text-gray-700 mb-1">Vendor <span className="text-red-500">*</span></label>
               <input
                 type="text"
@@ -635,7 +648,6 @@ const Inward: React.FC = () => {
                   setShowVendorDropdown(true);
                 }}
                 onFocus={() => setShowVendorDropdown(true)}
-                onBlur={() => setTimeout(() => setShowVendorDropdown(false), 150)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 autoComplete="off"
               />
@@ -661,6 +673,16 @@ const Inward: React.FC = () => {
                   {vendors.filter((v: any) => `${v.code} ${v.name}`.toLowerCase().includes(vendorSearch.toLowerCase())).length === 0 && (
                     <li className="px-3 py-2 text-sm text-gray-400">No vendors found</li>
                   )}
+                  <li className="border-t border-gray-200 px-3 py-2 sticky bottom-0 bg-gray-50">
+                    <button
+                      type="button"
+                      onMouseDown={(e) => { e.preventDefault(); setAddVendorModalOpen(true); setShowVendorDropdown(false); }}
+                      className="w-full text-left text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-2"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add New Vendor
+                    </button>
+                  </li>
                 </ul>
               )}
             </div>
@@ -1205,6 +1227,65 @@ const Inward: React.FC = () => {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Add Vendor Modal */}
+      <Modal
+        isOpen={addVendorModalOpen}
+        onClose={() => { setAddVendorModalOpen(false); setNewVendorData({ name: '', email: '', phone: '', address: '' }); }}
+        title="Add New Vendor"
+        size="md"
+      >
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            try {
+              const created = await dispatch(createVendor(newVendorData)).unwrap();
+              toast.success('Vendor added successfully');
+              await dispatch(fetchVendors({ limit: 100 }));
+              setValue('vendorId', String(created.id));
+              setVendorSearch(`${(created as any).code} - ${created.name}`);
+              setAddVendorModalOpen(false);
+              setNewVendorData({ name: '', email: '', phone: '', address: '' });
+            } catch (error: any) {
+              toast.error(error?.message || 'Failed to add vendor');
+            }
+          }}
+          className="space-y-4"
+        >
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Vendor Name"
+              placeholder="Enter vendor name"
+              value={newVendorData.name}
+              onChange={(e) => setNewVendorData({ ...newVendorData, name: e.target.value })}
+              required
+            />
+            <Input
+              label="Email"
+              type="email"
+              placeholder="Enter email address"
+              value={newVendorData.email}
+              onChange={(e) => setNewVendorData({ ...newVendorData, email: e.target.value })}
+            />
+            <Input
+              label="Phone"
+              placeholder="Enter phone number"
+              value={newVendorData.phone}
+              onChange={(e) => setNewVendorData({ ...newVendorData, phone: e.target.value })}
+            />
+            <Input
+              label="Address"
+              placeholder="Enter address"
+              value={newVendorData.address}
+              onChange={(e) => setNewVendorData({ ...newVendorData, address: e.target.value })}
+            />
+          </div>
+          <div className="flex gap-2 justify-end pt-2">
+            <Button type="button" variant="outline" onClick={() => { setAddVendorModalOpen(false); setNewVendorData({ name: '', email: '', phone: '', address: '' }); }}>Cancel</Button>
+            <Button type="submit" className="bg-blue-600 hover:bg-blue-700">Add Vendor</Button>
+          </div>
+        </form>
       </Modal>
 
       {/* Bulk Upload Modal */}

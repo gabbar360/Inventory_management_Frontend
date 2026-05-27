@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Edit, Trash2, Eye, Download, Loader2, MoreVertical, FileText, Package } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Download, Loader2, MoreVertical, FileText, Package, ChevronDown, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { salesOrderService } from '@/services/salesOrderService';
 import { fetchSalesOrders, deleteSalesOrder, updateSalesOrder, createSalesOrder, convertSalesOrderToInvoice } from '@/slices/salesOrderSlice';
-import { fetchCustomers } from '@/slices/customerSlice';
+import { fetchCustomers, createCustomer } from '@/slices/customerSlice';
 import { fetchAvailableStock } from '@/slices/inventorySlice';
 import { SalesOrder, SalesOrderItem, Product, StockBatch } from '@/types';
-import { formatDate, debounce } from '@/utils';
+import { formatDate, debounce, cn } from '@/utils';
 import Button from '@/components/Button';
 import Modal from '@/components/Modal';
 import Table from '@/components/Table';
@@ -77,21 +77,26 @@ interface OrderFormProps {
   customerOptions: { value: string; label: string }[];
   statusOptions: { value: string; label: string }[];
   calcTotal: () => number;
+  onAddNewCustomer: () => void;
 }
 
 const CustomerCombobox: React.FC<{
   value: string;
   onChange: (val: string) => void;
   options: { value: string; label: string }[];
-}> = ({ value, onChange, options }) => {
+  onAddNew: () => void;
+}> = ({ value, onChange, options, onAddNew }) => {
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    const selected = options.find((o) => o.value.toString() === value?.toString());
-    if (selected) setSearch(selected.label);
-    else if (!value) setSearch('');
-  }, [value, options]);
+    if (value) {
+      const selected = options.find((o) => o.value.toString() === value.toString());
+      if (selected) setSearch(selected.label);
+    } else {
+      setSearch('');
+    }
+  }, [value]); // only re-sync when value changes, NOT when options changes
 
   const filtered = options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()));
 
@@ -116,6 +121,16 @@ const CustomerCombobox: React.FC<{
               className="px-3 py-2 cursor-pointer hover:bg-blue-50 text-sm">{o.label}</li>
           ))}
           {filtered.length === 0 && <li className="px-3 py-2 text-sm text-gray-400">No customers found</li>}
+          <li className="border-t border-gray-200 px-3 py-2 sticky bottom-0 bg-gray-50">
+            <button
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); onAddNew(); setOpen(false); }}
+              className="w-full text-left text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Add New Customer
+            </button>
+          </li>
         </ul>
       )}
     </div>
@@ -130,6 +145,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
   editingData, setEditingData,
   customerOptions, statusOptions,
   calcTotal,
+  onAddNewCustomer,
 }) => {
   const removeItem = (index: number) => setItems((prev) => prev.filter((_, i) => i !== index));
 
@@ -147,6 +163,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
           value={formData.customerId}
           onChange={(val) => setFormData({ ...formData, customerId: val })}
           options={customerOptions}
+          onAddNew={onAddNewCustomer}
         />
         <Input label="Order Date *" type="date" value={formData.orderDate}
           onChange={(e) => setFormData({ ...formData, orderDate: e.target.value })} />
@@ -389,15 +406,45 @@ const SalesOrders: React.FC = () => {
   const [submittingInvoice, setSubmittingInvoice] = useState(false);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [addCustomerModalOpen, setAddCustomerModalOpen] = useState(false);
+  const [newCustomerData, setNewCustomerData] = useState({ name: '', email: '', phone: '', address: '', state: '', gstNumber: '' });
+  const [stateSearch, setStateSearch] = useState('');
+  const [showStateDropdown, setShowStateDropdown] = useState(false);
+  const [indianStates, setIndianStates] = useState<string[]>([]);
+  const [loadingStates, setLoadingStates] = useState(false);
+  const stateDropdownRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpenMenuId(null);
+      if (stateDropdownRef.current && !stateDropdownRef.current.contains(e.target as Node)) setShowStateDropdown(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const fetchStates = async () => {
+      setLoadingStates(true);
+      try {
+        const response = await fetch('https://countriesnow.space/api/v0.1/countries/states', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ country: 'India' }),
+        });
+        const result = await response.json();
+        if (!result.error && result.data?.states) {
+          setIndianStates(result.data.states.map((s: { name: string }) => s.name));
+        }
+      } catch (err) {
+        console.error('Error fetching Indian states:', err);
+      } finally {
+        setLoadingStates(false);
+      }
+    };
+    fetchStates();
   }, []);
 
   const [formData, setFormData] = useState({
@@ -615,6 +662,7 @@ const SalesOrders: React.FC = () => {
     editingData, setEditingData,
     customerOptions, statusOptions,
     calcTotal,
+    onAddNewCustomer: () => setAddCustomerModalOpen(true),
   };
 
   const columns = [
@@ -814,6 +862,123 @@ const SalesOrders: React.FC = () => {
             )}
           </div>
         )}
+      </Modal>
+
+      {/* Add Customer Modal */}
+      <Modal
+        isOpen={addCustomerModalOpen}
+        onClose={() => {
+          setAddCustomerModalOpen(false);
+          setNewCustomerData({ name: '', email: '', phone: '', address: '', state: '', gstNumber: '' });
+          setStateSearch('');
+          setShowStateDropdown(false);
+        }}
+        title="Add New Customer"
+        size="lg"
+      >
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            try {
+              const created = await dispatch(createCustomer({
+                name: newCustomerData.name,
+                email: newCustomerData.email,
+                phone: newCustomerData.phone,
+                address: newCustomerData.address,
+                state: newCustomerData.state,
+                gstNumber: newCustomerData.gstNumber,
+              })).unwrap();
+              toast.success('Customer added successfully');
+              await dispatch(fetchCustomers({ limit: 1000 }));
+              setFormData((prev) => ({ ...prev, customerId: created.id.toString() }));
+              setAddCustomerModalOpen(false);
+              setNewCustomerData({ name: '', email: '', phone: '', address: '', state: '', gstNumber: '' });
+              setStateSearch('');
+              setShowStateDropdown(false);
+            } catch (error: any) {
+              toast.error(error?.message || 'Failed to add customer');
+            }
+          }}
+          className="space-y-4"
+        >
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Customer Name"
+              placeholder="Enter customer name"
+              value={newCustomerData.name}
+              onChange={(e) => setNewCustomerData({ ...newCustomerData, name: e.target.value })}
+              required
+            />
+            <Input
+              label="Email"
+              type="email"
+              placeholder="Enter email address"
+              value={newCustomerData.email}
+              onChange={(e) => setNewCustomerData({ ...newCustomerData, email: e.target.value })}
+            />
+            <Input
+              label="Phone"
+              placeholder="Enter phone number"
+              value={newCustomerData.phone}
+              onChange={(e) => setNewCustomerData({ ...newCustomerData, phone: e.target.value })}
+            />
+            <Input
+              label="Address"
+              placeholder="Enter address"
+              value={newCustomerData.address}
+              onChange={(e) => setNewCustomerData({ ...newCustomerData, address: e.target.value })}
+            />
+            <div className="relative space-y-1" ref={stateDropdownRef}>
+              <label className="block text-xs sm:text-sm font-medium text-gray-700">State (Optional)</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search or select Indian state/UT"
+                  className="flex h-10 w-full rounded-md border border-gray-300 bg-white pl-3 pr-10 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  value={stateSearch}
+                  onChange={(e) => { setStateSearch(e.target.value); setNewCustomerData({ ...newCustomerData, state: e.target.value }); setShowStateDropdown(true); }}
+                  onFocus={() => setShowStateDropdown(true)}
+                />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  {stateSearch && (
+                    <button type="button" onClick={() => { setStateSearch(''); setNewCustomerData({ ...newCustomerData, state: '' }); setShowStateDropdown(true); }} className="text-gray-400 hover:text-gray-600">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                  <button type="button" onClick={() => setShowStateDropdown(!showStateDropdown)} className="text-gray-400 hover:text-gray-600">
+                    <ChevronDown className={cn('h-4 w-4 transition-transform', showStateDropdown && 'rotate-180')} />
+                  </button>
+                </div>
+              </div>
+              {showStateDropdown && (
+                <div className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-md bg-white py-1 text-sm shadow-lg border border-gray-200">
+                  {loadingStates ? (
+                    <div className="px-4 py-3 text-gray-500 text-xs">Fetching states...</div>
+                  ) : indianStates.filter((s) => s.toLowerCase().includes(stateSearch.toLowerCase())).length > 0 ? (
+                    indianStates.filter((s) => s.toLowerCase().includes(stateSearch.toLowerCase())).map((state) => (
+                      <button key={state} type="button"
+                        className="w-full text-left px-4 py-2 hover:bg-primary-50 hover:text-primary-900 transition-colors"
+                        onClick={() => { setStateSearch(state); setNewCustomerData({ ...newCustomerData, state }); setShowStateDropdown(false); }}
+                      >{state}</button>
+                    ))
+                  ) : (
+                    <div className="px-4 py-3 text-gray-500 text-xs italic">No matching states found.</div>
+                  )}
+                </div>
+              )}
+            </div>
+            <Input
+              label="GST Number"
+              placeholder="Enter GST number"
+              value={newCustomerData.gstNumber || ''}
+              onChange={(e) => setNewCustomerData({ ...newCustomerData, gstNumber: e.target.value })}
+            />
+          </div>
+          <div className="flex gap-2 justify-end pt-4">
+            <Button type="button" variant="outline" onClick={() => { setAddCustomerModalOpen(false); setNewCustomerData({ name: '', email: '', phone: '', address: '', state: '', gstNumber: '' }); setStateSearch(''); setShowStateDropdown(false); }}>Cancel</Button>
+            <Button type="submit" className="bg-blue-600 hover:bg-blue-700">Add Customer</Button>
+          </div>
+        </form>
       </Modal>
 
       {/* View Modal */}
