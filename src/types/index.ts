@@ -430,3 +430,45 @@ export interface PaginationQuery {
   startDate?: string;
   endDate?: string;
 }
+
+export interface PurchaseOrderItem {
+  id?: string;
+  purchaseOrderId?: string;
+  productId: string;
+  product?: {
+    id: string;
+    name: string;
+    code: string;
+    unit: string;
+  };
+  quantity: number;
+  unit: string;
+  rate: number;
+  taxRate: number;
+  amount: number;
+  description?: string;
+}
+
+export interface PurchaseOrder {
+  id: string;
+  poNo: string;
+  vendorId: string;
+  vendor?: {
+    id: string;
+    name: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+  };
+  poDate: string;
+  expectedDeliveryDate?: string;
+  status: 'draft' | 'sent' | 'confirmed' | 'received' | 'cancelled';
+  totalAmount: number;
+  notes?: string;
+  reference?: string;
+  adjustment?: number;
+  shippingCharge?: number;
+  createdAt: string;
+  updatedAt: string;
+  items?: PurchaseOrderItem[];
+}
