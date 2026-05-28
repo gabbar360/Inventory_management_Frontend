@@ -8,7 +8,7 @@ export const quoteService = {
 
   getQuotes: async (filters?: any) => {
     const response = await api.get('/quotes', { params: filters });
-    return response.data.data || response.data;
+    return response.data;
   },
 
   getQuoteById: async (id: string | number) => {

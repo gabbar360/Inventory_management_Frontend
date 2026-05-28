@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Edit, Trash2, Download, Loader2, MoreVertical, ShoppingCart, FileText, Package } from 'lucide-react';
+import { Plus, Edit, Trash2, Download, Loader2, MoreVertical, ShoppingCart, FileText, Package, ChevronLeft, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -22,9 +22,9 @@ import QuoteForm from '@/components/forms/QuoteForm';
 
 const Quotes: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { quotes, loading, error } = useAppSelector(
+  const { quotes, loading, error, pagination } = useAppSelector(
     (state) => state.quotes
-  ) as { quotes: Quote[]; loading: boolean; error: string | null };
+  ) as { quotes: Quote[]; loading: boolean; error: string | null; pagination: any };
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
@@ -40,6 +40,8 @@ const Quotes: React.FC = () => {
   const [submittingInvoice, setSubmittingInvoice] = useState(false);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
@@ -54,8 +56,8 @@ const Quotes: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    dispatch(fetchQuotes({ search, startDate, endDate }));
-  }, [dispatch, search, startDate, endDate]);
+    dispatch(fetchQuotes({ search, startDate, endDate, page: currentPage, limit: pageSize }));
+  }, [dispatch, search, startDate, endDate, currentPage, pageSize]);
 
   useEffect(() => {
     if (error) {
@@ -65,16 +67,19 @@ const Quotes: React.FC = () => {
 
   const debouncedSearch = debounce((value: string) => {
     setSearch(value);
+    setCurrentPage(1);
   });
 
   const handleDateFilter = (start: string, end: string) => {
     setStartDate(start);
     setEndDate(end);
+    setCurrentPage(1);
   };
 
   const clearDateFilter = () => {
     setStartDate('');
     setEndDate('');
+    setCurrentPage(1);
   };
 
   const openModal = (quote?: Quote) => {
@@ -342,8 +347,74 @@ const Quotes: React.FC = () => {
           )}
         </div>
       </div>
+
       <div className="card overflow-x-auto">
         <Table data={quotes} columns={columns} loading={loading} />
+        
+        {/* Pagination Controls */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-gray-200">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">Items per page:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(parseInt(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </div>
+
+          <div className="text-sm text-gray-600">
+            Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, pagination?.total || 0)} of {pagination?.total || 0} quotes
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1 || loading}
+              className="flex items-center gap-1"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Previous
+            </Button>
+
+            <div className="flex items-center gap-1">
+              {Array.from({ length: pagination?.totalPages || 1 }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                    currentPage === page
+                      ? 'bg-blue-600 text-white'
+                      : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                  }`}
+                  disabled={loading}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(Math.min(pagination?.totalPages || 1, currentPage + 1))}
+              disabled={currentPage === (pagination?.totalPages || 1) || loading}
+              className="flex items-center gap-1"
+            >
+              Next
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Create/Edit Modal */}

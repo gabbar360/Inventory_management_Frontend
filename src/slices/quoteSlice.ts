@@ -69,18 +69,20 @@ export const convertQuoteToInvoice = createAsyncThunk(
   }
 );
 
+interface PaginationState {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
 interface QuoteState {
   quotes: Quote[];
   currentQuote: Quote | null;
   loading: boolean;
   downloadingPDF: boolean;
   error: string | null;
-  pagination?: {
-    page: number;
-    totalPages: number;
-    total: number;
-    limit: number;
-  };
+  pagination: PaginationState;
 }
 
 const initialState: QuoteState = {
@@ -89,6 +91,12 @@ const initialState: QuoteState = {
   loading: false,
   downloadingPDF: false,
   error: null,
+  pagination: {
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0,
+  },
 };
 
 const quoteSlice = createSlice({
@@ -107,7 +115,10 @@ const quoteSlice = createSlice({
       })
       .addCase(fetchQuotes.fulfilled, (state, action) => {
         state.loading = false;
-        state.quotes = action.payload;
+        state.quotes = action.payload.data || action.payload;
+        if (action.payload.pagination) {
+          state.pagination = action.payload.pagination;
+        }
       })
       .addCase(fetchQuotes.rejected, (state, action) => {
         state.loading = false;
