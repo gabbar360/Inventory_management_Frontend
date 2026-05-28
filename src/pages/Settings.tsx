@@ -21,12 +21,6 @@ const Settings: React.FC = () => {
     ifscCode: '',
     bankAddress: '',
     swiftCode: '',
-    customerPrefix: 'CUS', customerMiddle: '', customerSuffix: '', customerPadding: 3, customerCurrent: 0,
-    vendorPrefix: 'VGR', vendorMiddle: '', vendorSuffix: '', vendorPadding: 3, vendorCurrent: 0,
-    poPrefix: 'PO', poMiddle: '-', poSuffix: '', poPadding: 6, poCurrent: 0,
-    quotePrefix: 'QT', quoteMiddle: '-', quoteSuffix: '', quotePadding: 6, quoteCurrent: 0,
-    salesOrderPrefix: 'SO', salesOrderMiddle: '-', salesOrderSuffix: '', salesOrderPadding: 6, salesOrderCurrent: 0,
-    invoicePrefix: 'INV', invoiceMiddle: '-', invoiceSuffix: '', invoicePadding: 6, invoiceCurrent: 0,
   });
 
   useEffect(() => {
@@ -47,36 +41,6 @@ const Settings: React.FC = () => {
         ifscCode: settings.ifscCode || '',
         bankAddress: settings.bankAddress || '',
         swiftCode: settings.swiftCode || '',
-        customerPrefix: settings.customerPrefix ?? 'CUS',
-        customerMiddle: settings.customerMiddle ?? '',
-        customerSuffix: settings.customerSuffix ?? '',
-        customerPadding: settings.customerPadding ?? 3,
-        customerCurrent: settings.customerCurrent ?? 0,
-        vendorPrefix: settings.vendorPrefix ?? 'VGR',
-        vendorMiddle: settings.vendorMiddle ?? '',
-        vendorSuffix: settings.vendorSuffix ?? '',
-        vendorPadding: settings.vendorPadding ?? 3,
-        vendorCurrent: settings.vendorCurrent ?? 0,
-        poPrefix: settings.poPrefix ?? 'PO',
-        poMiddle: settings.poMiddle ?? '-',
-        poSuffix: settings.poSuffix ?? '',
-        poPadding: settings.poPadding ?? 6,
-        poCurrent: settings.poCurrent ?? 0,
-        quotePrefix: settings.quotePrefix ?? 'QT',
-        quoteMiddle: settings.quoteMiddle ?? '-',
-        quoteSuffix: settings.quoteSuffix ?? '',
-        quotePadding: settings.quotePadding ?? 6,
-        quoteCurrent: settings.quoteCurrent ?? 0,
-        salesOrderPrefix: settings.salesOrderPrefix ?? 'SO',
-        salesOrderMiddle: settings.salesOrderMiddle ?? '-',
-        salesOrderSuffix: settings.salesOrderSuffix ?? '',
-        salesOrderPadding: settings.salesOrderPadding ?? 6,
-        salesOrderCurrent: settings.salesOrderCurrent ?? 0,
-        invoicePrefix: settings.invoicePrefix ?? 'INV',
-        invoiceMiddle: settings.invoiceMiddle ?? '-',
-        invoiceSuffix: settings.invoiceSuffix ?? '',
-        invoicePadding: settings.invoicePadding ?? 6,
-        invoiceCurrent: settings.invoiceCurrent ?? 0,
       });
     }
   }, [settings]);
@@ -272,64 +236,6 @@ const Settings: React.FC = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-          </div>
-        </div>
-
-        {/* Number Series Settings */}
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-lg font-semibold text-gray-900 mb-1">Number Series Settings</h2>
-          <p className="text-sm text-gray-500 mb-4">Format: Prefix + Middle + Number + Suffix &nbsp;|&nbsp; Example: INV-000021</p>
-          <div className="space-y-6">
-            {([
-              { label: 'Customer Code', key: 'customer' },
-              { label: 'Vendor Code', key: 'vendor' },
-              { label: 'Purchase Order (PO)', key: 'po' },
-              { label: 'Quote Number', key: 'quote' },
-              { label: 'Sales Order Number', key: 'salesOrder' },
-              { label: 'Invoice Number', key: 'invoice' },
-            ] as { label: string; key: string }[]).map(({ label, key }) => {
-              const prefix = (formData as any)[`${key}Prefix`] ?? '';
-              const middle = (formData as any)[`${key}Middle`] ?? '';
-              const suffix = (formData as any)[`${key}Suffix`] ?? '';
-              const padding = (formData as any)[`${key}Padding`] ?? 6;
-              const current = (formData as any)[`${key}Current`] ?? 0;
-              const preview = `${prefix}${middle}${String(current + 1).padStart(padding, '0')}${suffix}`;
-              return (
-                <div key={key}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700">{label}</span>
-                    <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded font-mono">Next: {preview}</span>
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Prefix</label>
-                      <input type="text" name={`${key}Prefix`} value={prefix} onChange={handleInputChange}
-                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Middle</label>
-                      <input type="text" name={`${key}Middle`} value={middle} onChange={handleInputChange}
-                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Suffix</label>
-                      <input type="text" name={`${key}Suffix`} value={suffix} onChange={handleInputChange}
-                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Digits (Padding)</label>
-                      <input type="number" name={`${key}Padding`} value={padding} min={1} max={10} onChange={handleInputChange}
-                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Current Number</label>
-                      <input type="number" name={`${key}Current`} value={current} min={0} onChange={handleInputChange}
-                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
           </div>
         </div>
 
