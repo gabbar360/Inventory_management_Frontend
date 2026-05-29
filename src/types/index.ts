@@ -171,6 +171,7 @@ export interface OutwardInvoice {
   amountReceived?: number;
   referenceNo?: string;
   shippingCharge?: number;
+  discount?: number;
   createdAt: string;
   updatedAt: string;
   customer?: Customer;
