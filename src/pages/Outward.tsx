@@ -56,6 +56,7 @@ interface OutwardInvoiceFormData {
   amountReceived: string;
   referenceNo: string;
   shippingCharge: string;
+  discount: string;
   items: {
     productId: string;
     stockBatchId: string;
@@ -79,6 +80,7 @@ const outwardSchema = z.object({
   amountReceived: z.string().optional().default('0'),
   referenceNo: z.string().optional().default(''),
   shippingCharge: z.string().optional().default('0'),
+  discount: z.string().optional().default('0'),
   items: z
     .array(
       z.object({
@@ -262,6 +264,7 @@ const Outward: React.FC = () => {
       amountReceived: '0',
       referenceNo: '',
       shippingCharge: '0',
+      discount: '0',
     },
   });
 
@@ -275,6 +278,7 @@ const Outward: React.FC = () => {
   const watchedAdjustment = watch('adjustment') || '0';
   const watchedReceived = watch('amountReceived') || '0';
   const watchedShipping = watch('shippingCharge') || '0';
+  const watchedDiscount = watch('discount') || '0';
 
   const calculateGrandTotal = () => {
     let totalBase = 0;
@@ -299,11 +303,12 @@ const Outward: React.FC = () => {
     const expenseVal = parseFloat(watchedExpense.toString()) || 0;
     const adjustmentVal = parseFloat(watchedAdjustment.toString()) || 0;
     const shippingVal = parseFloat(watchedShipping.toString()) || 0;
-    const grandTotal = totalBase + totalGst + expenseVal + shippingVal - adjustmentVal;
+    const discountVal = parseFloat(watchedDiscount.toString()) || 0;
+    const grandTotal = totalBase + totalGst + expenseVal + shippingVal - adjustmentVal - discountVal;
     const receivedVal = parseFloat(watchedReceived.toString()) || 0;
     const balanceDue = grandTotal - receivedVal;
 
-    return { totalBase, totalGst, expenseVal, adjustmentVal, shippingVal, grandTotal, receivedVal, balanceDue };
+    return { totalBase, totalGst, expenseVal, adjustmentVal, shippingVal, discountVal, grandTotal, receivedVal, balanceDue };
   };
 
   useEffect(() => {
@@ -422,6 +427,7 @@ const Outward: React.FC = () => {
       amountReceived: '0',
       referenceNo: '',
       shippingCharge: '0',
+      discount: '0',
       items: [
         {
           productId: '',
@@ -465,6 +471,7 @@ const Outward: React.FC = () => {
           amountReceived: (fullInvoice.amountReceived ?? 0).toString(),
           referenceNo: fullInvoice.referenceNo || '',
           shippingCharge: (fullInvoice.shippingCharge ?? 0).toString(),
+          discount: (fullInvoice.discount ?? 0).toString(),
           items: fullInvoice.items?.map((item) => ({
             productId: item.productId,
             stockBatchId: item.stockBatchId,
@@ -619,11 +626,12 @@ const Outward: React.FC = () => {
     const expense = invoice.expense || 0;
     const adjustment = invoice.adjustment || 0;
     const shippingCharge = invoice.shippingCharge || 0;
+    const discount = invoice.discount || 0;
     const amountReceived = invoice.amountReceived || 0;
-    const grandTotal = baseCost + gstCost + expense + shippingCharge - adjustment;
+    const grandTotal = baseCost + gstCost + expense + shippingCharge - adjustment - discount;
     const balanceDue = grandTotal - amountReceived;
 
-    return { baseCost, gstCost, expense, adjustment, shippingCharge, grandTotal, amountReceived, balanceDue };
+    return { baseCost, gstCost, expense, adjustment, shippingCharge, discount, grandTotal, amountReceived, balanceDue };
   };
 
   const handleExport = async () => {
@@ -1347,7 +1355,7 @@ const saleTypeOptions = [
           </div>
 
           {/* Rounding & Received inputs */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t pt-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 border-t pt-4">
             <Input
               label="Shipping Charge"
               type="number"
@@ -1355,6 +1363,14 @@ const saleTypeOptions = [
               min="0"
               {...register('shippingCharge')}
               placeholder="e.g. 500"
+            />
+            <Input
+              label="Discount"
+              type="number"
+              step="0.01"
+              min="0"
+              {...register('discount')}
+              placeholder="e.g. 100"
             />
             <Input
               label="Amount Rounding"
@@ -1379,7 +1395,7 @@ const saleTypeOptions = [
           <div className="border-t pt-4">
             <div className="flex justify-end">
               {(() => {
-                const { totalBase, totalGst, expenseVal, adjustmentVal, shippingVal, grandTotal, receivedVal, balanceDue } = calculateGrandTotal();
+                const { totalBase, totalGst, expenseVal, adjustmentVal, shippingVal, discountVal, grandTotal, receivedVal, balanceDue } = calculateGrandTotal();
                 return (
                   <div className="w-full sm:w-auto sm:min-w-[300px] bg-green-50 p-4 rounded-lg space-y-2">
                     <div className="flex justify-between text-sm text-gray-600">
@@ -1400,6 +1416,12 @@ const saleTypeOptions = [
                       <div className="flex justify-between text-sm text-gray-600">
                         <span>Shipping Charge:</span>
                         <span className="font-semibold text-gray-900">{formatCurrency(shippingVal)}</span>
+                      </div>
+                    )}
+                    {discountVal > 0 && (
+                      <div className="flex justify-between text-sm text-red-600">
+                        <span>Discount:</span>
+                        <span className="font-semibold">- {formatCurrency(discountVal)}</span>
                       </div>
                     )}
                     {adjustmentVal !== 0 && (
@@ -1508,6 +1530,16 @@ const saleTypeOptions = [
                 </label>
                 <div className="text-gray-900">
                   {formatCurrency(selectedInvoice.shippingCharge ?? 0)}
+                </div>
+              </div>
+              )}
+              {(selectedInvoice.discount ?? 0) > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Discount
+                </label>
+                <div className="text-red-600 font-semibold">
+                  - {formatCurrency(selectedInvoice.discount ?? 0)}
                 </div>
               </div>
               )}
