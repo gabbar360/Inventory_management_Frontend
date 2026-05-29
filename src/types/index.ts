@@ -171,6 +171,7 @@ export interface OutwardInvoice {
   amountReceived?: number;
   referenceNo?: string;
   shippingCharge?: number;
+  discount?: number;
   createdAt: string;
   updatedAt: string;
   customer?: Customer;
@@ -348,6 +349,7 @@ export interface SalesOrder {
   adjustment?: number;
   amountReceived?: number;
   shippingCharge?: number;
+  discount?: number;
   createdAt: string;
   updatedAt: string;
   items?: SalesOrderItem[];
