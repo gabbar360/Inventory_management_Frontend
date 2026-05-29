@@ -349,6 +349,7 @@ export interface SalesOrder {
   adjustment?: number;
   amountReceived?: number;
   shippingCharge?: number;
+  discount?: number;
   createdAt: string;
   updatedAt: string;
   items?: SalesOrderItem[];
