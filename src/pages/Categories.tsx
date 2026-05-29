@@ -1,14 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { Plus, Edit, Trash2, Upload, Download } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Plus, Upload, Download, Edit, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   fetchCategories,
-  createCategory,
-  updateCategory,
+  fetchCategoryById,
   deleteCategory,
   clearError,
 } from '@/slices/categorySlice';
@@ -16,46 +13,23 @@ import { bulkUploadService } from '@/services/bulkUploadService';
 import { Category } from '@/types';
 import { formatDate, debounce } from '@/utils';
 import Button from '@/components/Button';
-import Input from '@/components/Input';
-import Modal from '@/components/Modal';
 import Table from '@/components/Table';
 import BulkUpload from '@/components/BulkUpload';
 import Pagination from '@/components/Pagination';
 import PageHeader from '@/components/PageHeader';
-
-interface CategoryFormData {
-  name: string;
-  hsnCode: string;
-  gstRate: number;
-}
-
-const categorySchema = z.object({
-  name: z.string().min(1, 'Category name is required'),
-  hsnCode: z.string().min(1, 'HSN code is required'),
-  gstRate: z.coerce.number().min(0).max(100, 'GST rate must be between 0 and 100'),
-});
+import AddEditCategory from '@/components/AddEditCategory';
 
 const Categories: React.FC = () => {
+  const navigate = useNavigate();
+  const { id } = useParams();
   const dispatch = useAppDispatch();
-  const { categories, pagination, loading, error } = useAppSelector(
+  const { categories, currentCategory, pagination, loading, error } = useAppSelector(
     (state) => state.categories
   );
 
-  const [modalOpen, setModalOpen] = useState(false);
   const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    formState: { errors, isSubmitting },
-  } = useForm<CategoryFormData>({
-    resolver: zodResolver(categorySchema),
-  });
 
   useEffect(() => {
     dispatch(fetchCategories({ page: currentPage, limit: 10, search }));
@@ -68,45 +42,38 @@ const Categories: React.FC = () => {
     }
   }, [error, dispatch]);
 
+  // Fetch category data when in edit mode
+  useEffect(() => {
+    if (id) {
+      console.log('🔍 Fetching category with ID:', id);
+      dispatch(fetchCategoryById(id)).then((result) => {
+        console.log('✅ Category fetched:', result);
+      }).catch((error) => {
+        console.error('❌ Error fetching category:', error);
+      });
+    }
+  }, [id, dispatch]);
+
   const debouncedSearch = debounce((value: string) => {
     setSearch(value);
     setCurrentPage(1);
   });
 
-  const openModal = (category?: Category) => {
-    if (category) {
-      setEditingCategory(category);
-      setValue('name', category.name);
-      setValue('hsnCode', category.hsnCode);
-      setValue('gstRate', category.gstRate);
-    } else {
-      setEditingCategory(null);
-      reset();
-    }
-    setModalOpen(true);
+  const handleAddCategory = () => {
+    navigate('/categories/add');
   };
 
-  const closeModal = () => {
-    setModalOpen(false);
-    setEditingCategory(null);
-    reset();
+  const handleEditCategory = (category: Category) => {
+    navigate(`/categories/edit/${category.id}`);
   };
 
-  const onSubmit = async (data: CategoryFormData) => {
-    try {
-      if (editingCategory) {
-        await dispatch(
-          updateCategory({ id: editingCategory.id, data })
-        ).unwrap();
-        toast.success('Category updated successfully');
-      } else {
-        await dispatch(createCategory(data)).unwrap();
-        toast.success('Category created successfully');
-      }
-      closeModal();
-    } catch (error) {
-      // Error handled by Redux
-    }
+  const handleFormSuccess = () => {
+    navigate('/categories');
+    dispatch(fetchCategories({ page: currentPage, limit: 10, search }));
+  };
+
+  const handleFormCancel = () => {
+    navigate('/categories');
   };
 
   const handleDelete = async (category: Category) => {
@@ -174,7 +141,7 @@ const Categories: React.FC = () => {
       title: 'Actions',
       render: (_: any, record: Category) => (
         <div className="flex gap-1 sm:gap-2">
-          <Button variant="ghost" size="sm" onClick={() => openModal(record)}>
+          <Button variant="ghost" size="sm" onClick={() => handleEditCategory(record)}>
             <Edit className="h-4 w-4" />
           </Button>
           <Button
@@ -189,6 +156,18 @@ const Categories: React.FC = () => {
       ),
     },
   ];
+
+  // Show form if in add/edit mode
+  if (id || window.location.pathname.includes('/add')) {
+    console.log('📋 Showing form - ID:', id, 'Current Category:', currentCategory);
+    return (
+      <AddEditCategory
+        category={id && currentCategory ? currentCategory : undefined}
+        onSuccess={handleFormSuccess}
+        onCancel={handleFormCancel}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -212,7 +191,7 @@ const Categories: React.FC = () => {
           {
             label: 'Add Category',
             icon: <Plus className="h-4 w-4" />,
-            onClick: () => openModal(),
+            onClick: handleAddCategory,
             variant: 'primary' as const,
           },
         ]}
@@ -231,49 +210,6 @@ const Categories: React.FC = () => {
           loading={loading}
         />
       </div>
-
-      {/* Create/Edit Modal */}
-      <Modal
-        isOpen={modalOpen}
-        onClose={closeModal}
-        title={editingCategory ? 'Edit Category' : 'Add Category'}
-      >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <Input
-            label="Category Name"
-            placeholder="Enter category name"
-            error={errors.name?.message}
-            {...register('name')}
-          />
-
-          <Input
-            label="HSN Code"
-            placeholder="Enter HSN code"
-            error={errors.hsnCode?.message}
-            {...register('hsnCode')}
-          />
-
-          <Input
-            label="GST Rate (%)"
-            type="number"
-            step="0.01"
-            min="0"
-            max="100"
-            placeholder="Enter GST rate"
-            error={errors.gstRate?.message}
-            {...register('gstRate', { valueAsNumber: true })}
-          />
-
-          <div className="form-actions">
-            <Button type="button" variant="outline" onClick={closeModal}>
-              Cancel
-            </Button>
-            <Button type="submit" loading={isSubmitting}>
-              {editingCategory ? 'Update' : 'Create'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
 
       {/* Bulk Upload Modal */}
       <BulkUpload

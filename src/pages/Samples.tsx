@@ -1,71 +1,37 @@
 import React, { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Plus, Edit, Trash2, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { fetchSamples, createSample, updateSample, deleteSample, clearError } from '@/slices/sampleSlice';
+import { fetchSamples, fetchSampleById, updateSample, deleteSample, clearError } from '@/slices/sampleSlice';
 import { Sample } from '@/types';
 import { formatDate, debounce, generateSampleInvoice, generateSampleDispatchSlip } from '@/utils';
 import Button from '@/components/Button';
-import Input from '@/components/Input';
-import Select from '@/components/Select';
-import Modal from '@/components/Modal';
 import Table from '@/components/Table';
 import Pagination from '@/components/Pagination';
 import PageHeader from '@/components/PageHeader';
-
-interface SampleFormData {
-  customerName: string;
-  customerEmail?: string;
-  customerPhone?: string;
-  customerAddress?: string;
-  sentBy: string;
-  sampleType: 'domestic' | 'export';
-  kitPrice: number;
-  trackingNumber?: string;
-  dispatchMethod: string;
-  sentDate: string;
-  remarks?: string;
-}
-
-const sampleSchema = z.object({
-  customerName: z.string().min(1, 'Customer name is required'),
-  customerEmail: z.string().email().optional().or(z.literal('')),
-  customerPhone: z.string().optional(),
-  customerAddress: z.string().optional(),
-  sentBy: z.string().min(1, 'Employee name is required'),
-  sampleType: z.enum(['domestic', 'export']),
-  kitPrice: z.number().min(0, 'Kit price must be positive'),
-  trackingNumber: z.string().optional(),
-  dispatchMethod: z.string().min(1, 'Dispatch method is required'),
-  sentDate: z.string().min(1, 'Sent date is required'),
-  remarks: z.string().optional(),
-});
+import AddEditSample from '@/components/AddEditSample';
 
 const Samples: React.FC = () => {
+  const navigate = useNavigate();
+  const { id } = useParams();
   const dispatch = useAppDispatch();
-  const { samples, pagination, loading, error } = useAppSelector((state) => state.samples);
+  const { samples, currentSample, pagination, loading, error } = useAppSelector((state) => state.samples);
 
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingSample, setEditingSample] = useState<Sample | null>(null);
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [sourceFilter, setSourceFilter] = useState<'all' | 'manual' | 'website'>('all');
-
-  const { register, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } = useForm<SampleFormData>({
-    resolver: zodResolver(sampleSchema),
-    defaultValues: {
-      sampleType: 'domestic',
-      dispatchMethod: '',
-      kitPrice: 0,
-    },
-  });
+  const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
 
   useEffect(() => {
     dispatch(fetchSamples({ page: currentPage, limit: 10, search, ...(sourceFilter !== 'all' && { source: sourceFilter }) }));
   }, [dispatch, search, currentPage, sourceFilter]);
+
+  useEffect(() => {
+    if (id) {
+      dispatch(fetchSampleById(id));
+    }
+  }, [id, dispatch]);
 
   useEffect(() => {
     if (error) {
@@ -85,51 +51,21 @@ const Samples: React.FC = () => {
     { key: 'manual', label: '✏️ Manual' },
   ] as const;
 
-  const openModal = (sample?: Sample) => {
-    if (sample) {
-      setEditingSample(sample);
-      setValue('customerName', sample.customerName);
-      setValue('customerEmail', sample.customerEmail || '');
-      setValue('customerPhone', sample.customerPhone || '');
-      setValue('customerAddress', sample.customerAddress || '');
-      setValue('sentBy', sample.sentBy);
-      setValue('sampleType', sample.sampleType);
-      setValue('kitPrice', sample.kitPrice);
-      setValue('trackingNumber', sample.trackingNumber || '');
-      setValue('dispatchMethod', sample.dispatchMethod);
-      setValue('sentDate', sample.sentDate.split('T')[0]);
-      setValue('remarks', sample.remarks || '');
-    } else {
-      setEditingSample(null);
-      reset({
-        sampleType: 'domestic',
-        dispatchMethod: '',
-        kitPrice: 0,
-        sentDate: new Date().toISOString().split('T')[0],
-      });
-    }
-    setModalOpen(true);
+  const handleAddSample = () => {
+    navigate('/samples/add');
   };
 
-  const closeModal = () => {
-    setModalOpen(false);
-    setEditingSample(null);
-    reset();
+  const handleEditSample = (sample: Sample) => {
+    navigate(`/samples/edit/${sample.id}`);
   };
 
-  const onSubmit = async (data: SampleFormData) => {
-    try {
-      if (editingSample) {
-        await dispatch(updateSample({ id: editingSample.id, data: data as Partial<Sample> })).unwrap();
-        toast.success('Sample updated successfully');
-      } else {
-        await dispatch(createSample(data as Partial<Sample>)).unwrap();
-        toast.success('Sample created successfully');
-      }
-      closeModal();
-    } catch (error) {
-      // Error handled by Redux
-    }
+  const handleFormSuccess = () => {
+    navigate('/samples');
+    dispatch(fetchSamples({ page: currentPage, limit: 10, search, ...(sourceFilter !== 'all' && { source: sourceFilter }) }));
+  };
+
+  const handleFormCancel = () => {
+    navigate('/samples');
   };
 
   const handleDelete = async (sample: Sample) => {
@@ -142,8 +78,6 @@ const Samples: React.FC = () => {
       }
     }
   };
-
-  const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
 
   const handleStatusChange = async (sample: Sample, newStatus: string) => {
     setUpdatingStatusId(sample.id);
@@ -225,7 +159,7 @@ const Samples: React.FC = () => {
               <Download className="h-4 w-4 text-blue-600" />
             </Button>
           )}
-          <Button variant="ghost" size="sm" onClick={() => openModal(record)}>
+          <Button variant="ghost" size="sm" onClick={() => handleEditSample(record)}>
             <Edit className="h-4 w-4" />
           </Button>
           <Button variant="ghost" size="sm" onClick={() => handleDelete(record)} className="text-red-600 hover:text-red-700">
@@ -235,6 +169,17 @@ const Samples: React.FC = () => {
       ),
     },
   ];
+
+  // Show form if in add/edit mode
+  if (id || window.location.pathname.includes('/add')) {
+    return (
+      <AddEditSample
+        sample={id && currentSample ? currentSample : undefined}
+        onSuccess={handleFormSuccess}
+        onCancel={handleFormCancel}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -246,7 +191,7 @@ const Samples: React.FC = () => {
           {
             label: 'Add Sample',
             icon: <Plus className="h-4 w-4" />,
-            onClick: () => openModal(),
+            onClick: handleAddSample,
             variant: 'primary' as const,
           },
         ]}
@@ -278,99 +223,6 @@ const Samples: React.FC = () => {
           loading={loading}
         />
       </div>
-
-      <Modal isOpen={modalOpen} onClose={closeModal} title={editingSample ? 'Edit Sample' : 'Add Sample'}>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="Customer Name"
-              placeholder="Enter customer name"
-              error={errors.customerName?.message}
-              {...register('customerName')}
-            />
-
-            <Input
-              label="Customer Email (Optional)"
-              type="email"
-              placeholder="Enter customer email"
-              error={errors.customerEmail?.message}
-              {...register('customerEmail')}
-            />
-
-            <Input
-              label="Customer Phone (Optional)"
-              placeholder="Enter customer phone"
-              error={errors.customerPhone?.message}
-              {...register('customerPhone')}
-            />
-
-            <Input
-              label="Customer Address (Optional)"
-              placeholder="Enter customer address"
-              error={errors.customerAddress?.message}
-              {...register('customerAddress')}
-            />
-
-            <Input
-              label="Sent By (Employee Name)"
-              placeholder="Enter employee name"
-              error={errors.sentBy?.message}
-              {...register('sentBy')}
-            />
-
-            <Select label="Sample Type" error={errors.sampleType?.message} {...register('sampleType')}>
-              <option value="domestic">Domestic</option>
-              <option value="export">Export</option>
-            </Select>
-
-            <Input
-              label="Kit Price"
-              type="number"
-              step="0.01"
-              placeholder="Enter kit price"
-              error={errors.kitPrice?.message}
-              {...register('kitPrice', { valueAsNumber: true })}
-            />
-
-            <Input
-              label="Dispatch Method"
-              placeholder="Enter dispatch method"
-              error={errors.dispatchMethod?.message}
-              {...register('dispatchMethod')}
-            />
-
-            <Input
-              label="Tracking Number (Optional)"
-              placeholder="Enter tracking number"
-              error={errors.trackingNumber?.message}
-              {...register('trackingNumber')}
-            />
-
-            <Input
-              label="Sent Date"
-              type="date"
-              error={errors.sentDate?.message}
-              {...register('sentDate')}
-            />
-
-            <Input
-              label="Remarks (Optional)"
-              placeholder="Enter remarks"
-              error={errors.remarks?.message}
-              {...register('remarks')}
-            />
-          </div>
-
-          <div className="form-actions">
-            <Button type="button" variant="outline" onClick={closeModal}>
-              Cancel
-            </Button>
-            <Button type="submit" loading={isSubmitting}>
-              {editingSample ? 'Update' : 'Create'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
     </div>
   );
 };

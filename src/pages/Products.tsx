@@ -1,14 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Plus, Edit, Trash2, Upload, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   fetchProducts,
-  createProduct,
-  updateProduct,
+  fetchProductById,
   deleteProduct,
 } from '@/slices/productSlice';
 import { fetchCategories } from '@/slices/categorySlice';
@@ -16,56 +13,26 @@ import { bulkUploadService } from '@/services/bulkUploadService';
 import { Product } from '@/types';
 import { formatDate, debounce } from '@/utils';
 import Button from '@/components/Button';
-import Input from '@/components/Input';
-import Select from '@/components/Select';
-import Modal from '@/components/Modal';
 import Table from '@/components/Table';
 import BulkUpload from '@/components/BulkUpload';
 import Pagination from '@/components/Pagination';
 import PageHeader from '@/components/PageHeader';
-
-interface ProductFormData {
-  name: string;
-  sku: string;
-  upc: string;
-  grade?: string;
-  description?: string;
-  categoryId: string;
-}
-
-const productSchema = z.object({
-  name: z.string().min(1, 'Product name is required'),
-  sku: z.string().min(1, 'SKU number is required'),
-  upc: z.string().min(1, 'UPC number is required'),
-  grade: z.string().optional(),
-  description: z.string().optional(),
-  categoryId: z.string().min(1, 'Category is required'),
-});
+import AddEditProduct from '@/components/AddEditProduct';
 
 const Products: React.FC = () => {
+  const navigate = useNavigate();
+  const { id } = useParams();
   const dispatch = useAppDispatch();
-  const { products, pagination, loading } = useAppSelector(
+  const { products, currentProduct, pagination, loading } = useAppSelector(
     (state) => state.products
   );
-  const { categories } = useAppSelector((state) => state.categories);
+  useAppSelector((state) => state.categories);
 
-  const [modalOpen, setModalOpen] = useState(false);
   const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState('sku');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    formState: { errors, isSubmitting },
-  } = useForm<ProductFormData>({
-    resolver: zodResolver(productSchema),
-  });
 
   useEffect(() => {
     dispatch(fetchProducts({ page: currentPage, limit: 10, search, sortBy, sortOrder }));
@@ -74,6 +41,13 @@ const Products: React.FC = () => {
   useEffect(() => {
     dispatch(fetchCategories({ limit: 100 }));
   }, [dispatch]);
+
+  // Fetch product data when in edit mode
+  useEffect(() => {
+    if (id) {
+      dispatch(fetchProductById(id));
+    }
+  }, [id, dispatch]);
 
   const debouncedSearch = debounce((value: string) => {
     setSearch(value);
@@ -90,42 +64,21 @@ const Products: React.FC = () => {
     setCurrentPage(1);
   };
 
-  const openModal = (product?: Product) => {
-    if (product) {
-      setEditingProduct(product);
-      setValue('name', product.name);
-      setValue('sku', product.sku || '');
-      setValue('upc', product.upc || '');
-      setValue('grade', product.grade || '');
-      setValue('description', product.description || '');
-      setValue('categoryId', product.categoryId.toString());
-    } else {
-      setEditingProduct(null);
-      reset();
-    }
-    setModalOpen(true);
+  const handleAddProduct = () => {
+    navigate('/products/add');
   };
 
-  const closeModal = () => {
-    setModalOpen(false);
-    setEditingProduct(null);
-    reset();
+  const handleEditProduct = (product: Product) => {
+    navigate(`/products/edit/${product.id}`);
   };
 
-  const onSubmit = async (data: ProductFormData) => {
-    try {
-      if (editingProduct) {
-        await dispatch(updateProduct({ id: editingProduct.id, data })).unwrap();
-        toast.success('Product updated successfully');
-      } else {
-        await dispatch(createProduct(data)).unwrap();
-        toast.success('Product created successfully');
-      }
-      closeModal();
-    } catch (error: any) {
-      const errorMessage = typeof error === 'string' ? error : error?.message || 'An error occurred';
-      toast.error(errorMessage);
-    }
+  const handleFormSuccess = () => {
+    navigate('/products');
+    dispatch(fetchProducts({ page: currentPage, limit: 10, search, sortBy, sortOrder }));
+  };
+
+  const handleFormCancel = () => {
+    navigate('/products');
   };
 
   const handleDelete = async (product: Product) => {
@@ -160,11 +113,6 @@ const Products: React.FC = () => {
       toast.error('Failed to export products');
     }
   };
-
-  const categoryOptions = categories.map((cat) => ({
-    value: cat.id,
-    label: cat.name,
-  }));
 
   const columns = [
     {
@@ -210,7 +158,7 @@ const Products: React.FC = () => {
       title: 'Actions',
       render: (_: any, record: Product) => (
         <div className="flex gap-1 sm:gap-2">
-          <Button variant="ghost" size="sm" onClick={() => openModal(record)}>
+          <Button variant="ghost" size="sm" onClick={() => handleEditProduct(record)}>
             <Edit className="h-4 w-4" />
           </Button>
           <Button
@@ -225,6 +173,17 @@ const Products: React.FC = () => {
       ),
     },
   ];
+
+  // Show form if in add/edit mode
+  if (id || window.location.pathname.includes('/add')) {
+    return (
+      <AddEditProduct
+        product={id && currentProduct ? currentProduct : undefined}
+        onSuccess={handleFormSuccess}
+        onCancel={handleFormCancel}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -246,7 +205,7 @@ const Products: React.FC = () => {
           {
             label: 'Add Product',
             icon: <Plus className="h-4 w-4" />,
-            onClick: () => openModal(),
+            onClick: handleAddProduct,
             variant: 'primary' as const,
           },
         ]}
@@ -265,67 +224,6 @@ const Products: React.FC = () => {
           loading={loading}
         />
       </div>
-
-      {/* Create/Edit Modal */}
-      <Modal
-        isOpen={modalOpen}
-        onClose={closeModal}
-        title={editingProduct ? 'Edit Product' : 'Add Product'}
-      >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <Input
-            label="Product Name *"
-            placeholder="Enter product name"
-            error={errors.name?.message}
-            {...register('name')}
-          />
-
-          <Input
-            label="SKU Number *"
-            placeholder="Enter SKU number"
-            error={errors.sku?.message}
-            {...register('sku')}
-          />
-
-          <Input
-            label="UPC Number *"
-            placeholder="Enter UPC number"
-            error={errors.upc?.message}
-            {...register('upc')}
-          />
-
-          <Input
-            label="Grade (Optional)"
-            placeholder="Enter product grade"
-            error={errors.grade?.message}
-            {...register('grade')}
-          />
-
-          <Input
-            label="Description (Optional)"
-            placeholder="Enter product description"
-            error={errors.description?.message}
-            {...register('description')}
-          />
-
-          <Select
-            label="Category *"
-            placeholder="Select category"
-            options={categoryOptions}
-            error={errors.categoryId?.message}
-            {...register('categoryId')}
-          />
-
-          <div className="form-actions">
-            <Button type="button" variant="outline" onClick={closeModal}>
-              Cancel
-            </Button>
-            <Button type="submit" loading={isSubmitting}>
-              {editingProduct ? 'Update' : 'Create'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
 
       {/* Bulk Upload Modal */}
       <BulkUpload

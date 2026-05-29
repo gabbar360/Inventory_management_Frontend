@@ -91,6 +91,12 @@ const sampleSlice = createSlice({
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch samples';
       })
+      .addCase(fetchSampleById.fulfilled, (state, action) => {
+        const data = action.payload?.data || action.payload;
+        if (data && typeof data === 'object' && 'id' in data) {
+          state.currentSample = data as Sample;
+        }
+      })
       .addCase(createSample.fulfilled, (state, action) => {
         state.loading = false;
         if (action.payload.data) {

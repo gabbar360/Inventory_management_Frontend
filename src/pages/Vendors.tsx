@@ -1,14 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Plus, Edit, Trash2, Upload, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   fetchVendors,
-  createVendor,
-  updateVendor,
+  fetchVendorById,
   deleteVendor,
   clearError,
 } from '@/slices/vendorSlice';
@@ -16,48 +13,23 @@ import { bulkUploadService } from '@/services/bulkUploadService';
 import { Vendor } from '@/types';
 import { formatDate, debounce } from '@/utils';
 import Button from '@/components/Button';
-import Input from '@/components/Input';
-import Modal from '@/components/Modal';
 import Table from '@/components/Table';
 import BulkUpload from '@/components/BulkUpload';
 import Pagination from '@/components/Pagination';
 import PageHeader from '@/components/PageHeader';
-
-interface VendorFormData {
-  name: string;
-  email?: string;
-  phone?: string;
-  address?: string;
-}
-
-const vendorSchema = z.object({
-  name: z.string().min(1, 'Vendor name is required'),
-  email: z.string().email().optional().or(z.literal('')),
-  phone: z.string().optional(),
-  address: z.string().optional(),
-});
+import AddEditVendor from '@/components/AddEditVendor';
 
 const Vendors: React.FC = () => {
+  const navigate = useNavigate();
+  const { id } = useParams();
   const dispatch = useAppDispatch();
-  const { vendors, pagination, loading, error } = useAppSelector(
+  const { vendors, currentVendor, pagination, loading, error } = useAppSelector(
     (state) => state.vendors
   );
 
-  const [modalOpen, setModalOpen] = useState(false);
   const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
-  const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    formState: { errors, isSubmitting },
-  } = useForm<VendorFormData>({
-    resolver: zodResolver(vendorSchema),
-  });
 
   useEffect(() => {
     dispatch(fetchVendors({ page: currentPage, limit: 10, search }));
@@ -70,44 +42,33 @@ const Vendors: React.FC = () => {
     }
   }, [error, dispatch]);
 
+  // Fetch vendor data when in edit mode
+  useEffect(() => {
+    if (id) {
+      dispatch(fetchVendorById(id));
+    }
+  }, [id, dispatch]);
+
   const debouncedSearch = debounce((value: string) => {
     setSearch(value);
     setCurrentPage(1);
   });
 
-  const openModal = (vendor?: Vendor) => {
-    if (vendor) {
-      setEditingVendor(vendor);
-      setValue('name', vendor.name);
-      setValue('email', vendor.email || '');
-      setValue('phone', vendor.phone || '');
-      setValue('address', vendor.address || '');
-    } else {
-      setEditingVendor(null);
-      reset();
-    }
-    setModalOpen(true);
+  const handleAddVendor = () => {
+    navigate('/vendors/add');
   };
 
-  const closeModal = () => {
-    setModalOpen(false);
-    setEditingVendor(null);
-    reset();
+  const handleEditVendor = (vendor: Vendor) => {
+    navigate(`/vendors/edit/${vendor.id}`);
   };
 
-  const onSubmit = async (data: VendorFormData) => {
-    try {
-      if (editingVendor) {
-        await dispatch(updateVendor({ id: editingVendor.id, data })).unwrap();
-        toast.success('Vendor updated successfully');
-      } else {
-        await dispatch(createVendor(data)).unwrap();
-        toast.success('Vendor created successfully');
-      }
-      closeModal();
-    } catch (error) {
-      // Error handled by Redux
-    }
+  const handleFormSuccess = () => {
+    navigate('/vendors');
+    dispatch(fetchVendors({ page: currentPage, limit: 10, search }));
+  };
+
+  const handleFormCancel = () => {
+    navigate('/vendors');
   };
 
   const handleDelete = async (vendor: Vendor) => {
@@ -174,7 +135,7 @@ const Vendors: React.FC = () => {
       title: 'Actions',
       render: (_: any, record: Vendor) => (
         <div className="flex gap-1 sm:gap-2">
-          <Button variant="ghost" size="sm" onClick={() => openModal(record)}>
+          <Button variant="ghost" size="sm" onClick={() => handleEditVendor(record)}>
             <Edit className="h-4 w-4" />
           </Button>
           <Button
@@ -189,6 +150,17 @@ const Vendors: React.FC = () => {
       ),
     },
   ];
+
+  // Show form if in add/edit mode
+  if (id || window.location.pathname.includes('/add')) {
+    return (
+      <AddEditVendor
+        vendor={id && currentVendor ? currentVendor : undefined}
+        onSuccess={handleFormSuccess}
+        onCancel={handleFormCancel}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -210,7 +182,7 @@ const Vendors: React.FC = () => {
           {
             label: 'Add Vendor',
             icon: <Plus className="h-4 w-4" />,
-            onClick: () => openModal(),
+            onClick: handleAddVendor,
             variant: 'primary' as const,
           },
         ]}
@@ -229,53 +201,6 @@ const Vendors: React.FC = () => {
           loading={loading}
         />
       </div>
-
-      {/* Modal */}
-      <Modal
-        isOpen={modalOpen}
-        onClose={closeModal}
-        title={editingVendor ? 'Edit Vendor' : 'Add Vendor'}
-      >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <Input
-            label="Vendor Name"
-            placeholder="Enter vendor name"
-            error={errors.name?.message}
-            {...register('name')}
-          />
-
-          <Input
-            label="Email (Optional)"
-            type="email"
-            placeholder="Enter email address"
-            error={errors.email?.message}
-            {...register('email')}
-          />
-
-          <Input
-            label="Phone (Optional)"
-            placeholder="Enter phone number"
-            error={errors.phone?.message}
-            {...register('phone')}
-          />
-
-          <Input
-            label="Address (Optional)"
-            placeholder="Enter address"
-            error={errors.address?.message}
-            {...register('address')}
-          />
-
-          <div className="form-actions">
-            <Button type="button" variant="outline" onClick={closeModal}>
-              Cancel
-            </Button>
-            <Button type="submit" loading={isSubmitting}>
-              {editingVendor ? 'Update' : 'Create'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
 
       {/* Bulk Upload Modal */}
       <BulkUpload
