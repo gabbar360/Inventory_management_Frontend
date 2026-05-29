@@ -1,63 +1,45 @@
 import React, { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Plus, Edit, Trash2, Upload, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   fetchLocations,
-  createLocation,
-  updateLocation,
   deleteLocation,
+  fetchLocationById,
   clearError,
 } from '@/slices/locationSlice';
 import { bulkUploadService } from '@/services/bulkUploadService';
 import { Location } from '@/types';
 import { formatDate, debounce } from '@/utils';
 import Button from '@/components/Button';
-import Input from '@/components/Input';
-import Modal from '@/components/Modal';
 import Table from '@/components/Table';
 import BulkUpload from '@/components/BulkUpload';
 import Pagination from '@/components/Pagination';
 import PageHeader from '@/components/PageHeader';
-
-interface LocationFormData {
-  name: string;
-  address?: string;
-}
-
-const locationSchema = z.object({
-  name: z.string().min(1, 'Location name is required'),
-  address: z.string().optional(),
-});
+import AddEditLocation from '@/components/AddEditLocation';
 
 const Locations: React.FC = () => {
+  const navigate = useNavigate();
+  const { id } = useParams();
   const dispatch = useAppDispatch();
-  const { locations, pagination, loading, error } = useAppSelector(
+  const { locations, currentLocation, pagination, loading, error } = useAppSelector(
     (state) => state.locations
   );
 
-  const [modalOpen, setModalOpen] = useState(false);
   const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
-  const [editingLocation, setEditingLocation] = useState<Location | null>(null);
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    formState: { errors, isSubmitting },
-  } = useForm<LocationFormData>({
-    resolver: zodResolver(locationSchema),
-  });
 
   useEffect(() => {
     dispatch(fetchLocations({ page: currentPage, limit: 10, search }));
   }, [dispatch, search, currentPage]);
+
+  useEffect(() => {
+    if (id) {
+      dispatch(fetchLocationById(id));
+    }
+  }, [id, dispatch]);
 
   useEffect(() => {
     if (error) {
@@ -71,39 +53,21 @@ const Locations: React.FC = () => {
     setCurrentPage(1);
   });
 
-  const openModal = (location?: Location) => {
-    if (location) {
-      setEditingLocation(location);
-      setValue('name', location.name);
-      setValue('address', location.address || '');
-    } else {
-      setEditingLocation(null);
-      reset();
-    }
-    setModalOpen(true);
+  const handleAddLocation = () => {
+    navigate('/locations/add');
   };
 
-  const closeModal = () => {
-    setModalOpen(false);
-    setEditingLocation(null);
-    reset();
+  const handleEditLocation = (location: Location) => {
+    navigate(`/locations/edit/${location.id}`);
   };
 
-  const onSubmit = async (data: LocationFormData) => {
-    try {
-      if (editingLocation) {
-        await dispatch(
-          updateLocation({ id: editingLocation.id, data })
-        ).unwrap();
-        toast.success('Location updated successfully');
-      } else {
-        await dispatch(createLocation(data)).unwrap();
-        toast.success('Location created successfully');
-      }
-      closeModal();
-    } catch (error) {
-      // Error handled by Redux
-    }
+  const handleFormSuccess = () => {
+    navigate('/locations');
+    dispatch(fetchLocations({ page: currentPage, limit: 10, search }));
+  };
+
+  const handleFormCancel = () => {
+    navigate('/locations');
   };
 
   const handleDelete = async (location: Location) => {
@@ -170,7 +134,7 @@ const Locations: React.FC = () => {
       title: 'Actions',
       render: (_: any, record: Location) => (
         <div className="flex gap-1 sm:gap-2">
-          <Button variant="ghost" size="sm" onClick={() => openModal(record)}>
+          <Button variant="ghost" size="sm" onClick={() => handleEditLocation(record)}>
             <Edit className="h-4 w-4" />
           </Button>
           <Button
@@ -185,6 +149,17 @@ const Locations: React.FC = () => {
       ),
     },
   ];
+
+  // Show form if in add/edit mode
+  if (id || window.location.pathname.includes('/add')) {
+    return (
+      <AddEditLocation
+        location={id && currentLocation ? currentLocation : undefined}
+        onSuccess={handleFormSuccess}
+        onCancel={handleFormCancel}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -206,7 +181,7 @@ const Locations: React.FC = () => {
           {
             label: 'Add Location',
             icon: <Plus className="h-4 w-4" />,
-            onClick: () => openModal(),
+            onClick: handleAddLocation,
             variant: 'primary' as const,
           },
         ]}
@@ -225,38 +200,6 @@ const Locations: React.FC = () => {
           loading={loading}
         />
       </div>
-
-      {/* Modal */}
-      <Modal
-        isOpen={modalOpen}
-        onClose={closeModal}
-        title={editingLocation ? 'Edit Location' : 'Add Location'}
-      >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <Input
-            label="Location Name"
-            placeholder="Enter location name"
-            error={errors.name?.message}
-            {...register('name')}
-          />
-
-          <Input
-            label="Address (Optional)"
-            placeholder="Enter address"
-            error={errors.address?.message}
-            {...register('address')}
-          />
-
-          <div className="form-actions">
-            <Button type="button" variant="outline" onClick={closeModal}>
-              Cancel
-            </Button>
-            <Button type="submit" loading={isSubmitting}>
-              {editingLocation ? 'Update' : 'Create'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
 
       {/* Bulk Upload Modal */}
       <BulkUpload

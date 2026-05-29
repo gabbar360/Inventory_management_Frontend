@@ -1,37 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   fetchRoles,
-  createRole,
+  fetchRoleById,
   updateRole,
   deleteRole,
   clearError,
 } from '@/slices/roleSlice';
 import { formatDate, debounce } from '@/utils';
 import Button from '@/components/Button';
-import Input from '@/components/Input';
-import Modal from '@/components/Modal';
 import ConfirmModal from '@/components/ConfirmModal';
 import Table from '@/components/Table';
 import Pagination from '@/components/Pagination';
 import PageHeader from '@/components/PageHeader';
-
-interface RoleFormData {
-  name: string;
-  description?: string;
-  isActive?: boolean;
-}
-
-const roleSchema = z.object({
-  name: z.string().min(1, 'Role name is required'),
-  description: z.string().optional(),
-  isActive: z.boolean().optional(),
-});
+import AddEditRole from '@/components/AddEditRole';
 
 // Inline Toggle Component
 const ToggleSwitch: React.FC<{ checked: boolean; onChange: (checked: boolean) => void; disabled?: boolean }> = ({
@@ -56,13 +41,13 @@ const ToggleSwitch: React.FC<{ checked: boolean; onChange: (checked: boolean) =>
 );
 
 const Roles: React.FC = () => {
+  const navigate = useNavigate();
+  const { id } = useParams();
   const dispatch = useAppDispatch();
-  const { roles, pagination, loading, error } = useAppSelector(
+  const { roles, currentRole, pagination, loading, error } = useAppSelector(
     (state) => state.roles
   );
 
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingRole, setEditingRole] = useState<any | null>(null);
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [confirmModal, setConfirmModal] = useState({
@@ -76,22 +61,15 @@ const Roles: React.FC = () => {
     roleName: '',
   });
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    watch,
-    formState: { errors, isSubmitting },
-  } = useForm<RoleFormData>({
-    resolver: zodResolver(roleSchema),
-  });
-
-  const isActiveValue = watch('isActive');
-
   useEffect(() => {
     dispatch(fetchRoles({ page: currentPage, limit: 10, search }));
   }, [dispatch, search, currentPage]);
+
+  useEffect(() => {
+    if (id) {
+      dispatch(fetchRoleById(Number(id)));
+    }
+  }, [id, dispatch]);
 
   useEffect(() => {
     if (error) {
@@ -105,50 +83,27 @@ const Roles: React.FC = () => {
     setCurrentPage(1);
   });
 
-  const openModal = (role?: any) => {
-    if (role) {
-      setEditingRole(role);
-      setValue('name', role.name);
-      setValue('description', role.description || '');
-      setValue('isActive', role.isActive !== false);
-    } else {
-      setEditingRole(null);
-      reset({ isActive: true });
-    }
-    setModalOpen(true);
+  const handleAddRole = () => {
+    navigate('/roles/add');
   };
 
-  const closeModal = () => {
-    setModalOpen(false);
-    setEditingRole(null);
-    reset();
+  const handleEditRole = (role: any) => {
+    navigate(`/roles/edit/${role.id}`);
   };
 
-  const onSubmit = async (data: RoleFormData) => {
-    try {
-      const submitData = {
-        ...data,
-        isActive: data.isActive === true
-      };
-      if (editingRole) {
-        await dispatch(
-          updateRole({ id: editingRole.id, data: submitData })
-        ).unwrap();
-        toast.success('Role updated successfully');
-      } else {
-        await dispatch(createRole(submitData)).unwrap();
-        toast.success('Role created successfully');
-      }
-      closeModal();
-    } catch (error) {
-      // Error handled by Redux
-    }
+  const handleFormSuccess = () => {
+    navigate('/roles');
+    dispatch(fetchRoles({ page: currentPage, limit: 10, search }));
+  };
+
+  const handleFormCancel = () => {
+    navigate('/roles');
   };
 
   const handleToggleStatus = (roleId: number, currentStatus: boolean) => {
     setConfirmModal({
       isOpen: true,
-      roleId,
+      roleId: Number(roleId),
       currentStatus,
     });
   };
@@ -225,7 +180,7 @@ const Roles: React.FC = () => {
       title: 'Actions',
       render: (_: any, record: any) => (
         <div className="flex gap-1 sm:gap-2">
-          <Button variant="ghost" size="sm" onClick={() => openModal(record)}>
+          <Button variant="ghost" size="sm" onClick={() => handleEditRole(record)}>
             <Edit className="h-4 w-4" />
           </Button>
           <Button
@@ -241,6 +196,17 @@ const Roles: React.FC = () => {
     },
   ];
 
+  // Show form if in add/edit mode
+  if (id || window.location.pathname.includes('/add')) {
+    return (
+      <AddEditRole
+        role={id && currentRole ? currentRole : undefined}
+        onSuccess={handleFormSuccess}
+        onCancel={handleFormCancel}
+      />
+    );
+  }
+
   return (
     <div className="space-y-4 sm:space-y-6">
       <PageHeader
@@ -253,7 +219,7 @@ const Roles: React.FC = () => {
           {
             label: 'Add Role',
             icon: <Plus className="h-4 w-4" />,
-            onClick: () => openModal(),
+            onClick: handleAddRole,
             variant: 'primary' as const,
           },
         ]}
@@ -272,58 +238,6 @@ const Roles: React.FC = () => {
           loading={loading}
         />
       </div>
-
-      {/* Create/Edit Modal */}
-      <Modal
-        isOpen={modalOpen}
-        onClose={closeModal}
-        title={editingRole ? 'Edit Role' : 'Add Role'}
-      >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <Input
-            label="Role Name"
-            placeholder="Enter role name"
-            error={errors.name?.message}
-            {...register('name')}
-          />
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description
-            </label>
-            <textarea
-              {...register('description')}
-              placeholder="Enter role description"
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            {errors.description && (
-              <p className="text-red-500 text-sm mt-1">
-                {errors.description.message}
-              </p>
-            )}
-          </div>
-
-          <div className="flex items-center gap-3">
-            <ToggleSwitch
-              checked={isActiveValue !== false}
-              onChange={(checked) => setValue('isActive', checked)}
-            />
-            <label className="text-sm font-medium text-gray-700">
-              {isActiveValue !== false ? 'Active' : 'Inactive'}
-            </label>
-          </div>
-
-          <div className="form-actions">
-            <Button type="button" variant="outline" onClick={closeModal}>
-              Cancel
-            </Button>
-            <Button type="submit" loading={isSubmitting}>
-              {editingRole ? 'Update' : 'Create'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
 
       {/* Confirm Status Change Modal */}
       <ConfirmModal

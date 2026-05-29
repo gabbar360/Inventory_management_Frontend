@@ -95,22 +95,44 @@ function App() {
         <Route path="leads" element={<Leads />} />
         <Route path="website-quotes" element={<WebsiteQuotes />} />
         <Route path="categories" element={<Categories />} />
+        <Route path="categories/add" element={<Categories />} />
+        <Route path="categories/edit/:id" element={<Categories />} />
         <Route path="products" element={<Products />} />
+        <Route path="products/add" element={<Products />} />
+        <Route path="products/edit/:id" element={<Products />} />
         <Route path="vendors" element={<Vendors />} />
+        <Route path="vendors/add" element={<Vendors />} />
+        <Route path="vendors/edit/:id" element={<Vendors />} />
         <Route path="customers" element={<Customers />} />
+        <Route path="customers/add" element={<Customers />} />
+        <Route path="customers/edit/:id" element={<Customers />} />
         <Route path="locations" element={<Locations />} />
+        <Route path="locations/add" element={<Locations />} />
+        <Route path="locations/edit/:id" element={<Locations />} />
         <Route path="inward" element={<Inward />} />
+        <Route path="inward/add" element={<Inward />} />
+        <Route path="inward/edit/:id" element={<Inward />} />
         <Route path="outward" element={<Outward />} />
         <Route path="profit-loss" element={<ProfitLossAnalysis />} />
         <Route path="inventory" element={<Inventory />} />
         <Route path="samples" element={<Samples />} />
+        <Route path="samples/add" element={<Samples />} />
+        <Route path="samples/edit/:id" element={<Samples />} />
         <Route path="quotes" element={<Quotes />} />
         <Route path="sales-orders" element={<SalesOrders />} />
         <Route path="purchase-orders" element={<PurchaseOrders />} />
+        <Route path="purchase-orders/add" element={<PurchaseOrders />} />
+        <Route path="purchase-orders/edit/:id" element={<PurchaseOrders />} />
         <Route path="order-dispatch" element={<OrderDispatchPage />} />
+        <Route path="order-dispatch/add" element={<OrderDispatchPage />} />
+        <Route path="order-dispatch/edit/:id" element={<OrderDispatchPage />} />
         <Route path="settings" element={<Settings />} />
         <Route path="roles" element={<Roles />} />
+        <Route path="roles/add" element={<Roles />} />
+        <Route path="roles/edit/:id" element={<Roles />} />
         <Route path="users" element={<Users />} />
+        <Route path="users/add" element={<Users />} />
+        <Route path="users/edit/:id" element={<Users />} />
       </Route>
     </Routes>
   );

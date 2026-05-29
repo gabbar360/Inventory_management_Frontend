@@ -4,6 +4,7 @@ import { PurchaseOrder } from '@/types';
 
 interface PurchaseOrderState {
   orders: PurchaseOrder[];
+  currentPurchaseOrder: PurchaseOrder | null;
   pagination: any;
   loading: boolean;
   error: string | null;
@@ -11,6 +12,7 @@ interface PurchaseOrderState {
 
 const initialState: PurchaseOrderState = {
   orders: [],
+  currentPurchaseOrder: null,
   pagination: null,
   loading: false,
   error: null,
@@ -83,6 +85,7 @@ const purchaseOrderSlice = createSlice({
         state.error = action.error.message || 'Failed to fetch purchase orders';
       })
       .addCase(fetchPurchaseOrderById.fulfilled, (state, action) => {
+        state.currentPurchaseOrder = action.payload;
         const idx = state.orders.findIndex((o) => o.id === action.payload.id);
         if (idx !== -1) {
           state.orders[idx] = action.payload;

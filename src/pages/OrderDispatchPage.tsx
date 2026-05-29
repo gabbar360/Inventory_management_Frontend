@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Plus, Edit, Trash2, Eye, Download, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { fetchOrderDispatches, deleteOrderDispatch } from '@/slices/orderDispatchSlice';
+import { fetchOrderDispatches, fetchOrderDispatchById, deleteOrderDispatch } from '@/slices/orderDispatchSlice';
 import { fetchSalesOrders } from '@/slices/salesOrderSlice';
 import { OrderDispatch } from '@/types';
 import { orderDispatchService } from '@/services/orderDispatchService';
@@ -12,8 +13,7 @@ import Modal from '@/components/Modal';
 import Table from '@/components/Table';
 import Pagination from '@/components/Pagination';
 import PageHeader from '@/components/PageHeader';
-import { OrderDispatchForm } from '@/components/OrderDispatchForm';
-import { OrderDispatchDetails } from '@/components/OrderDispatchDetails';
+import AddEditOrderDispatch from '@/components/AddEditOrderDispatch';
 
 const STATUS_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
   pending: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Pending' },
@@ -33,20 +33,26 @@ const StatusBadge = ({ status }: { status: string }) => {
 };
 
 const OrderDispatchPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { id } = useParams();
   const dispatch = useAppDispatch();
-  const { dispatches, pagination, loading } = useAppSelector((state) => state.orderDispatch);
+  const { dispatches, currentDispatch, pagination, loading } = useAppSelector((state) => state.orderDispatch);
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [viewDispatch, setViewDispatch] = useState<OrderDispatch | null>(null);
-  const [editDispatch, setEditDispatch] = useState<OrderDispatch | null>(null);
-  const [createModalOpen, setCreateModalOpen] = useState(false);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
   useEffect(() => {
     dispatch(fetchOrderDispatches({ page: currentPage, limit: 10, search, status: statusFilter || undefined }));
   }, [dispatch, search, statusFilter, currentPage]);
+
+  useEffect(() => {
+    if (id) {
+      dispatch(fetchOrderDispatchById(id));
+    }
+  }, [id, dispatch]);
 
   useEffect(() => {
     dispatch(fetchSalesOrders({ page: 1, limit: 1000 }));
@@ -57,10 +63,27 @@ const OrderDispatchPage: React.FC = () => {
     setCurrentPage(1);
   });
 
-  const handleDelete = async (dispatch_item: OrderDispatch) => {
-    if (!window.confirm(`Delete dispatch "${dispatch_item.dispatchNo}"?`)) return;
+  const handleAddDispatch = () => {
+    navigate('/order-dispatch/add');
+  };
+
+  const handleEditDispatch = (dispatchItem: OrderDispatch) => {
+    navigate(`/order-dispatch/edit/${dispatchItem.id}`);
+  };
+
+  const handleFormSuccess = () => {
+    navigate('/order-dispatch');
+    dispatch(fetchOrderDispatches({ page: currentPage, limit: 10, search, status: statusFilter || undefined }));
+  };
+
+  const handleFormCancel = () => {
+    navigate('/order-dispatch');
+  };
+
+  const handleDelete = async (dispatchItem: OrderDispatch) => {
+    if (!window.confirm(`Delete dispatch "${dispatchItem.dispatchNo}"?`)) return;
     try {
-      await dispatch(deleteOrderDispatch(dispatch_item.id)).unwrap();
+      await dispatch(deleteOrderDispatch(dispatchItem.id)).unwrap();
       toast.success('Dispatch deleted successfully');
       dispatch(fetchOrderDispatches({ page: currentPage, limit: 10, search, status: statusFilter || undefined }));
     } catch (error: any) {
@@ -68,14 +91,14 @@ const OrderDispatchPage: React.FC = () => {
     }
   };
 
-  const handleDownloadPDF = async (dispatch_item: OrderDispatch) => {
-    setDownloadingId(dispatch_item.id);
+  const handleDownloadPDF = async (dispatchItem: OrderDispatch) => {
+    setDownloadingId(dispatchItem.id);
     try {
-      const blob = await orderDispatchService.downloadPDF(dispatch_item.id);
+      const blob = await orderDispatchService.downloadPDF(dispatchItem.id);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Dispatch-${dispatch_item.dispatchNo}.pdf`;
+      a.download = `Dispatch-${dispatchItem.dispatchNo}.pdf`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -86,12 +109,6 @@ const OrderDispatchPage: React.FC = () => {
     } finally {
       setDownloadingId(null);
     }
-  };
-
-  const handleFormSuccess = () => {
-    setCreateModalOpen(false);
-    setEditDispatch(null);
-    dispatch(fetchOrderDispatches({ page: currentPage, limit: 10, search, status: statusFilter || undefined }));
   };
 
   const columns = [
@@ -120,11 +137,6 @@ const OrderDispatchPage: React.FC = () => {
         </span>
       ),
     },
-    // {
-    //   key: 'trackingNumber',
-    //   title: 'Tracking No',
-    //   render: (v: string) => v || '-',
-    // },
     {
       key: 'status',
       title: 'Status',
@@ -156,7 +168,7 @@ const OrderDispatchPage: React.FC = () => {
               <Download className="h-4 w-4" />
             )}
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => setEditDispatch(r)} title="Edit">
+          <Button variant="ghost" size="sm" onClick={() => handleEditDispatch(r)} title="Edit">
             <Edit className="h-4 w-4" />
           </Button>
           <Button
@@ -173,6 +185,17 @@ const OrderDispatchPage: React.FC = () => {
     },
   ];
 
+  // Show form if in add/edit mode
+  if (id || window.location.pathname.includes('/add')) {
+    return (
+      <AddEditOrderDispatch
+        dispatch={id && currentDispatch ? currentDispatch : undefined}
+        onSuccess={handleFormSuccess}
+        onCancel={handleFormCancel}
+      />
+    );
+  }
+
   return (
     <div className="space-y-4">
       <PageHeader
@@ -183,7 +206,7 @@ const OrderDispatchPage: React.FC = () => {
           {
             label: 'Add Dispatch',
             icon: <Plus className="h-4 w-4" />,
-            onClick: () => setCreateModalOpen(true),
+            onClick: handleAddDispatch,
             variant: 'primary' as const,
           },
         ]}
@@ -219,39 +242,6 @@ const OrderDispatchPage: React.FC = () => {
         />
       </div>
 
-      {/* Create Modal */}
-      <Modal
-        isOpen={createModalOpen}
-        onClose={() => setCreateModalOpen(false)}
-        title="Create New Dispatch"
-        size="xl"
-      >
-        <div className="space-y-4">
-          <OrderDispatchForm
-            onSuccess={handleFormSuccess}
-            onCancel={() => setCreateModalOpen(false)}
-          />
-        </div>
-      </Modal>
-
-      {/* Edit Modal */}
-      <Modal
-        isOpen={!!editDispatch}
-        onClose={() => setEditDispatch(null)}
-        title={`Edit ${editDispatch?.dispatchNo}`}
-        size="xl"
-      >
-        {editDispatch && (
-          <div className="space-y-4">
-            <OrderDispatchForm
-              dispatchId={editDispatch.id}
-              onSuccess={handleFormSuccess}
-              onCancel={() => setEditDispatch(null)}
-            />
-          </div>
-        )}
-      </Modal>
-
       {/* View Modal */}
       <Modal
         isOpen={!!viewDispatch}
@@ -260,13 +250,11 @@ const OrderDispatchPage: React.FC = () => {
         size="lg"
       >
         {viewDispatch && (
-          <OrderDispatchDetails
+          <AddEditOrderDispatch
             dispatch={viewDispatch}
-            onClose={() => setViewDispatch(null)}
-            onEdit={() => {
-              setViewDispatch(null);
-              setEditDispatch(viewDispatch);
-            }}
+            viewOnly={true}
+            onSuccess={() => setViewDispatch(null)}
+            onCancel={() => setViewDispatch(null)}
           />
         )}
       </Modal>

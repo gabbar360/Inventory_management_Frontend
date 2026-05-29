@@ -1,50 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   fetchUsers,
-  createUser,
-  updateUser,
+  fetchUserById,
   deleteUser,
   toggleUserStatus,
   clearError,
 } from '@/slices/userSlice';
-import { fetchRoles } from '@/slices/roleSlice';
 import { formatDate, debounce } from '@/utils';
 import Button from '@/components/Button';
-import Input from '@/components/Input';
-import Modal from '@/components/Modal';
 import ConfirmModal from '@/components/ConfirmModal';
 import Table from '@/components/Table';
 import Pagination from '@/components/Pagination';
 import PageHeader from '@/components/PageHeader';
+import AddEditUser from '@/components/AddEditUser';
 
-interface UserFormData {
-  name: string;
-  email: string;
-  password?: string;
-  role: string;
-  isActive?: boolean;
-}
-
-const userSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  email: z.string().email('Invalid email address'),
-  password: z.string().optional(),
-  role: z.string().min(1, 'Role is required'),
-  isActive: z.boolean().optional(),
-});
-
-// Inline Toggle Component
-const ToggleSwitch: React.FC<{ checked: boolean; onChange: (checked: boolean) => void; disabled?: boolean }> = ({
-  checked,
-  onChange,
-  disabled = false,
-}) => (
+const ToggleSwitch: React.FC<{ checked: boolean; onChange: (checked: boolean) => void; disabled?: boolean }> = (
+  { checked, onChange, disabled = false }
+) => (
   <button
     type="button"
     onClick={() => !disabled && onChange(!checked)}
@@ -62,14 +38,13 @@ const ToggleSwitch: React.FC<{ checked: boolean; onChange: (checked: boolean) =>
 );
 
 const Users: React.FC = () => {
+  const navigate = useNavigate();
+  const { id } = useParams();
   const dispatch = useAppDispatch();
-  const { users, pagination, loading, error } = useAppSelector(
+  const { users, currentUser, pagination, loading, error } = useAppSelector(
     (state) => state.users
   );
-  const { roles } = useAppSelector((state) => state.roles);
 
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<any | null>(null);
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [confirmModal, setConfirmModal] = useState({
@@ -83,23 +58,15 @@ const Users: React.FC = () => {
     userName: '',
   });
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    watch,
-    formState: { errors, isSubmitting },
-  } = useForm<UserFormData>({
-    resolver: zodResolver(userSchema),
-  });
-
-  const isActiveValue = watch('isActive');
-
   useEffect(() => {
     dispatch(fetchUsers({ page: currentPage, limit: 10, search }));
-    dispatch(fetchRoles({ page: 1, limit: 100, search: '' }));
   }, [dispatch, search, currentPage]);
+
+  useEffect(() => {
+    if (id) {
+      dispatch(fetchUserById(parseInt(id)));
+    }
+  }, [id, dispatch]);
 
   useEffect(() => {
     if (error) {
@@ -113,45 +80,21 @@ const Users: React.FC = () => {
     setCurrentPage(1);
   });
 
-  const openModal = (user?: any) => {
-    if (user) {
-      setEditingUser(user);
-      setValue('name', user.name);
-      setValue('email', user.email);
-      setValue('role', user.role);
-      setValue('isActive', user.isActive !== false);
-    } else {
-      setEditingUser(null);
-      reset({ isActive: true });
-    }
-    setModalOpen(true);
+  const handleAddUser = () => {
+    navigate('/users/add');
   };
 
-  const closeModal = () => {
-    setModalOpen(false);
-    setEditingUser(null);
-    reset();
+  const handleEditUser = (user: any) => {
+    navigate(`/users/edit/${user.id}`);
   };
 
-  const onSubmit = async (data: UserFormData) => {
-    try {
-      if (editingUser) {
-        await dispatch(
-          updateUser({ id: editingUser.id, data })
-        ).unwrap();
-        toast.success('User updated successfully');
-      } else {
-        if (!data.password) {
-          toast.error('Password is required for new users');
-          return;
-        }
-        await dispatch(createUser({ ...data, password: data.password })).unwrap();
-        toast.success('User created successfully');
-      }
-      closeModal();
-    } catch (error) {
-      // Error handled by Redux
-    }
+  const handleFormSuccess = () => {
+    navigate('/users');
+    dispatch(fetchUsers({ page: currentPage, limit: 10, search }));
+  };
+
+  const handleFormCancel = () => {
+    navigate('/users');
   };
 
   const handleToggleStatus = (userId: number, currentStatus: boolean) => {
@@ -240,7 +183,7 @@ const Users: React.FC = () => {
       title: 'Actions',
       render: (_: any, record: any) => (
         <div className="flex gap-1 sm:gap-2">
-          <Button variant="ghost" size="sm" onClick={() => openModal(record)}>
+          <Button variant="ghost" size="sm" onClick={() => handleEditUser(record)}>
             <Edit className="h-4 w-4" />
           </Button>
           <Button
@@ -256,6 +199,17 @@ const Users: React.FC = () => {
     },
   ];
 
+  // Show form if in add/edit mode
+  if (id || window.location.pathname.includes('/add')) {
+    return (
+      <AddEditUser
+        user={id && currentUser ? currentUser : undefined}
+        onSuccess={handleFormSuccess}
+        onCancel={handleFormCancel}
+      />
+    );
+  }
+
   return (
     <div className="space-y-4 sm:space-y-6">
       <PageHeader
@@ -268,7 +222,7 @@ const Users: React.FC = () => {
           {
             label: 'Add User',
             icon: <Plus className="h-4 w-4" />,
-            onClick: () => openModal(),
+            onClick: handleAddUser,
             variant: 'primary' as const,
           },
         ]}
@@ -287,85 +241,6 @@ const Users: React.FC = () => {
           loading={loading}
         />
       </div>
-
-      {/* Create/Edit Modal */}
-      <Modal
-        isOpen={modalOpen}
-        onClose={closeModal}
-        title={editingUser ? 'Edit User' : 'Add User'}
-      >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <Input
-            label="Name"
-            placeholder="Enter user name"
-            error={errors.name?.message}
-            {...register('name')}
-          />
-
-          <Input
-            label="Email"
-            type="email"
-            placeholder="Enter email address"
-            error={errors.email?.message}
-            {...register('email')}
-          />
-
-          {!editingUser && (
-            <Input
-              label="Password"
-              type="password"
-              placeholder="Enter password"
-              error={errors.password?.message}
-              {...register('password')}
-            />
-          )}
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Role
-            </label>
-            <select
-              {...register('role')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Select a role</option>
-              {roles && roles.length > 0 ? (
-                roles.map((role) => (
-                  <option key={role.id} value={role.name}>
-                    {role.name.replace('_', ' ')}
-                  </option>
-                ))
-              ) : (
-                <option disabled>No roles available</option>
-              )}
-            </select>
-            {errors.role && (
-              <p className="text-red-500 text-sm mt-1">{errors.role.message}</p>
-            )}
-          </div>
-
-          {editingUser && (
-            <div className="flex items-center gap-3">
-              <ToggleSwitch
-                checked={isActiveValue !== false}
-                onChange={(checked) => setValue('isActive', checked)}
-              />
-              <label className="text-sm font-medium text-gray-700">
-                {isActiveValue !== false ? 'Unblocked' : 'Blocked'}
-              </label>
-            </div>
-          )}
-
-          <div className="form-actions">
-            <Button type="button" variant="outline" onClick={closeModal}>
-              Cancel
-            </Button>
-            <Button type="submit" loading={isSubmitting}>
-              {editingUser ? 'Update' : 'Create'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
 
       {/* Confirm Status Change Modal */}
       <ConfirmModal
