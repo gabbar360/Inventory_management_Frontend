@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Plus, Trash2, Globe, User, X, GripVertical, Eye,
-  Search, Mail, Phone, Building2, MapPin, Calendar,
+  Mail, Phone, Building2, MapPin, Calendar,
   TrendingUp, Users, CheckCircle2, XCircle, Briefcase,
   MessageSquare, ChevronDown, Sparkles, ArrowUpRight,
   LayoutDashboard, List, Filter,
@@ -467,13 +467,12 @@ const Leads: React.FC = () => {
           <div className="flex flex-wrap items-center gap-2 flex-1 sm:flex-initial w-full sm:w-auto">
             {/* Search Box */}
             <div className="relative flex-1 sm:flex-initial w-full sm:w-auto">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search leads..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 pr-8 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600 w-full sm:w-44 md:w-52 transition-all placeholder:text-gray-400"
+                className="pr-8 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600 w-full sm:w-44 md:w-52 transition-all placeholder:text-gray-400"
               />
               {search && (
                 <button

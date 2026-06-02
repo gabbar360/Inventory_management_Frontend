@@ -22,24 +22,24 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const baseClasses =
-      'inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50';
+      'inline-flex items-center justify-center rounded-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 shadow-sm';
 
     const variants = {
       primary:
-        'bg-primary-600 text-white hover:bg-primary-700 focus-visible:ring-primary-500',
+        'bg-odooTeal text-white hover:bg-odooTealHover active:bg-[#005c61] focus-visible:ring-odooTeal',
       secondary:
-        'bg-gray-100 text-gray-900 hover:bg-gray-200 focus-visible:ring-gray-500',
+        'bg-gray-100 text-gray-900 hover:bg-gray-200 focus-visible:ring-gray-300',
       outline:
-        'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 focus-visible:ring-gray-500',
-      ghost: 'text-gray-700 hover:bg-gray-100 focus-visible:ring-gray-500',
+        'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 focus-visible:ring-gray-300',
+      ghost: 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 shadow-none border border-transparent focus-visible:ring-gray-200',
       danger:
-        'bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500',
+        'bg-red-650 text-white hover:bg-red-750 active:bg-red-800 focus-visible:ring-red-500',
     };
 
     const sizes = {
-      sm: 'h-8 px-3 text-sm',
-      md: 'h-10 px-4 text-sm',
-      lg: 'h-12 px-6 text-base',
+      sm: 'h-7 px-2.5 text-xs',
+      md: 'h-8 px-3 text-xs sm:text-sm',
+      lg: 'h-10 px-5 text-sm sm:text-base',
     };
 
     return (

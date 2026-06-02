@@ -107,20 +107,20 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
         to={item.href}
         onClick={handleLinkClick}
         className={cn(
-          'group flex items-center rounded-md px-2 py-2 text-sm font-medium transition-colors',
+          'group flex items-center py-1.5 text-xs sm:text-sm font-medium transition-colors mb-0.5',
           isActive
-            ? 'bg-primary-100 text-primary-900'
-            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+            ? 'bg-primary-100/60 text-primary-900 border-l-[3px] border-primary-600 rounded-r-sm pl-2 sm:pl-3'
+            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 pl-3'
         )}
       >
         <item.icon
           className={cn(
-            'h-5 w-5 flex-shrink-0',
-            isOpen ? 'mr-3' : 'mx-auto',
-            isActive ? 'text-primary-500' : 'text-gray-400'
+            'h-4 w-4 flex-shrink-0 transition-colors',
+            isOpen ? 'mr-2.5' : 'mx-auto',
+            isActive ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-600'
           )}
         />
-        {isOpen && item.name}
+        {isOpen && <span className="truncate">{item.name}</span>}
       </Link>
     );
   };
@@ -134,39 +134,39 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
   ) => {
     const isGroupActive = items.some((i) => location.pathname === i.href);
     return (
-      <div>
+      <div className="space-y-0.5">
         <button
           onClick={() => {
             if (!isOpen) onToggle();
             else setOpen(!open);
           }}
           className={cn(
-            'w-full group flex items-center rounded-md px-2 py-2 text-sm font-medium transition-colors',
-            isGroupActive
-              ? 'bg-primary-100 text-primary-900'
-              : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+            'w-full group flex items-center py-1.5 text-xs sm:text-sm font-medium transition-colors pl-3',
+            isGroupActive && !open
+              ? 'bg-primary-100/60 text-primary-900 border-l-[3px] border-primary-600 rounded-r-sm pl-2 sm:pl-3'
+              : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
           )}
         >
           <Icon
             className={cn(
-              'h-5 w-5 flex-shrink-0',
-              isOpen ? 'mr-3' : 'mx-auto',
-              isGroupActive ? 'text-primary-500' : 'text-gray-400'
+              'h-4 w-4 flex-shrink-0 transition-colors',
+              isOpen ? 'mr-2.5' : 'mx-auto',
+              isGroupActive ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-600'
             )}
           />
           {isOpen && (
             <>
-              <span className="flex-1 text-left">{label}</span>
+              <span className="flex-1 text-left truncate">{label}</span>
               {open ? (
-                <ChevronDown className="h-4 w-4 text-gray-400" />
+                <ChevronDown className="h-3.5 w-3.5 text-gray-400 group-hover:text-gray-600" />
               ) : (
-                <ChevronRight className="h-4 w-4 text-gray-400" />
+                <ChevronRight className="h-3.5 w-3.5 text-gray-400 group-hover:text-gray-600" />
               )}
             </>
           )}
         </button>
         {isOpen && open && (
-          <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-100 pl-2">
+          <div className="ml-5.5 mt-0.5 space-y-0.5 border-l border-gray-200 pl-1.5">
             {items.map(navLink)}
           </div>
         )}
@@ -178,43 +178,43 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
     <>
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm z-40 lg:hidden"
           onClick={onToggle}
         />
       )}
 
       <div
         className={cn(
-          'bg-white shadow-lg transition-all duration-300 ease-in-out z-50',
+          'bg-gray-50 border-r border-gray-200 transition-all duration-300 ease-in-out z-50',
           'fixed lg:relative inset-y-0 left-0',
           'lg:translate-x-0',
           isOpen
-            ? 'translate-x-0 w-64'
-            : '-translate-x-full lg:translate-x-0 lg:w-16'
+            ? 'translate-x-0 w-52 sm:w-56 shadow-2xl lg:shadow-none'
+            : '-translate-x-full lg:translate-x-0 lg:w-12'
         )}
       >
         <div className="flex h-full flex-col">
-          {/* Logo */}
-          <div className="flex h-16 items-center border-b border-gray-200 px-2">
+          {/* Logo & Header */}
+          <div className="flex h-12 items-center justify-between border-b border-gray-200 px-2 sm:px-3 bg-gray-100/50">
             {isOpen ? (
               <>
-                <div className="flex-1" />
-                <span className="text-xl font-bold text-gray-900">Inventory</span>
-                <div className="flex-1 flex justify-end">
-                  <Button variant="ghost" size="sm" onClick={onToggle} className="p-2">
-                    <Menu className="h-5 w-5" />
-                  </Button>
+                <div className="flex items-center gap-1.5">
+                  <Warehouse className="h-4.5 w-4.5 text-primary-600" />
+                  <span className="text-sm font-bold tracking-tight text-gray-800">NovaStock</span>
                 </div>
+                <Button variant="ghost" size="sm" onClick={onToggle} className="p-1 h-7 w-7 text-gray-500 hover:text-gray-850 hover:bg-gray-200">
+                  <Menu className="h-4 w-4" />
+                </Button>
               </>
             ) : (
-              <Button variant="ghost" size="sm" onClick={onToggle} className="p-2 mx-auto">
-                <Menu className="h-5 w-5" />
+              <Button variant="ghost" size="sm" onClick={onToggle} className="p-1 h-7 w-7 mx-auto text-gray-500 hover:text-gray-850 hover:bg-gray-200">
+                <Menu className="h-4 w-4" />
               </Button>
             )}
           </div>
 
-          {/* Navigation */}
-          <nav className="flex-1 space-y-1 px-2 py-4 overflow-y-auto">
+          {/* Navigation links */}
+          <nav className="flex-1 space-y-0.5 px-1.5 py-3 overflow-y-auto">
             {topNavigation.map(navLink)}
 
             {dropdownGroup('Purchase', ShoppingCart, purchaseItems, purchaseOpen, setPurchaseOpen)}
@@ -222,17 +222,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
 
             {bottomNavigation.map(navLink)}
 
-            {dropdownGroup('User Management', Users, userManagementItems, userManagementOpen, setUserManagementOpen)}
+            {dropdownGroup('System Settings', Users, userManagementItems, userManagementOpen, setUserManagementOpen)}
           </nav>
 
           {/* Logout */}
-          <div className="border-t border-gray-200 p-4">
+          <div className="border-t border-gray-200 p-2 bg-gray-100/30">
             {isOpen ? (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleLogout}
-                className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+                className="w-full justify-start text-red-650 hover:text-red-750 hover:bg-red-50 text-xs py-1 px-2.5 h-8"
               >
                 <LogOut className="mr-2 h-4 w-4" />
                 Logout
@@ -243,20 +243,20 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowLogoutMenu(!showLogoutMenu)}
-                  className="w-full justify-center p-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                  className="w-full justify-center p-1 text-red-650 hover:text-red-750 hover:bg-red-50 h-8"
                 >
-                  <LogOut className="h-5 w-5" />
+                  <LogOut className="h-4 w-4" />
                 </Button>
                 {showLogoutMenu && (
-                  <div className="absolute bottom-full left-full ml-2 mb-2 bg-white shadow-lg rounded-md border border-gray-200 py-1 min-w-[180px] z-50">
+                  <div className="absolute bottom-full left-full ml-1 mb-1 bg-white shadow-md rounded border border-gray-200 py-1 min-w-[140px] z-55 animate-fadeIn">
                     <button
                       onClick={() => {
                         handleLogout();
                         setShowLogoutMenu(false);
                       }}
-                      className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center"
+                      className="w-full px-3 py-1.5 text-left text-xs text-red-650 hover:bg-red-50 flex items-center font-medium"
                     >
-                      <LogOut className="mr-2 h-4 w-4" />
+                      <LogOut className="mr-2 h-3.5 w-3.5" />
                       Logout
                     </button>
                   </div>

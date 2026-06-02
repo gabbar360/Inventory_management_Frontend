@@ -1,7 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   Plus,
   Trash2,
@@ -9,111 +7,40 @@ import {
   Upload,
   Download,
   Edit,
-  ChevronDown,
-  ChevronRight,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   fetchInwardInvoices,
   fetchInwardInvoiceById,
-  createInwardInvoice,
-  updateInwardInvoice,
   deleteInwardInvoice,
   clearError,
 } from '@/slices/inwardSlice';
-import { fetchProducts } from '@/slices/productSlice';
-import { fetchVendors, createVendor } from '@/slices/vendorSlice';
-import { fetchLocations } from '@/slices/locationSlice';
 import { bulkUploadService } from '@/services/bulkUploadService';
 import { InwardInvoice } from '@/types';
 import {
   formatDate,
   formatCurrency,
-  generateInvoiceNumber,
   debounce,
 } from '@/utils';
 import Button from '@/components/Button';
-import Input from '@/components/Input';
-import Select from '@/components/Select';
 import Modal from '@/components/Modal';
-import ProductSearch from '@/components/ProductSearch';
-import ConfirmModal from '@/components/ConfirmModal';
 import Table from '@/components/Table';
 import BulkUpload from '@/components/BulkUpload';
 import Pagination from '@/components/Pagination';
 import PageHeader from '@/components/PageHeader';
-
-interface InwardInvoiceFormData {
-  invoiceNo: string;
-  date: string;
-  vendorId: string;
-  locationId: string;
-  expense: number;
-  items: {
-    productId: string;
-    boxes: number;
-    packPerBox: number;
-    packPerPiece: number;
-    unit: 'box' | 'pack' | 'piece';
-    ratePerBox: number;
-    subItems?: {
-      boxes: number;
-      packPerBox: number;
-      packPerPiece: number;
-      unit: 'box' | 'pack' | 'piece';
-      ratePerBox: number;
-    }[];
-  }[];
-}
-
-const inwardSchema = z.object({
-  invoiceNo: z.string().min(1, 'Invoice number is required'),
-  date: z.string().min(1, 'Date is required'),
-  vendorId: z.union([z.string(), z.number()]).pipe(z.coerce.string().min(1, 'Vendor is required')),
-  locationId: z.union([z.string(), z.number()]).pipe(z.coerce.string().min(1, 'Location is required')),
-  expense: z.number().min(0, 'Expense must be positive').default(0),
-  items: z
-    .array(
-      z.object({
-        productId: z.union([z.string(), z.number()]).pipe(z.coerce.string().min(1, 'Product is required')),
-        boxes: z.number().min(1, 'Boxes must be at least 1'),
-        packPerBox: z.number().min(1, 'Pack per box must be at least 1'),
-        packPerPiece: z.number().min(1, 'Pack per piece must be at least 1'),
-        unit: z.enum(['box', 'pack', 'piece']).default('box'),
-        ratePerBox: z.number().min(0, 'Rate must be positive'),
-        subItems: z.array(
-          z.object({
-            boxes: z.number().min(1, 'Boxes must be at least 1'),
-            packPerBox: z.number().min(1, 'Pack per box must be at least 1'),
-            packPerPiece: z.number().min(1, 'Pack per piece must be at least 1'),
-            unit: z.enum(['box', 'pack', 'piece']).default('box'),
-            ratePerBox: z.number().min(0, 'Rate must be positive'),
-          })
-        ).optional(),
-      })
-    )
-    .min(1, 'At least one item is required'),
-});
+import AddEditInward from '@/components/AddEditInward';
 
 const Inward: React.FC = () => {
+  const navigate = useNavigate();
+  const { id } = useParams();
   const dispatch = useAppDispatch();
   const { invoices, currentInvoice, pagination, loading, error } =
     useAppSelector((state) => state.inward);
-  const { products } = useAppSelector((state) => state.products);
-  const { vendors } = useAppSelector((state) => state.vendors);
-  const { locations } = useAppSelector((state) => state.locations);
 
-  const [modalOpen, setModalOpen] = useState(false);
   const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
-  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<{ itemIndex: number; subIndex: number } | null>(null);
-  const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
   const [selectedInvoice, setSelectedInvoice] = useState<InwardInvoice | null>(
-    null
-  );
-  const [editingInvoice, setEditingInvoice] = useState<InwardInvoice | null>(
     null
   );
   const [search, setSearch] = useState('');
@@ -122,57 +49,8 @@ const Inward: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [dateSortOrder, setDateSortOrder] = useState<'asc' | 'desc'>('desc');
 
-  const [vendorSearch, setVendorSearch] = useState('');
-  const [showVendorDropdown, setShowVendorDropdown] = useState(false);
-  const [addVendorModalOpen, setAddVendorModalOpen] = useState(false);
-  const [newVendorData, setNewVendorData] = useState({ name: '', email: '', phone: '', address: '' });
-  const vendorDropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (vendorDropdownRef.current && !vendorDropdownRef.current.contains(e.target as Node)) {
-        setShowVendorDropdown(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const {
-    register,
-    handleSubmit,
-    reset,
-    control,
-    watch,
-    setValue,
-    formState: { errors, isSubmitting },
-  } = useForm<InwardInvoiceFormData>({
-    resolver: zodResolver(inwardSchema),
-    defaultValues: {
-      expense: 0,
-      items: [
-        {
-          productId: '',
-          boxes: 1,
-          packPerBox: 1,
-          packPerPiece: 1,
-          unit: 'box' as const,
-          ratePerBox: 0,
-        },
-      ],
-    },
-  });
-
-  const { fields, append, remove } = useFieldArray({
-    control,
-    name: 'items',
-  });
-
-  const watchedItems = watch('items');
-
   useEffect(() => {
     dispatch(fetchInwardInvoices({ page: currentPage, limit: 10, search, startDate, endDate }));
-    loadMasterData();
   }, [dispatch, search, currentPage, startDate, endDate]);
 
   useEffect(() => {
@@ -182,41 +60,12 @@ const Inward: React.FC = () => {
     }
   }, [error, dispatch]);
 
-  const loadMasterData = async () => {
-    await Promise.all([
-      dispatch(fetchProducts({ limit: 1000 })),
-      dispatch(fetchVendors({ limit: 100 })),
-      dispatch(fetchLocations({ limit: 100 }))
-    ]);
-  };
-
-  const handleDeleteSubItem = () => {
-    if (!deleteTarget) return;
-    const { itemIndex, subIndex } = deleteTarget;
-    const updatedItems = [...watchedItems];
-    const subItems = [...(updatedItems[itemIndex]?.subItems || [])];
-    subItems.splice(subIndex, 1);
-    updatedItems[itemIndex] = { ...updatedItems[itemIndex], subItems };
-    reset({ ...watch(), items: updatedItems });
-    setDeleteTarget(null);
-  };
-
-  const openDeleteConfirm = (itemIndex: number, subIndex: number) => {
-    setDeleteTarget({ itemIndex, subIndex });
-    setConfirmDeleteOpen(true);
-  };
-
-  const toggleSubItems = (itemIndex: number) => {
-    setExpandedItems(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(itemIndex)) {
-        newSet.delete(itemIndex);
-      } else {
-        newSet.add(itemIndex);
-      }
-      return newSet;
-    });
-  };
+  // Fetch invoice for edit mode
+  useEffect(() => {
+    if (id) {
+      dispatch(fetchInwardInvoiceById(id));
+    }
+  }, [id, dispatch]);
 
   const debouncedSearch = debounce((value: string) => {
     setSearch(value);
@@ -235,110 +84,26 @@ const Inward: React.FC = () => {
     setCurrentPage(1);
   };
 
-  const openModal = async () => {
-    await loadMasterData();
-    reset({
-      invoiceNo: generateInvoiceNumber('INW'),
-      date: new Date().toISOString().split('T')[0],
-      vendorId: '',
-      locationId: '',
-      expense: 0,
-      items: [
-        {
-          productId: '',
-          boxes: 1,
-          packPerBox: 1,
-          packPerPiece: 1,
-          unit: 'box' as const,
-          ratePerBox: 0,
-        },
-      ],
-    });
-    setVendorSearch('');
-    setModalOpen(true);
+  const handleAddStock = () => {
+    navigate('/inward/add');
   };
 
-  const closeModal = () => {
-    setModalOpen(false);
-    setEditingInvoice(null);
-    setVendorSearch('');
-    reset();
+  const handleEditInvoice = (invoice: InwardInvoice) => {
+    navigate(`/inward/edit/${invoice.id}`);
   };
 
-  const editInvoice = async (invoice: InwardInvoice) => {
-    try {
-      console.log('Editing invoice:', invoice);
-      const fullInvoice = await dispatch(fetchInwardInvoiceById(invoice.id)).unwrap();
-      console.log('Fetched full invoice:', fullInvoice);
-      
-      setEditingInvoice(fullInvoice);
-      const selectedVendor = vendors.find((v: any) => v.id === fullInvoice.vendorId || String(v.id) === String(fullInvoice.vendorId));
-      if (selectedVendor) setVendorSearch(`${(selectedVendor as any).code} - ${(selectedVendor as any).name}`);
+  const handleFormSuccess = () => {
+    navigate('/inward');
+    dispatch(fetchInwardInvoices({ page: currentPage, limit: 10, search, startDate, endDate }));
+  };
 
-      // Populate form with existing data
-      reset({
-        invoiceNo: fullInvoice.invoiceNo,
-        date: fullInvoice.date.split('T')[0],
-        vendorId: String(fullInvoice.vendorId),
-        locationId: String(fullInvoice.locationId),
-        expense: fullInvoice.expense || 0,
-        items: fullInvoice.items?.map((item) => {
-          // Determine the actual rate based on unit
-          let actualRate = item.ratePerBox;
-          if (item.unit === 'pack') {
-            actualRate = item.ratePerPack;
-          } else if (item.unit === 'piece') {
-            actualRate = item.ratePerPcs;
-          }
-          
-          return {
-            productId: String(item.productId),
-            boxes: item.boxes,
-            packPerBox: item.packPerBox || item.pcsPerBox,
-            packPerPiece: item.packPerPiece || 1,
-            unit: (item.unit || 'box') as 'box' | 'pack' | 'piece',
-            ratePerBox: actualRate,
-            subItems: item.subItems?.map((subItem) => {
-              let subActualRate = subItem.ratePerBox;
-              if (subItem.unit === 'pack') {
-                subActualRate = subItem.ratePerPack;
-              } else if (subItem.unit === 'piece') {
-                subActualRate = subItem.ratePerPcs;
-              }
-              
-              return {
-                boxes: subItem.boxes,
-                packPerBox: subItem.packPerBox,
-                packPerPiece: subItem.packPerPiece,
-                unit: (subItem.unit || 'box') as 'box' | 'pack' | 'piece',
-                ratePerBox: subActualRate,
-              };
-            }) || [],
-          };
-        }) || [
-          {
-            productId: '',
-            boxes: 1,
-            packPerBox: 1,
-            packPerPiece: 1,
-            unit: 'box' as const,
-            ratePerBox: 0,
-          },
-        ],
-      });
-
-      setModalOpen(true);
-    } catch (error) {
-      console.error('Failed to load invoice for editing:', error);
-    }
+  const handleFormCancel = () => {
+    navigate('/inward');
   };
 
   const viewInvoice = async (invoice: InwardInvoice) => {
     try {
-      console.log('Viewing invoice:', invoice);
-      const result = await dispatch(fetchInwardInvoiceById(invoice.id)).unwrap();
-      console.log('Fetched invoice result:', result);
-      console.log('Current invoice from state:', currentInvoice);
+      const result = await dispatch(fetchInwardInvoiceById(invoice.id.toString())).unwrap();
       setSelectedInvoice(result);
       setViewModalOpen(true);
     } catch (error) {
@@ -346,83 +111,16 @@ const Inward: React.FC = () => {
     }
   };
 
-  const onSubmit = async (data: InwardInvoiceFormData) => {
-    try {
-      if (editingInvoice) {
-        await dispatch(
-          updateInwardInvoice({ id: editingInvoice.id, data })
-        ).unwrap();
-        toast.success('Inward invoice updated successfully');
-      } else {
-        await dispatch(createInwardInvoice(data)).unwrap();
-        toast.success('Inward invoice created successfully');
-      }
-      closeModal();
-    } catch (error) {
-      // Error handled by Redux
-    }
-  };
-
   const deleteInvoice = async (invoice: InwardInvoice) => {
     if (window.confirm('Are you sure you want to delete this invoice?')) {
       try {
-        await dispatch(deleteInwardInvoice(invoice.id)).unwrap();
+        await dispatch(deleteInwardInvoice(invoice.id.toString())).unwrap();
         toast.success('Inward invoice deleted successfully');
+        dispatch(fetchInwardInvoices({ page: currentPage, limit: 10, search, startDate, endDate }));
       } catch (error) {
         // Error handled by Redux
       }
     }
-  };
-
-  const calculateItemTotal = (item: any) => {
-    const product = products.find((p) => String(p.id) === String(item.productId));
-    if (!product || !item.boxes || !item.ratePerBox) return 0;
-
-    const totalPacks = item.boxes * item.packPerBox;
-    const totalPcs = totalPacks * item.packPerPiece;
-    const unit = item.unit || 'box';
-    
-    let baseAmount;
-    if (unit === 'box') {
-      baseAmount = item.boxes * item.ratePerBox;
-    } else if (unit === 'pack') {
-      baseAmount = totalPacks * item.ratePerBox;
-    } else {
-      baseAmount = totalPcs * item.ratePerBox;
-    }
-    
-    const gstRate = product.category?.gstRate || 0;
-    const gstAmount = (baseAmount * gstRate) / 100;
-    let total = baseAmount + gstAmount;
-    
-    // Add sub-items total
-    if (item.subItems && item.subItems.length > 0) {
-      item.subItems.forEach((subItem: any) => {
-        const subTotalPacks = subItem.boxes * subItem.packPerBox;
-        const subTotalPcs = subTotalPacks * subItem.packPerPiece;
-        const subUnit = subItem.unit || 'box';
-        
-        let subBaseAmount;
-        if (subUnit === 'box') {
-          subBaseAmount = subItem.boxes * subItem.ratePerBox;
-        } else if (subUnit === 'pack') {
-          subBaseAmount = subTotalPacks * subItem.ratePerBox;
-        } else {
-          subBaseAmount = subTotalPcs * subItem.ratePerBox;
-        }
-        
-        const subGstAmount = (subBaseAmount * gstRate) / 100;
-        total += subBaseAmount + subGstAmount;
-      });
-    }
-    
-    return total;
-  };
-
-  const calculateGrandTotal = () => {
-    return watchedItems.reduce((total, item) => {
-      return total + calculateItemTotal(item);
-    }, 0);
   };
 
   const handleExport = async () => {
@@ -442,11 +140,6 @@ const Inward: React.FC = () => {
       console.error('Export error:', error);
     }
   };
-
-  const locationOptions = locations.map((l) => ({
-    value: l.id,
-    label: l.name,
-  }));
 
   const columns = [
     {
@@ -497,7 +190,7 @@ const Inward: React.FC = () => {
           <Button variant="ghost" size="sm" onClick={() => viewInvoice(record)}>
             <Eye className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => editInvoice(record)}>
+          <Button variant="ghost" size="sm" onClick={() => handleEditInvoice(record)}>
             <Edit className="h-4 w-4" />
           </Button>
           <Button
@@ -512,6 +205,17 @@ const Inward: React.FC = () => {
       ),
     },
   ];
+
+  // ── Show form if in add/edit mode (like Products.tsx / Outward.tsx) ──
+  if (id || window.location.pathname.includes('/add')) {
+    return (
+      <AddEditInward
+        invoice={id && currentInvoice ? currentInvoice : undefined}
+        onSuccess={handleFormSuccess}
+        onCancel={handleFormCancel}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -533,7 +237,7 @@ const Inward: React.FC = () => {
           {
             label: 'Add Stock',
             icon: <Plus className="h-4 w-4" />,
-            onClick: openModal,
+            onClick: handleAddStock,
             variant: 'primary' as const,
           },
         ]}
@@ -613,491 +317,6 @@ const Inward: React.FC = () => {
         />
       </div>
 
-      {/* Create Invoice Modal */}
-      <Modal
-        isOpen={modalOpen}
-        onClose={closeModal}
-        title={editingInvoice ? 'Edit Inward Invoice' : 'Create Inward Invoice'}
-        size="xl"
-      >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="Invoice Number"
-              error={errors.invoiceNo?.message}
-              {...register('invoiceNo')}
-            />
-            <Input
-              label="Date"
-              type="date"
-              error={errors.date?.message}
-              {...register('date')}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="relative" ref={vendorDropdownRef}>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Vendor <span className="text-red-500">*</span></label>
-              <input
-                type="text"
-                placeholder="Search vendor..."
-                value={vendorSearch}
-                onChange={(e) => {
-                  setVendorSearch(e.target.value);
-                  setValue('vendorId', '');
-                  setShowVendorDropdown(true);
-                }}
-                onFocus={() => setShowVendorDropdown(true)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                autoComplete="off"
-              />
-              <input type="text" required value={watch('vendorId')} onChange={() => {}} className="sr-only" tabIndex={-1} />
-              {errors.vendorId && <p className="mt-1 text-sm text-red-600">{errors.vendorId.message}</p>}
-              {showVendorDropdown && (
-                <ul className="absolute z-50 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto mt-1">
-                  {vendors
-                    .filter((v: any) => `${v.code} ${v.name}`.toLowerCase().includes(vendorSearch.toLowerCase()))
-                    .map((v: any) => (
-                      <li
-                        key={v.id}
-                        onMouseDown={() => {
-                          setValue('vendorId', String(v.id));
-                          setVendorSearch(`${v.code} - ${v.name}`);
-                          setShowVendorDropdown(false);
-                        }}
-                        className="px-3 py-2 cursor-pointer hover:bg-blue-50 text-sm"
-                      >
-                        {v.code} - {v.name}
-                      </li>
-                    ))}
-                  {vendors.filter((v: any) => `${v.code} ${v.name}`.toLowerCase().includes(vendorSearch.toLowerCase())).length === 0 && (
-                    <li className="px-3 py-2 text-sm text-gray-400">No vendors found</li>
-                  )}
-                  <li className="border-t border-gray-200 px-3 py-2 sticky bottom-0 bg-gray-50">
-                    <button
-                      type="button"
-                      onMouseDown={(e) => { e.preventDefault(); setAddVendorModalOpen(true); setShowVendorDropdown(false); }}
-                      className="w-full text-left text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-2"
-                    >
-                      <Plus className="h-4 w-4" />
-                      Add New Vendor
-                    </button>
-                  </li>
-                </ul>
-              )}
-            </div>
-            <Select
-              label="Location"
-              options={locationOptions}
-              placeholder="Select location"
-              error={errors.locationId?.message}
-              {...register('locationId')}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="Expense"
-              type="number"
-              step="0.01"
-              min="0"
-              placeholder="0.00"
-              error={errors.expense?.message}
-              {...register('expense', { valueAsNumber: true })}
-            />
-            <div></div>
-          </div>
-
-          {/* Items */}
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <h3 className="text-lg font-medium">Items</h3>
-            </div>
-
-            {fields.map((field, index) => {
-              const item = watchedItems[index];
-              const product = products.find((p) => String(p.id) === String(item?.productId));
-              const unit = item?.unit || 'box';
-              
-              const totalPacks = (item?.boxes || 0) * (item?.packPerBox || 0);
-              const totalPcs = totalPacks * (item?.packPerPiece || 0);
-              
-              let ratePerBox, ratePerPack, ratePerPcs, baseAmount;
-              if (unit === 'box') {
-                ratePerBox = item?.ratePerBox || 0;
-                ratePerPack = ratePerBox / (item?.packPerBox || 1);
-                ratePerPcs = ratePerPack / (item?.packPerPiece || 1);
-                baseAmount = (item?.boxes || 0) * ratePerBox;
-              } else if (unit === 'pack') {
-                ratePerPack = item?.ratePerBox || 0;
-                ratePerBox = ratePerPack * (item?.packPerBox || 1);
-                ratePerPcs = ratePerPack / (item?.packPerPiece || 1);
-                baseAmount = totalPacks * ratePerPack;
-              } else {
-                ratePerPcs = item?.ratePerBox || 0;
-                ratePerPack = ratePerPcs * (item?.packPerPiece || 1);
-                ratePerBox = ratePerPack * (item?.packPerBox || 1);
-                baseAmount = totalPcs * ratePerPcs;
-              }
-              
-              const gstRate = product?.category?.gstRate || 0;
-              const gstAmount = (baseAmount * gstRate) / 100;
-              const totalAmount = baseAmount + gstAmount;
-
-              return (
-                <div
-                  key={field.id}
-                  className="border border-gray-200 rounded-lg p-3 sm:p-4 space-y-4"
-                >
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-medium text-sm sm:text-base">Item {index + 1}</h4>
-                    {fields.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => remove(index)}
-                        className="text-red-600"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <ProductSearch
-                        value={watch(`items.${index}.productId`)}
-                        onChange={(productId) => setValue(`items.${index}.productId`, productId)}
-                        error={errors.items?.[index]?.productId?.message}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Category & GST
-                      </label>
-                      <div className="text-xs sm:text-sm text-gray-600 bg-gray-50 p-2 rounded">
-                        {product && product.category
-                          ? `${product.category.name} (GST: ${product.category.gstRate}%)`
-                          : 'Select product first'}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                    <Input
-                      label="Boxes"
-                      type="number"
-                      min="1"
-                      error={errors.items?.[index]?.boxes?.message}
-                      {...register(`items.${index}.boxes`, {
-                        valueAsNumber: true,
-                      })}
-                    />
-                    <Input
-                      label="Pack/Box"
-                      type="number"
-                      min="1"
-                      error={errors.items?.[index]?.packPerBox?.message}
-                      {...register(`items.${index}.packPerBox`, {
-                        valueAsNumber: true,
-                      })}
-                    />
-                    <Input
-                      label="Piece/Pack"
-                      type="number"
-                      min="1"
-                      error={errors.items?.[index]?.packPerPiece?.message}
-                      {...register(`items.${index}.packPerPiece`, {
-                        valueAsNumber: true,
-                      })}
-                    />
-                    <Select
-                      label="Select Unit"
-                      options={[
-                        { value: 'box', label: 'Per Box' },
-                        { value: 'pack', label: 'Per Pack' },
-                        { value: 'piece', label: 'Per Piece' },
-                      ]}
-                      error={errors.items?.[index]?.unit?.message}
-                      {...register(`items.${index}.unit`)}
-                    />
-                    <Input
-                      label={`Rate (${unit === 'box' ? 'Box' : unit === 'pack' ? 'Pack' : 'Piece'})`}
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      error={errors.items?.[index]?.ratePerBox?.message}
-                      {...register(`items.${index}.ratePerBox`, {
-                        valueAsNumber: true,
-                      })}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs sm:text-sm bg-gray-50 p-3 rounded">
-                    <div>
-                      <span className="font-medium">Total Packs: </span>
-                      <span className="text-gray-600">{totalPacks}</span>
-                    </div>
-                    <div>
-                      <span className="font-medium">Total PCS: </span>
-                      <span className="text-gray-600">{totalPcs}</span>
-                    </div>
-                    <div>
-                      <span className="font-medium">Rate/Pack: </span>
-                      <span className="text-gray-600">{formatCurrency(ratePerPack)}</span>
-                    </div>
-                    <div>
-                      <span className="font-medium">Rate/PCS: </span>
-                      <span className="text-gray-600">{formatCurrency(ratePerPcs)}</span>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs sm:text-sm bg-blue-50 p-3 rounded">
-                    <div>
-                      <span className="font-medium">Base Amount: </span>
-                      <span className="text-gray-900">{formatCurrency(baseAmount)}</span>
-                    </div>
-                    <div>
-                      <span className="font-medium">GST ({gstRate}%): </span>
-                      <span className="text-gray-900">{formatCurrency(gstAmount)}</span>
-                    </div>
-                    <div>
-                      <span className="font-medium">Total: </span>
-                      <span className="text-gray-900 font-semibold text-base">{formatCurrency(totalAmount)}</span>
-                    </div>
-                  </div>
-
-                  <div className="ml-4 border-l-2 border-gray-300 pl-4 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          toggleSubItems(index);
-                        }}
-                        className="flex items-center gap-1 p-1 h-auto"
-                      >
-                        {expandedItems.has(index) ? (
-                          <ChevronDown className="h-4 w-4" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4" />
-                        )}
-                      </Button>
-                      <span className="text-sm font-medium text-gray-700">
-                        Sub Items {item?.subItems && item.subItems.length > 0 && `(${item.subItems.length})`}
-                      </span>
-                    </div>
-
-                    {expandedItems.has(index) && (
-                      <div className="space-y-2 mt-2">
-                        {item?.subItems?.map((subItem: any, subIndex: number) => {
-                      const subTotalPacks = (subItem?.boxes || 0) * (subItem?.packPerBox || 0);
-                      const subTotalPcs = subTotalPacks * (subItem?.packPerPiece || 0);
-                      const subUnit = subItem?.unit || 'box';
-                      
-                      let subRatePerBox, subRatePerPack, subRatePerPcs, subBaseAmount;
-                      if (subUnit === 'box') {
-                        subRatePerBox = subItem?.ratePerBox || 0;
-                        subRatePerPack = subRatePerBox / (subItem?.packPerBox || 1);
-                        subRatePerPcs = subRatePerPack / (subItem?.packPerPiece || 1);
-                        subBaseAmount = (subItem?.boxes || 0) * subRatePerBox;
-                      } else if (subUnit === 'pack') {
-                        subRatePerPack = subItem?.ratePerBox || 0;
-                        subRatePerBox = subRatePerPack * (subItem?.packPerBox || 1);
-                        subRatePerPcs = subRatePerPack / (subItem?.packPerPiece || 1);
-                        subBaseAmount = subTotalPacks * subRatePerPack;
-                      } else {
-                        subRatePerPcs = subItem?.ratePerBox || 0;
-                        subRatePerPack = subRatePerPcs * (subItem?.packPerPiece || 1);
-                        subRatePerBox = subRatePerPack * (subItem?.packPerBox || 1);
-                        subBaseAmount = subTotalPcs * subRatePerPcs;
-                      }
-                      
-                      const subGstAmount = (subBaseAmount * gstRate) / 100;
-                      const subTotalAmount = subBaseAmount + subGstAmount;
-                      
-                      return (
-                      <div key={subIndex} className="bg-gray-50 p-3 rounded space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium">Sub Item {subIndex + 1}</span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              openDeleteConfirm(index, subIndex);
-                            }}
-                            className="text-red-600"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-
-                        <div className="grid grid-cols-5 gap-2">
-                          <Input
-                            label="Boxes"
-                            type="number"
-                            min="1"
-                            {...register(`items.${index}.subItems.${subIndex}.boxes`, { valueAsNumber: true })}
-                          />
-                          <Input
-                            label="Pack/Box"
-                            type="number"
-                            min="1"
-                            {...register(`items.${index}.subItems.${subIndex}.packPerBox`, { valueAsNumber: true })}
-                          />
-                          <Input
-                            label="Piece/Pack"
-                            type="number"
-                            min="1"
-                            {...register(`items.${index}.subItems.${subIndex}.packPerPiece`, { valueAsNumber: true })}
-                          />
-                          <Select
-                            label="Unit"
-                            options={[
-                              { value: 'box', label: 'Box' },
-                              { value: 'pack', label: 'Pack' },
-                              { value: 'piece', label: 'Piece' },
-                            ]}
-                            {...register(`items.${index}.subItems.${subIndex}.unit`)}
-                          />
-                          <Input
-                            label="Rate"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            {...register(`items.${index}.subItems.${subIndex}.ratePerBox`, { valueAsNumber: true })}
-                          />
-                        </div>
-
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs bg-gray-50 p-2 rounded border border-gray-200">
-                          <div>
-                            <span className="font-medium">Total Packs: </span>
-                            <span className="text-gray-600">{subTotalPacks}</span>
-                          </div>
-                          <div>
-                            <span className="font-medium">Total PCS: </span>
-                            <span className="text-gray-600">{subTotalPcs}</span>
-                          </div>
-                          <div>
-                            <span className="font-medium">Rate/Pack: </span>
-                            <span className="text-gray-600">{formatCurrency(subRatePerPack)}</span>
-                          </div>
-                          <div>
-                            <span className="font-medium">Rate/PCS: </span>
-                            <span className="text-gray-600">{formatCurrency(subRatePerPcs)}</span>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-2 text-xs bg-blue-50 p-2 rounded">
-                          <div>
-                            <span className="font-medium">Base Amount: </span>
-                            <span className="text-gray-900">{formatCurrency(subBaseAmount)}</span>
-                          </div>
-                          <div>
-                            <span className="font-medium">GST ({gstRate}%): </span>
-                            <span className="text-gray-900">{formatCurrency(subGstAmount)}</span>
-                          </div>
-                          <div>
-                            <span className="font-medium">Total: </span>
-                            <span className="text-gray-900 font-semibold">{formatCurrency(subTotalAmount)}</span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                        })}
-                      </div>
-                    )}
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        const currentSubItems = watchedItems[index]?.subItems || [];
-                        const updatedItems = [...watchedItems];
-                        updatedItems[index] = {
-                          ...updatedItems[index],
-                          subItems: [
-                            ...currentSubItems,
-                            {
-                              boxes: 1,
-                              packPerBox: 1,
-                              packPerPiece: 1,
-                              unit: 'box',
-                              ratePerBox: 0,
-                            },
-                          ],
-                        };
-                        reset({ ...watch(), items: updatedItems });
-                        if (!expandedItems.has(index)) {
-                          setExpandedItems(prev => {
-                            const newSet = new Set(prev);
-                            newSet.add(index);
-                            return newSet;
-                          });
-                        }
-                      }}
-                      className="w-full sm:w-auto bg-blue-50 hover:bg-blue-100 text-blue-700"
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Add Sub Item
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={(e) => {
-                e.preventDefault();
-                append({
-                  productId: '',
-                  boxes: 1,
-                  packPerBox: 1,
-                  packPerPiece: 1,
-                  unit: 'box' as const,
-                  ratePerBox: 0,
-                });
-              }}
-              className="w-full sm:w-auto"
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              Add Item
-            </Button>
-          </div>
-
-          {/* Grand Total */}
-          <div className="border-t pt-4">
-            <div className="flex justify-end">
-              <div className="text-right bg-green-50 p-4 rounded-lg">
-                <div className="text-sm text-gray-600 mb-1">Grand Total</div>
-                <div className="text-xl sm:text-2xl font-bold text-green-700">
-                  {formatCurrency(calculateGrandTotal())}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
-            <Button type="button" variant="outline" onClick={closeModal} className="w-full sm:w-auto">
-              Cancel
-            </Button>
-            <Button type="submit" loading={isSubmitting} className="w-full sm:w-auto">
-              {editingInvoice ? 'Update Invoice' : 'Create Invoice'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
-
       {/* View Invoice Modal */}
       <Modal
         isOpen={viewModalOpen}
@@ -1161,6 +380,9 @@ const Inward: React.FC = () => {
                         Product
                       </th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        SKU
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                         Boxes
                       </th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
@@ -1192,6 +414,9 @@ const Inward: React.FC = () => {
                         <td className="px-4 py-2 text-sm text-gray-900">
                           {item.product?.name}{' '}
                           {item.product?.grade && `(${item.product.grade})`}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-900">
+                          {item.product?.sku || '—'}
                         </td>
                         <td className="px-4 py-2 text-sm text-gray-900">
                           {item.boxes}
@@ -1229,65 +454,6 @@ const Inward: React.FC = () => {
         )}
       </Modal>
 
-      {/* Add Vendor Modal */}
-      <Modal
-        isOpen={addVendorModalOpen}
-        onClose={() => { setAddVendorModalOpen(false); setNewVendorData({ name: '', email: '', phone: '', address: '' }); }}
-        title="Add New Vendor"
-        size="md"
-      >
-        <form
-          onSubmit={async (e) => {
-            e.preventDefault();
-            try {
-              const created = await dispatch(createVendor(newVendorData)).unwrap();
-              toast.success('Vendor added successfully');
-              await dispatch(fetchVendors({ limit: 100 }));
-              setValue('vendorId', String(created.id));
-              setVendorSearch(`${(created as any).code} - ${created.name}`);
-              setAddVendorModalOpen(false);
-              setNewVendorData({ name: '', email: '', phone: '', address: '' });
-            } catch (error: any) {
-              toast.error(error?.message || 'Failed to add vendor');
-            }
-          }}
-          className="space-y-4"
-        >
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Vendor Name"
-              placeholder="Enter vendor name"
-              value={newVendorData.name}
-              onChange={(e) => setNewVendorData({ ...newVendorData, name: e.target.value })}
-              required
-            />
-            <Input
-              label="Email"
-              type="email"
-              placeholder="Enter email address"
-              value={newVendorData.email}
-              onChange={(e) => setNewVendorData({ ...newVendorData, email: e.target.value })}
-            />
-            <Input
-              label="Phone"
-              placeholder="Enter phone number"
-              value={newVendorData.phone}
-              onChange={(e) => setNewVendorData({ ...newVendorData, phone: e.target.value })}
-            />
-            <Input
-              label="Address"
-              placeholder="Enter address"
-              value={newVendorData.address}
-              onChange={(e) => setNewVendorData({ ...newVendorData, address: e.target.value })}
-            />
-          </div>
-          <div className="flex gap-2 justify-end pt-2">
-            <Button type="button" variant="outline" onClick={() => { setAddVendorModalOpen(false); setNewVendorData({ name: '', email: '', phone: '', address: '' }); }}>Cancel</Button>
-            <Button type="submit" className="bg-blue-600 hover:bg-blue-700">Add Vendor</Button>
-          </div>
-        </form>
-      </Modal>
-
       {/* Bulk Upload Modal */}
       <BulkUpload
         type="inward"
@@ -1298,21 +464,6 @@ const Inward: React.FC = () => {
             fetchInwardInvoices({ page: currentPage, limit: 10, search })
           )
         }
-      />
-
-      {/* Confirm Delete Sub Item Modal */}
-      <ConfirmModal
-        isOpen={confirmDeleteOpen}
-        onClose={() => {
-          setConfirmDeleteOpen(false);
-          setDeleteTarget(null);
-        }}
-        onConfirm={handleDeleteSubItem}
-        title="Delete Sub Item"
-        message="Are you sure you want to delete this sub item? This action cannot be undone."
-        confirmText="Delete"
-        cancelText="Cancel"
-        type="danger"
       />
     </div>
   );
