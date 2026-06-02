@@ -74,79 +74,151 @@ function Table<T extends Record<string, any>>(
     );
   }
 
+  const actionsColumn = columns.find(
+    (col) =>
+      String(col.key).toLowerCase() === 'actions' ||
+      String(col.key).toLowerCase() === 'action' ||
+      col.title.toLowerCase() === 'actions' ||
+      col.title.toLowerCase() === 'action'
+  );
+
+  const otherColumns = columns.filter(
+    (col) =>
+      col !== columns[0] &&
+      col !== actionsColumn
+  );
+
   return (
-    <div className="overflow-x-auto -mx-0">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
-          <tr>
-            {columns.map((column) => (
-              <th
-                key={String(column.key)}
-                className={cn(
-                  'px-3 sm:px-4 lg:px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap',
-                  column.sortable && 'cursor-pointer hover:bg-gray-100',
-                  column.align === 'center' && 'text-center',
-                  column.align === 'right' && 'text-right',
-                  column.sticky && 'sticky left-0 z-10 bg-gray-50'
-                )}
-                style={{ width: column.width }}
-                onClick={() =>
-                  handleSort(String(column.key), column.sortable)
-                }
-              >
-                <div className="flex items-center space-x-1">
-                  <span>{column.title}</span>
-                  {column.sortable && (
-                    <div className="flex flex-col">
-                      <ChevronUp
-                        className={cn(
-                          'h-3 w-3',
-                          sortBy === column.key && sortOrder === 'asc'
-                            ? 'text-primary-600'
-                            : 'text-gray-400'
-                        )}
-                      />
-                      <ChevronDown
-                        className={cn(
-                          'h-3 w-3 -mt-1',
-                          sortBy === column.key && sortOrder === 'desc'
-                            ? 'text-primary-600'
-                            : 'text-gray-400'
-                        )}
-                      />
-                    </div>
-                  )}
-                </div>
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {data.map((record, index) => (
-            <tr key={index} className="hover:bg-gray-50">
+    <div className="w-full">
+      {/* Desktop View */}
+      <div className="hidden md:block odoo-table-container">
+        <table className="odoo-table">
+          <thead>
+            <tr>
               {columns.map((column) => (
-                <td
+                <th
                   key={String(column.key)}
                   className={cn(
-                    'px-3 sm:px-4 lg:px-6 py-3 text-xs sm:text-sm text-gray-900',
+                    'px-3 py-2 text-xs font-semibold text-gray-600 uppercase bg-gray-50 tracking-wider whitespace-nowrap border-b border-gray-200 transition-colors',
+                    column.sortable && 'cursor-pointer hover:bg-gray-100',
                     column.align === 'center' && 'text-center',
                     column.align === 'right' && 'text-right',
-                    column.sticky ? 'sticky left-0 z-10 bg-white whitespace-nowrap' : 'whitespace-nowrap'
+                    column.sticky && 'sticky left-0 z-10 bg-gray-50'
                   )}
+                  style={{ width: column.width }}
+                  onClick={() =>
+                    handleSort(String(column.key), column.sortable)
+                  }
                 >
-                  {column.render
-                    ? column.render(
-                        getValue(record, column.key),
-                        record,
-                        index
-                      )
-                    : getValue(record, column.key)}
-                </td>
+                  <div className="flex items-center space-x-1">
+                    <span>{column.title}</span>
+                    {column.sortable && (
+                      <div className="flex flex-col">
+                        <ChevronUp
+                          className={cn(
+                            'h-3 w-3',
+                            sortBy === column.key && sortOrder === 'asc'
+                              ? 'text-primary-600'
+                              : 'text-gray-400'
+                          )}
+                        />
+                        <ChevronDown
+                          className={cn(
+                            'h-3 w-3 -mt-1',
+                            sortBy === column.key && sortOrder === 'desc'
+                              ? 'text-primary-600'
+                              : 'text-gray-400'
+                          )}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-100">
+            {data.map((record, index) => (
+              <tr key={index} className="hover:bg-gray-50/70 transition-colors">
+                {columns.map((column) => (
+                  <td
+                    key={String(column.key)}
+                    className={cn(
+                      'px-3 py-1.5 text-xs sm:text-sm text-gray-800 border-b border-gray-100',
+                      column.align === 'center' && 'text-center',
+                      column.align === 'right' && 'text-right',
+                      column.sticky ? 'sticky left-0 z-10 bg-white whitespace-nowrap' : 'whitespace-nowrap'
+                    )}
+                  >
+                    {column.render
+                      ? column.render(
+                          getValue(record, column.key),
+                          record,
+                          index
+                        )
+                      : getValue(record, column.key)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile Card List View */}
+      <div className="md:hidden flex flex-col gap-2.5 p-2 bg-gray-50/30">
+        {data.map((record, index) => (
+          <div
+            key={index}
+            className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 relative flex flex-col space-y-3 hover:shadow-md transition-shadow duration-200"
+          >
+            {/* Header Row: Primary Field & Actions */}
+            <div className="flex justify-between items-start gap-3">
+              <div className="min-w-0 flex-1">
+                <span className="text-[9px] font-bold text-primary-500 uppercase tracking-wider block mb-1">
+                  {columns[0].title}
+                </span>
+                <div className="text-sm font-bold text-gray-900 break-words leading-snug">
+                  {columns[0].render
+                    ? columns[0].render(getValue(record, columns[0].key), record, index)
+                    : getValue(record, columns[0].key)}
+                </div>
+              </div>
+
+              {/* Actions on Top Right */}
+              {actionsColumn && (
+                <div className="flex-shrink-0 flex items-center justify-end gap-1">
+                  {actionsColumn.render
+                    ? actionsColumn.render(getValue(record, actionsColumn.key), record, index)
+                    : getValue(record, actionsColumn.key)}
+                </div>
+              )}
+            </div>
+
+            {/* Other Fields Grid */}
+            {otherColumns.length > 0 && (
+              <div className="grid grid-cols-2 gap-x-3 gap-y-2.5 pt-2.5 border-t border-gray-100">
+                {otherColumns.map((col) => {
+                  const val = col.render
+                    ? col.render(getValue(record, col.key), record, index)
+                    : getValue(record, col.key);
+
+                  return (
+                    <div key={String(col.key)} className="flex flex-col min-w-0">
+                      <span className="text-[8.5px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">
+                        {col.title}
+                      </span>
+                      <div className="text-[11px] font-semibold text-gray-700 break-words leading-relaxed">
+                        {val !== undefined && val !== null && val !== '' ? val : '—'}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -65,15 +65,15 @@ export const SearchableDropdown = ({
 
   return (
     <div className="relative" ref={dropdownRef}>
-      <label className="block text-sm font-medium mb-2 text-gray-700">
+      <label className="block text-xs font-semibold mb-1 text-gray-700">
         {label} {required && <span className="text-red-500">*</span>}
       </label>
 
       <div
         onClick={() => !disabled && setIsOpen(!isOpen)}
-        className={`w-full px-4 py-2 border rounded-lg bg-white text-left flex items-center justify-between transition-colors cursor-pointer ${
+        className={`w-full px-2.5 h-8.5 border rounded-sm bg-white text-left flex items-center justify-between transition-colors cursor-pointer text-xs ${
           disabled ? 'bg-gray-100 cursor-not-allowed opacity-60' : 'hover:bg-gray-50'
-        } ${isOpen ? 'border-blue-500 ring-1 ring-blue-500' : 'border-gray-300'}`}
+        } ${isOpen ? 'border-primary-500 ring-1 ring-primary-500' : 'border-gray-300'}`}
       >
         {isOpen ? (
           <input
@@ -83,33 +83,33 @@ export const SearchableDropdown = ({
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             onClick={(e) => e.stopPropagation()}
-            className="flex-1 outline-none bg-transparent text-gray-900"
+            className="flex-1 outline-none bg-transparent text-gray-900 text-xs h-full"
           />
         ) : (
-          <span className={selectedOption ? 'text-gray-900' : 'text-gray-500'}>
+          <span className={selectedOption ? 'text-gray-900 font-medium' : 'text-gray-500'}>
             {loading ? 'Loading...' : selectedOption?.name || placeholder}
           </span>
         )}
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {selectedOption && !isOpen && (
             <button
               type="button"
               onClick={handleClear}
-              className="p-1 hover:bg-gray-200 rounded"
+              className="p-0.5 hover:bg-gray-200 rounded-full"
             >
-              <X size={16} className="text-gray-400" />
+              <X size={12} className="text-gray-400" />
             </button>
           )}
           <ChevronDown
-            size={18}
+            size={14}
             className={`transition-transform text-gray-400 ${isOpen ? 'rotate-180' : ''}`}
           />
         </div>
       </div>
 
       {isOpen && !disabled && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50">
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded shadow-lg z-50">
           <div className="max-h-48 overflow-y-auto">
             {filteredOptions.length > 0 ? (
               filteredOptions.map((option) => (
@@ -117,9 +117,9 @@ export const SearchableDropdown = ({
                   key={option.code || option.name}
                   type="button"
                   onClick={() => handleSelect(option.name)}
-                  className={`w-full px-4 py-2 text-left text-sm transition-colors ${
+                  className={`w-full px-3 py-1.5 text-left text-xs transition-colors ${
                     selectedOption?.name === option.name
-                      ? 'bg-blue-100 text-blue-900 font-medium'
+                      ? 'bg-blue-100 text-blue-900 font-semibold'
                       : 'hover:bg-gray-100 text-gray-900'
                   }`}
                 >
@@ -127,7 +127,7 @@ export const SearchableDropdown = ({
                 </button>
               ))
             ) : (
-              <div className="px-4 py-3 text-gray-500 text-sm text-center">
+              <div className="px-3 py-2 text-gray-500 text-xs text-center">
                 No options found
               </div>
             )}

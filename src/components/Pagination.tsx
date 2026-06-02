@@ -61,7 +61,7 @@ const Pagination: React.FC<PaginationProps> = ({
           <ChevronLeft className="h-4 w-4" />
         </Button>
 
-        <div className="flex items-center gap-1">
+        <div className="hidden sm:flex items-center gap-1">
           {getVisiblePages().map((page) => (
             <Button
               key={page}

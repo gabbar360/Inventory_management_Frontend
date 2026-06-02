@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, ChevronDown } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { productService } from '@/services/productService';
 import { Product } from '@/types';
 
@@ -130,7 +130,7 @@ const ProductSearch: React.FC<ProductSearchProps> = ({
 
   return (
     <div className="relative" ref={dropdownRef}>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
+      <label className="block text-xs font-semibold text-gray-700 mb-1">
         Product *
       </label>
       <div className="relative">
@@ -142,52 +142,51 @@ const ProductSearch: React.FC<ProductSearchProps> = ({
           onFocus={handleInputFocus}
           placeholder={placeholder}
           disabled={disabled}
-          className={`w-full pl-10 pr-10 py-2 border rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+          className={`w-full pr-7 h-8.5 text-xs border rounded-sm outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 ${
             error ? 'border-red-300' : 'border-gray-300'
           } ${disabled ? 'bg-gray-100 cursor-not-allowed' : ''}`}
         />
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
         <ChevronDown 
-          className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 cursor-pointer" 
+          className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400 cursor-pointer" 
           onClick={handleChevronClick}
         />
       </div>
 
-      {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+      {error && <p className="mt-1 text-xs text-red-650">{error}</p>}
 
       {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded shadow-lg max-h-52 overflow-auto">
           {loading ? (
-            <div className="px-4 py-2 text-sm text-gray-500">Loading...</div>
+            <div className="px-3 py-1.5 text-xs text-gray-500">Loading...</div>
           ) : products.length > 0 ? (
             products.map((product) => (
               <div
                 key={product.id}
                 onClick={() => handleProductSelect(product)}
-                className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                className="px-3 py-1.5 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
               >
-                <div className="font-medium text-gray-900">
+                <div className="font-semibold text-xs text-gray-900">
                   {product.name}
                   {product.grade && (
-                    <span className="ml-2 text-sm text-gray-600">
+                    <span className="ml-1.5 text-[10px] text-gray-500 font-normal">
                       ({product.grade})
                     </span>
                   )}
                   {product.sku && (
-                    <span className="ml-2 text-sm text-blue-600">
+                    <span className="ml-1.5 text-[10px] text-blue-600 font-normal">
                       SKU: {product.sku}
                     </span>
                   )}
                 </div>
                 {product.category && (
-                  <div className="text-sm text-gray-500">
+                  <div className="text-[10px] text-gray-400 mt-0.5">
                     {product.category.name}
                   </div>
                 )}
               </div>
             ))
           ) : (
-            <div className="px-4 py-2 text-sm text-gray-500">
+            <div className="px-3 py-1.5 text-xs text-gray-500">
               No products found
             </div>
           )}
@@ -195,6 +194,7 @@ const ProductSearch: React.FC<ProductSearchProps> = ({
       )}
     </div>
   );
+
 };
 
 export default ProductSearch;

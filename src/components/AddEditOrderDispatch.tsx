@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft } from 'lucide-react';
+
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchSalesOrders } from '@/slices/salesOrderSlice';
@@ -186,8 +186,8 @@ const AddEditOrderDispatch: React.FC<AddEditOrderDispatchProps> = ({ dispatch, o
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     
     if (!formData.salesOrderId) {
       toast.error('Please select a sales order');
@@ -272,81 +272,80 @@ const AddEditOrderDispatch: React.FC<AddEditOrderDispatchProps> = ({ dispatch, o
     const cfg = STATUS_CONFIG[dispatch.status] || STATUS_CONFIG.pending;
     return (
       <div className="space-y-6">
-        <div className="flex justify-between items-start">
+        {/* Header Breadcrumbs / Control Bar */}
+        <div className="flex justify-between items-center bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
           <div>
-            <h2 className="text-2xl font-bold">{dispatch.dispatchNo}</h2>
-            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mt-2 ${cfg.bg} ${cfg.text}`}>
-              {cfg.label}
-            </span>
+            <div className="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-1">Order Dispatch Details</div>
+            <h2 className="text-xl font-bold text-gray-850 flex items-center gap-2">
+              {dispatch.dispatchNo}
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${cfg.bg} ${cfg.text}`}>
+                {cfg.label}
+              </span>
+            </h2>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={onCancel}
-              className="px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm"
-            >
-              Close
-            </button>
-          </div>
+          <Button variant="outline" onClick={onCancel} className="odoo-btn-secondary px-4">
+            Back to List
+          </Button>
         </div>
 
-        <div className="grid grid-cols-2 gap-6">
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h3 className="font-semibold mb-4 text-gray-900">Sales Order Information</h3>
-            <div className="space-y-3 text-sm">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white border border-gray-200 p-5 rounded-lg shadow-sm">
+            <h3 className="text-sm font-bold text-gray-800 border-b border-gray-150 pb-2 mb-4">Sales Order Information</h3>
+            <div className="grid grid-cols-2 gap-4 text-xs">
               <div>
-                <span className="text-gray-600 block text-xs font-medium mb-1">Order No</span>
-                <p className="font-medium">{dispatch.salesOrder?.orderNo}</p>
+                <span className="text-gray-400 block font-semibold mb-0.5">Order No</span>
+                <p className="font-semibold text-gray-850 text-sm">{dispatch.salesOrder?.orderNo || '—'}</p>
               </div>
               <div>
-                <span className="text-gray-600 block text-xs font-medium mb-1">Customer</span>
-                <p className="font-medium">{dispatch.salesOrder?.customer?.name}</p>
+                <span className="text-gray-400 block font-semibold mb-0.5">Customer</span>
+                <p className="font-semibold text-gray-850 text-sm">{dispatch.salesOrder?.customer?.name || '—'}</p>
               </div>
               <div>
-                <span className="text-gray-600 block text-xs font-medium mb-1">Order Date</span>
-                <p className="font-medium">{new Date(dispatch.salesOrder?.orderDate || '').toLocaleDateString()}</p>
+                <span className="text-gray-400 block font-semibold mb-0.5">Order Date</span>
+                <p className="font-medium text-gray-700">{dispatch.salesOrder?.orderDate ? new Date(dispatch.salesOrder.orderDate).toLocaleDateString('en-IN', { dateStyle: 'medium' }) : '—'}</p>
               </div>
               <div>
-                <span className="text-gray-600 block text-xs font-medium mb-1">Total Amount</span>
-                <p className="font-medium">₹{dispatch.salesOrder?.totalAmount.toFixed(2)}</p>
+                <span className="text-gray-400 block font-semibold mb-0.5">Total Amount</span>
+                <p className="font-bold text-primary-750 text-sm">₹{dispatch.salesOrder?.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h3 className="font-semibold mb-4 text-gray-900">Dispatch Information</h3>
-            <div className="space-y-3 text-sm">
+          <div className="bg-white border border-gray-200 p-5 rounded-lg shadow-sm">
+            <h3 className="text-sm font-bold text-gray-800 border-b border-gray-150 pb-2 mb-4">Dispatch Information</h3>
+            <div className="grid grid-cols-2 gap-4 text-xs">
               <div>
-                <span className="text-gray-600 block text-xs font-medium mb-1">Dispatch Date</span>
-                <p className="font-medium">{new Date(dispatch.dispatchDate).toLocaleDateString()}</p>
+                <span className="text-gray-400 block font-semibold mb-0.5">Dispatch Date</span>
+                <p className="font-medium text-gray-750">{new Date(dispatch.dispatchDate).toLocaleDateString('en-IN', { dateStyle: 'medium' })}</p>
               </div>
               <div>
-                <span className="text-gray-600 block text-xs font-medium mb-1">Shipping Method</span>
-                <p className="font-medium capitalize">{dispatch.shippingMethod}</p>
+                <span className="text-gray-400 block font-semibold mb-0.5">Shipping Method</span>
+                <p className="font-semibold text-gray-850 uppercase tracking-wider text-xs">{dispatch.shippingMethod}</p>
               </div>
               {dispatch.shippingMethod === 'courier' && (
                 <>
                   {dispatch.courierName && (
                     <div>
-                      <span className="text-gray-600 block text-xs font-medium mb-1">Courier Name</span>
-                      <p className="font-medium">{dispatch.courierName}</p>
+                      <span className="text-gray-400 block font-semibold mb-0.5">Courier Name</span>
+                      <p className="font-semibold text-gray-800">{dispatch.courierName}</p>
                     </div>
                   )}
                   {dispatch.courierPhone && (
                     <div>
-                      <span className="text-gray-600 block text-xs font-medium mb-1">Courier Phone</span>
-                      <p className="font-medium">{dispatch.courierPhone}</p>
+                      <span className="text-gray-400 block font-semibold mb-0.5">Courier Phone</span>
+                      <p className="font-semibold text-gray-800">{dispatch.courierPhone}</p>
                     </div>
                   )}
                   {dispatch.trackingNumber && (
                     <div>
-                      <span className="text-gray-600 block text-xs font-medium mb-1">Tracking Number</span>
-                      <p className="font-medium">{dispatch.trackingNumber}</p>
+                      <span className="text-gray-400 block font-semibold mb-0.5">Tracking Number</span>
+                      <p className="font-bold text-blue-650">{dispatch.trackingNumber}</p>
                     </div>
                   )}
                   {dispatch.carrier && (
                     <div>
-                      <span className="text-gray-600 block text-xs font-medium mb-1">Carrier</span>
-                      <p className="font-medium">{dispatch.carrier}</p>
+                      <span className="text-gray-400 block font-semibold mb-0.5">Carrier</span>
+                      <p className="font-semibold text-gray-800">{dispatch.carrier}</p>
                     </div>
                   )}
                 </>
@@ -355,20 +354,20 @@ const AddEditOrderDispatch: React.FC<AddEditOrderDispatchProps> = ({ dispatch, o
                 <>
                   {dispatch.truckNumber && (
                     <div>
-                      <span className="text-gray-600 block text-xs font-medium mb-1">Truck Number</span>
-                      <p className="font-medium">{dispatch.truckNumber}</p>
+                      <span className="text-gray-400 block font-semibold mb-0.5">Truck Number</span>
+                      <p className="font-semibold text-gray-800">{dispatch.truckNumber}</p>
                     </div>
                   )}
                   {dispatch.driverName && (
                     <div>
-                      <span className="text-gray-600 block text-xs font-medium mb-1">Driver Name</span>
-                      <p className="font-medium">{dispatch.driverName}</p>
+                      <span className="text-gray-400 block font-semibold mb-0.5">Driver Name</span>
+                      <p className="font-semibold text-gray-800">{dispatch.driverName}</p>
                     </div>
                   )}
                   {dispatch.driverPhone && (
                     <div>
-                      <span className="text-gray-600 block text-xs font-medium mb-1">Driver Phone</span>
-                      <p className="font-medium">{dispatch.driverPhone}</p>
+                      <span className="text-gray-400 block font-semibold mb-0.5">Driver Phone</span>
+                      <p className="font-semibold text-gray-800">{dispatch.driverPhone}</p>
                     </div>
                   )}
                 </>
@@ -377,14 +376,14 @@ const AddEditOrderDispatch: React.FC<AddEditOrderDispatchProps> = ({ dispatch, o
                 <>
                   {dispatch.airlineCode && (
                     <div>
-                      <span className="text-gray-600 block text-xs font-medium mb-1">Airline Code</span>
-                      <p className="font-medium">{dispatch.airlineCode}</p>
+                      <span className="text-gray-400 block font-semibold mb-0.5">Airline Code</span>
+                      <p className="font-semibold text-gray-800">{dispatch.airlineCode}</p>
                     </div>
                   )}
                   {dispatch.flightNumber && (
                     <div>
-                      <span className="text-gray-600 block text-xs font-medium mb-1">Flight Number</span>
-                      <p className="font-medium">{dispatch.flightNumber}</p>
+                      <span className="text-gray-400 block font-semibold mb-0.5">Flight Number</span>
+                      <p className="font-semibold text-gray-800">{dispatch.flightNumber}</p>
                     </div>
                   )}
                 </>
@@ -393,137 +392,132 @@ const AddEditOrderDispatch: React.FC<AddEditOrderDispatchProps> = ({ dispatch, o
                 <>
                   {dispatch.vesselName && (
                     <div>
-                      <span className="text-gray-600 block text-xs font-medium mb-1">Vessel Name</span>
-                      <p className="font-medium">{dispatch.vesselName}</p>
+                      <span className="text-gray-400 block font-semibold mb-0.5">Vessel Name</span>
+                      <p className="font-semibold text-gray-800">{dispatch.vesselName}</p>
                     </div>
                   )}
                   {dispatch.containerNumber && (
                     <div>
-                      <span className="text-gray-600 block text-xs font-medium mb-1">Container Number</span>
-                      <p className="font-medium">{dispatch.containerNumber}</p>
+                      <span className="text-gray-400 block font-semibold mb-0.5">Container Number</span>
+                      <p className="font-semibold text-gray-800">{dispatch.containerNumber}</p>
                     </div>
                   )}
                   {dispatch.portOfLoading && (
                     <div>
-                      <span className="text-gray-600 block text-xs font-medium mb-1">Port of Loading</span>
-                      <p className="font-medium">{dispatch.portOfLoading}</p>
+                      <span className="text-gray-400 block font-semibold mb-0.5">Port of Loading</span>
+                      <p className="font-semibold text-gray-800">{dispatch.portOfLoading}</p>
                     </div>
                   )}
                   {dispatch.portOfDischarge && (
                     <div>
-                      <span className="text-gray-600 block text-xs font-medium mb-1">Port of Discharge</span>
-                      <p className="font-medium">{dispatch.portOfDischarge}</p>
+                      <span className="text-gray-400 block font-semibold mb-0.5">Port of Discharge</span>
+                      <p className="font-semibold text-gray-800">{dispatch.portOfDischarge}</p>
                     </div>
                   )}
                 </>
               )}
-              {dispatch.estimatedDelivery && (
-                <div>
-                  <span className="text-gray-600 block text-xs font-medium mb-1">Estimated Delivery</span>
-                  <p className="font-medium">{new Date(dispatch.estimatedDelivery).toLocaleDateString()}</p>
-                </div>
-              )}
             </div>
           </div>
         </div>
 
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <h3 className="font-semibold mb-3 text-gray-900">Shipping Address</h3>
-          <div className="text-sm space-y-1 text-gray-700">
-            <p className="font-medium">{dispatch.shippingAddress}</p>
-            <p>
+        <div className="bg-white border border-gray-200 p-5 rounded-lg shadow-sm">
+          <h3 className="text-sm font-bold text-gray-800 border-b border-gray-150 pb-2 mb-3">Shipping Address</h3>
+          <div className="text-xs text-gray-700 space-y-1">
+            <p className="font-semibold text-gray-850 text-sm">{dispatch.shippingAddress}</p>
+            <p className="font-medium text-gray-700">
               {dispatch.shippingCity}, {dispatch.shippingState} {dispatch.shippingPincode}
             </p>
-            <p>{dispatch.shippingCountry}</p>
+            <p className="text-gray-500 font-semibold">{dispatch.shippingCountry}</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-6">
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h3 className="font-semibold mb-4 text-gray-900">Delivery Information</h3>
-            <div className="space-y-3 text-sm">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white border border-gray-200 p-5 rounded-lg shadow-sm">
+            <h3 className="text-sm font-bold text-gray-800 border-b border-gray-150 pb-2 mb-4">Delivery Information</h3>
+            <div className="grid grid-cols-2 gap-4 text-xs">
               <div>
-                <span className="text-gray-600 block text-xs font-medium mb-1">Estimated Delivery</span>
-                <p className="font-medium">
-                  {dispatch.estimatedDelivery ? new Date(dispatch.estimatedDelivery).toLocaleDateString() : '-'}
+                <span className="text-gray-400 block font-semibold mb-0.5">Estimated Delivery</span>
+                <p className="font-semibold text-gray-850">
+                  {dispatch.estimatedDelivery ? new Date(dispatch.estimatedDelivery).toLocaleDateString('en-IN', { dateStyle: 'medium' }) : '—'}
                 </p>
               </div>
               <div>
-                <span className="text-gray-600 block text-xs font-medium mb-1">Actual Delivery</span>
-                <p className="font-medium">
-                  {dispatch.actualDelivery ? new Date(dispatch.actualDelivery).toLocaleDateString() : '-'}
+                <span className="text-gray-400 block font-semibold mb-0.5">Actual Delivery</span>
+                <p className="font-semibold text-gray-850">
+                  {dispatch.actualDelivery ? new Date(dispatch.actualDelivery).toLocaleDateString('en-IN', { dateStyle: 'medium' }) : '—'}
                 </p>
               </div>
               <div>
-                <span className="text-gray-600 block text-xs font-medium mb-1">Package Count</span>
-                <p className="font-medium">{dispatch.packageCount}</p>
+                <span className="text-gray-400 block font-semibold mb-0.5">Package Count</span>
+                <p className="font-semibold text-gray-850">{dispatch.packageCount}</p>
               </div>
               <div>
-                <span className="text-gray-600 block text-xs font-medium mb-1">Weight</span>
-                <p className="font-medium">{dispatch.weight ? `${dispatch.weight} kg` : '-'}</p>
+                <span className="text-gray-400 block font-semibold mb-0.5">Weight</span>
+                <p className="font-semibold text-gray-850">{dispatch.weight ? `${dispatch.weight} kg` : '—'}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h3 className="font-semibold mb-4 text-gray-900">Cost Information</h3>
-            <div className="space-y-3 text-sm">
+          <div className="bg-white border border-gray-200 p-5 rounded-lg shadow-sm">
+            <h3 className="text-sm font-bold text-gray-800 border-b border-gray-150 pb-2 mb-4">Cost Information</h3>
+            <div className="grid grid-cols-2 gap-4 text-xs">
               <div>
-                <span className="text-gray-600 block text-xs font-medium mb-1">Shipping Cost</span>
-                <p className="font-medium">₹{dispatch.shippingCost.toFixed(2)}</p>
+                <span className="text-gray-400 block font-semibold mb-0.5">Shipping Cost</span>
+                <p className="font-semibold text-gray-800">₹{dispatch.shippingCost.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
               </div>
               <div>
-                <span className="text-gray-600 block text-xs font-medium mb-1">Insurance Amount</span>
-                <p className="font-medium">₹{dispatch.insuranceAmount.toFixed(2)}</p>
+                <span className="text-gray-400 block font-semibold mb-0.5">Insurance Amount</span>
+                <p className="font-semibold text-gray-800">₹{dispatch.insuranceAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
               </div>
-              <div className="border-t pt-2">
-                <span className="text-gray-600 block text-xs font-medium mb-1">Total Dispatch Cost</span>
-                <p className="font-bold text-base">₹{(dispatch.shippingCost + dispatch.insuranceAmount).toFixed(2)}</p>
+              <div className="col-span-2 border-t border-dashed border-gray-200 pt-2 mt-1">
+                <span className="text-gray-400 block font-semibold mb-0.5">Total Dispatch Cost</span>
+                <p className="font-bold text-primary-750 text-lg">₹{(dispatch.shippingCost + dispatch.insuranceAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
               </div>
             </div>
           </div>
         </div>
 
         {dispatch.notes && (
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h3 className="font-semibold mb-2 text-gray-900">Notes</h3>
-            <p className="text-sm text-gray-700">{dispatch.notes}</p>
+          <div className="bg-white border border-gray-200 p-5 rounded-lg shadow-sm">
+            <h3 className="text-sm font-bold text-gray-800 border-b border-gray-150 pb-2 mb-2">Notes</h3>
+            <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-wrap">{dispatch.notes}</p>
           </div>
         )}
 
-        <div className="text-xs text-gray-500 space-y-1 border-t pt-4">
-          <p>Created: {new Date(dispatch.createdAt).toLocaleString()}</p>
-          <p>Updated: {new Date(dispatch.updatedAt).toLocaleString()}</p>
+        <div className="text-[10px] text-gray-400 space-y-0.5 border-t border-gray-100 pt-4 flex flex-col sm:flex-row sm:justify-between gap-2">
+          <p>Created: {new Date(dispatch.createdAt).toLocaleString('en-IN')}</p>
+          <p>Last Updated: {new Date(dispatch.updatedAt).toLocaleString('en-IN')}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={onCancel}
-            className="p-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
-            title="Go back"
-          >
-            <ArrowLeft className="h-5 w-5 text-white" />
-          </button>
-          <h1 className="text-2xl font-bold text-gray-900">
-            {dispatch ? 'Edit Order Dispatch' : 'Add New Order Dispatch'}
-          </h1>
+    <div className="space-y-3 animate-fadeIn">
+      {/* Odoo style Breadcrumb Navigation & Control Bar */}
+      <div className="bg-white border border-gray-200 rounded px-3 py-2 flex items-center justify-between shadow-sm">
+        <div className="flex items-center gap-1.5 text-xs text-gray-400">
+          <span className="hover:text-primary-600 cursor-pointer" onClick={onCancel}>Dispatches</span>
+          <span>/</span>
+          <span className="font-semibold text-gray-700">{dispatch ? `Edit ${dispatch.dispatchNo}` : 'New Dispatch'}</span>
+        </div>
+        <div className="flex gap-2">
+          <Button type="button" onClick={() => handleSubmit()} className="odoo-btn-primary px-4 h-8 text-xs font-semibold" loading={loading}>
+            Save
+          </Button>
+          <Button type="button" variant="outline" onClick={onCancel} className="odoo-btn-secondary px-4 h-8 text-xs">
+            Discard
+          </Button>
         </div>
       </div>
 
-      {/* Form Card */}
-      <div className="bg-white rounded-lg border border-gray-200 p-8">
-        <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Dynamic Odoo Sheet form card */}
+      <div className="bg-white border border-gray-200 rounded shadow-md p-4 sm:p-5 max-w-5xl mx-auto">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Sales Order *</label>
+            <label className="block text-xs font-semibold text-gray-700 mb-1.5">Sales Order *</label>
             {dispatch ? (
-              <div className="w-full px-3 py-2 border rounded-lg bg-gray-100 text-gray-700">
+              <div className="w-full px-2.5 py-1 text-xs border rounded-sm bg-gray-100 text-gray-700">
                 {selectedSalesOrder?.orderNo} - {selectedSalesOrder?.customer?.name} (₹{selectedSalesOrder?.totalAmount.toFixed(2)})
               </div>
             ) : (
@@ -532,7 +526,7 @@ const AddEditOrderDispatch: React.FC<AddEditOrderDispatchProps> = ({ dispatch, o
                 value={formData.salesOrderId}
                 onChange={handleSalesOrderChange}
                 required
-                className="w-full px-3 py-2 border rounded-lg"
+                className="w-full px-2.5 py-1 text-xs border rounded-sm outline-none focus:ring-1 focus:ring-primary-500"
               >
                 <option value="">Select a sales order...</option>
                 {availableSalesOrders.map((order) => (
@@ -545,49 +539,45 @@ const AddEditOrderDispatch: React.FC<AddEditOrderDispatchProps> = ({ dispatch, o
           </div>
 
           {selectedSalesOrder && (
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="font-semibold mb-2">Sales Order Details</h3>
-              <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="bg-gray-50 p-3 rounded-sm border border-gray-200 text-xs">
+              <h3 className="font-bold mb-1.5 text-gray-800">Sales Order Details</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-gray-600">
                 <div>
-                  <span className="text-gray-600">Order No:</span>
-                  <p className="font-medium">{selectedSalesOrder.orderNo}</p>
+                  <span className="font-semibold">Order No:</span> {selectedSalesOrder.orderNo}
                 </div>
                 <div>
-                  <span className="text-gray-600">Customer:</span>
-                  <p className="font-medium">{selectedSalesOrder.customer?.name}</p>
+                  <span className="font-semibold">Customer:</span> {selectedSalesOrder.customer?.name}
                 </div>
                 <div>
-                  <span className="text-gray-600">Total Amount:</span>
-                  <p className="font-medium">₹{selectedSalesOrder.totalAmount.toFixed(2)}</p>
+                  <span className="font-semibold">Total:</span> ₹{selectedSalesOrder.totalAmount.toFixed(2)}
                 </div>
                 <div>
-                  <span className="text-gray-600">Status:</span>
-                  <p className="font-medium">{selectedSalesOrder.status}</p>
+                  <span className="font-semibold">Status:</span> {selectedSalesOrder.status}
                 </div>
               </div>
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium mb-1">Dispatch Date *</label>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Dispatch Date *</label>
               <input
                 type="date"
                 name="dispatchDate"
                 value={formData.dispatchDate}
                 onChange={handleChange}
                 required
-                className="w-full px-3 py-2 border rounded-lg"
+                className="w-full px-2.5 py-1 text-xs border border-gray-300 rounded-sm outline-none focus:ring-1 focus:ring-primary-500 h-8"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Status *</label>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Status *</label>
               <select
                 name="status"
                 value={formData.status}
                 onChange={handleChange}
                 required
-                className="w-full px-3 py-2 border rounded-lg"
+                className="w-full px-2.5 py-1 text-xs border border-gray-300 rounded-sm outline-none focus:ring-1 focus:ring-primary-500 h-8"
               >
                 <option value="pending">Pending</option>
                 <option value="dispatched">Dispatched</option>
@@ -598,15 +588,15 @@ const AddEditOrderDispatch: React.FC<AddEditOrderDispatchProps> = ({ dispatch, o
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium mb-1">Shipping Method *</label>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Shipping Method *</label>
               <select
                 name="shippingMethod"
                 value={formData.shippingMethod}
                 onChange={handleChange}
                 required
-                className="w-full px-3 py-2 border rounded-lg"
+                className="w-full px-2.5 py-1 text-xs border border-gray-300 rounded-sm outline-none focus:ring-1 focus:ring-primary-500 h-8"
               >
                 <option value="courier">Courier</option>
                 <option value="truck">Truck</option>
@@ -615,61 +605,61 @@ const AddEditOrderDispatch: React.FC<AddEditOrderDispatchProps> = ({ dispatch, o
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Estimated Delivery</label>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Estimated Delivery</label>
               <input
                 type="date"
                 name="estimatedDelivery"
                 value={formData.estimatedDelivery}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border rounded-lg"
+                className="w-full px-2.5 py-1 text-xs border border-gray-300 rounded-sm outline-none focus:ring-1 focus:ring-primary-500 h-8"
               />
             </div>
           </div>
 
           {formData.shippingMethod === 'courier' && (
-            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-              <h4 className="font-semibold text-blue-900 mb-3">Courier Details</h4>
-              <div className="grid grid-cols-2 gap-4">
+            <div className="bg-blue-50 p-3 rounded-sm border border-blue-200 text-xs">
+              <h4 className="font-bold text-blue-900 mb-2">Courier Details</h4>
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Courier Name</label>
+                  <label className="block font-medium text-gray-700 mb-1">Courier Name</label>
                   <input
                     type="text"
                     name="courierName"
                     value={formData.courierName}
                     onChange={handleChange}
-                    placeholder="e.g., FedEx, DHL, UPS"
-                    className="w-full px-3 py-2 border rounded-lg"
+                    placeholder="e.g. FedEx, DHL"
+                    className="w-full px-2 py-1 border rounded-sm outline-none text-xs h-7"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Courier Phone</label>
+                  <label className="block font-medium text-gray-700 mb-1">Courier Phone</label>
                   <input
                     type="tel"
                     name="courierPhone"
                     value={formData.courierPhone}
                     onChange={handleChange}
                     placeholder="Contact number"
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-2 py-1 border rounded-sm outline-none text-xs h-7"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Tracking Number</label>
+                  <label className="block font-medium text-gray-700 mb-1">Tracking Number</label>
                   <input
                     type="text"
                     name="trackingNumber"
                     value={formData.trackingNumber}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-2 py-1 border rounded-sm outline-none text-xs h-7"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Carrier/Logistics Company</label>
+                  <label className="block font-medium text-gray-700 mb-1">Carrier Company</label>
                   <input
                     type="text"
                     name="carrier"
                     value={formData.carrier}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-2 py-1 border rounded-sm outline-none text-xs h-7"
                   />
                 </div>
               </div>
@@ -677,11 +667,11 @@ const AddEditOrderDispatch: React.FC<AddEditOrderDispatchProps> = ({ dispatch, o
           )}
 
           {formData.shippingMethod === 'truck' && (
-            <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-              <h4 className="font-semibold text-yellow-900 mb-3">Truck Details</h4>
-              <div className="grid grid-cols-2 gap-4">
+            <div className="bg-yellow-50 p-3 rounded-sm border border-yellow-250 text-xs">
+              <h4 className="font-bold text-yellow-900 mb-2">Truck Details</h4>
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Truck Number *</label>
+                  <label className="block font-medium text-gray-700 mb-1">Truck Number *</label>
                   <input
                     type="text"
                     name="truckNumber"
@@ -689,11 +679,11 @@ const AddEditOrderDispatch: React.FC<AddEditOrderDispatchProps> = ({ dispatch, o
                     onChange={handleChange}
                     placeholder="e.g., MH-01-AB-1234"
                     required={formData.shippingMethod === 'truck'}
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-2 py-1 border rounded-sm outline-none text-xs h-7"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Driver Name *</label>
+                  <label className="block font-medium text-gray-700 mb-1">Driver Name *</label>
                   <input
                     type="text"
                     name="driverName"
@@ -701,11 +691,11 @@ const AddEditOrderDispatch: React.FC<AddEditOrderDispatchProps> = ({ dispatch, o
                     onChange={handleChange}
                     placeholder="Driver name"
                     required={formData.shippingMethod === 'truck'}
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-2 py-1 border rounded-sm outline-none text-xs h-7"
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium mb-1">Driver Phone *</label>
+                  <label className="block font-medium text-gray-700 mb-1">Driver Phone *</label>
                   <input
                     type="tel"
                     name="driverPhone"
@@ -713,7 +703,7 @@ const AddEditOrderDispatch: React.FC<AddEditOrderDispatchProps> = ({ dispatch, o
                     onChange={handleChange}
                     placeholder="Driver contact number"
                     required={formData.shippingMethod === 'truck'}
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-2 py-1 border rounded-sm outline-none text-xs h-7"
                   />
                 </div>
               </div>
@@ -721,23 +711,23 @@ const AddEditOrderDispatch: React.FC<AddEditOrderDispatchProps> = ({ dispatch, o
           )}
 
           {formData.shippingMethod === 'air' && (
-            <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-              <h4 className="font-semibold text-purple-900 mb-3">Air Cargo Details</h4>
-              <div className="grid grid-cols-2 gap-4">
+            <div className="bg-purple-50 p-3 rounded-sm border border-purple-200 text-xs">
+              <h4 className="font-bold text-purple-900 mb-2">Air Cargo Details</h4>
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Airline Code *</label>
+                  <label className="block font-medium text-gray-700 mb-1">Airline Code *</label>
                   <input
                     type="text"
                     name="airlineCode"
                     value={formData.airlineCode}
                     onChange={handleChange}
-                    placeholder="e.g., AI, 6E, SG"
+                    placeholder="e.g., AI, 6E"
                     required={formData.shippingMethod === 'air'}
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-2 py-1 border rounded-sm outline-none text-xs h-7"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Flight Number *</label>
+                  <label className="block font-medium text-gray-700 mb-1">Flight Number *</label>
                   <input
                     type="text"
                     name="flightNumber"
@@ -745,7 +735,7 @@ const AddEditOrderDispatch: React.FC<AddEditOrderDispatchProps> = ({ dispatch, o
                     onChange={handleChange}
                     placeholder="e.g., AI-101"
                     required={formData.shippingMethod === 'air'}
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-2 py-1 border rounded-sm outline-none text-xs h-7"
                   />
                 </div>
               </div>
@@ -753,98 +743,98 @@ const AddEditOrderDispatch: React.FC<AddEditOrderDispatchProps> = ({ dispatch, o
           )}
 
           {formData.shippingMethod === 'sea' && (
-            <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-              <h4 className="font-semibold text-green-900 mb-3">Sea Cargo Details</h4>
-              <div className="grid grid-cols-2 gap-4">
+            <div className="bg-green-50 p-3 rounded-sm border border-green-200 text-xs">
+              <h4 className="font-bold text-green-900 mb-2">Sea Cargo Details</h4>
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Container Number *</label>
+                  <label className="block font-medium text-gray-700 mb-1">Container Number *</label>
                   <input
                     type="text"
                     name="containerNumber"
                     value={formData.containerNumber}
                     onChange={handleChange}
-                    placeholder="e.g., CONT-123456"
+                    placeholder="CONT-123"
                     required={formData.shippingMethod === 'sea'}
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-2 py-1 border rounded-sm outline-none text-xs h-7"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Vessel Name *</label>
+                  <label className="block font-medium text-gray-700 mb-1">Vessel Name *</label>
                   <input
                     type="text"
                     name="vesselName"
                     value={formData.vesselName}
                     onChange={handleChange}
-                    placeholder="Ship/Vessel name"
+                    placeholder="Ship name"
                     required={formData.shippingMethod === 'sea'}
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-2 py-1 border rounded-sm outline-none text-xs h-7"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Port of Loading *</label>
+                  <label className="block font-medium text-gray-700 mb-1">Port of Loading *</label>
                   <input
                     type="text"
                     name="portOfLoading"
                     value={formData.portOfLoading}
                     onChange={handleChange}
-                    placeholder="e.g., Port of Mumbai"
+                    placeholder="Loading port"
                     required={formData.shippingMethod === 'sea'}
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-2 py-1 border rounded-sm outline-none text-xs h-7"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Port of Discharge *</label>
+                  <label className="block font-medium text-gray-700 mb-1">Port of Discharge *</label>
                   <input
                     type="text"
                     name="portOfDischarge"
                     value={formData.portOfDischarge}
                     onChange={handleChange}
-                    placeholder="e.g., Port of Singapore"
+                    placeholder="Discharge port"
                     required={formData.shippingMethod === 'sea'}
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-2 py-1 border rounded-sm outline-none text-xs h-7"
                   />
                 </div>
               </div>
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium mb-1">Weight (kg)</label>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Weight (kg)</label>
               <input
                 type="number"
                 name="weight"
                 value={formData.weight}
                 onChange={handleChange}
                 step="0.01"
-                className="w-full px-3 py-2 border rounded-lg"
+                className="w-full px-2.5 py-1 text-xs border border-gray-300 rounded-sm outline-none focus:ring-1 focus:ring-primary-500 h-8"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Actual Delivery Date</label>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Actual Delivery Date</label>
               <input
                 type="date"
                 name="actualDelivery"
                 value={formData.actualDelivery}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border rounded-lg"
+                className="w-full px-2.5 py-1 text-xs border border-gray-300 rounded-sm outline-none focus:ring-1 focus:ring-primary-500 h-8"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Shipping Address *</label>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">Shipping Address *</label>
             <textarea
               name="shippingAddress"
               value={formData.shippingAddress}
               onChange={handleChange}
               required
-              rows={3}
-              className="w-full px-3 py-2 border rounded-lg"
+              rows={2}
+              className="w-full px-2.5 py-1 text-xs border border-gray-300 rounded-sm outline-none focus:ring-1 focus:ring-primary-500"
             />
           </div>
 
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
             <SearchableDropdown
               label="Country"
               value={selectedCountry}
@@ -872,7 +862,7 @@ const AddEditOrderDispatch: React.FC<AddEditOrderDispatchProps> = ({ dispatch, o
               required
             />
             <div>
-              <label className="block text-sm font-medium mb-1">Pincode *</label>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Pincode *</label>
               <input
                 type="text"
                 name="shippingPincode"
@@ -880,85 +870,67 @@ const AddEditOrderDispatch: React.FC<AddEditOrderDispatchProps> = ({ dispatch, o
                 onChange={handleChange}
                 placeholder="Enter pincode"
                 required
-                className="w-full px-3 py-2 border rounded-lg"
+                className="w-full px-2.5 py-1 text-xs border border-gray-300 rounded-sm outline-none focus:ring-1 focus:ring-primary-500 h-8"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block text-sm font-medium mb-1">Package Count</label>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Package Count</label>
               <input
                 type="number"
                 name="packageCount"
                 value={formData.packageCount}
                 onChange={handleChange}
                 min="1"
-                className="w-full px-3 py-2 border rounded-lg"
+                className="w-full px-2.5 py-1 text-xs border border-gray-300 rounded-sm outline-none focus:ring-1 focus:ring-primary-500 h-8"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Shipping Cost</label>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Shipping Cost</label>
               <input
                 type="number"
                 name="shippingCost"
                 value={formData.shippingCost}
                 onChange={handleChange}
                 step="0.01"
-                className="w-full px-3 py-2 border rounded-lg"
+                className="w-full px-2.5 py-1 text-xs border border-gray-300 rounded-sm outline-none focus:ring-1 focus:ring-primary-500 h-8"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Insurance Amount</label>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Insurance Amount</label>
               <input
                 type="number"
                 name="insuranceAmount"
                 value={formData.insuranceAmount}
                 onChange={handleChange}
                 step="0.01"
-                className="w-full px-3 py-2 border rounded-lg"
+                className="w-full px-2.5 py-1 text-xs border border-gray-300 rounded-sm outline-none focus:ring-1 focus:ring-primary-500 h-8"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Notes</label>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">Notes</label>
             <textarea
               name="notes"
               value={formData.notes}
               onChange={handleChange}
-              rows={3}
-              className="w-full px-3 py-2 border rounded-lg"
+              rows={2}
+              className="w-full px-2.5 py-1 text-xs border border-gray-300 rounded-sm outline-none focus:ring-1 focus:ring-primary-500"
             />
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 py-1">
             <input
               type="checkbox"
               name="toTheOrder"
               checked={formData.toTheOrder || false}
               onChange={handleChange}
-              className="w-4 h-4 rounded border-gray-300"
+              className="w-3.5 h-3.5 rounded border-gray-300 focus:ring-1 focus:ring-primary-500 text-primary-600"
             />
-            <label className="text-sm font-medium text-gray-700">Hide Bill To & Ship To (Show "To The Order" instead)</label>
-          </div>
-
-          <div className="flex gap-3 justify-end pt-6 border-t border-gray-200">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onCancel}
-              className="px-8"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              loading={loading}
-              className="px-8"
-            >
-              {loading ? 'Saving...' : dispatch ? 'Update Dispatch' : 'Create Dispatch'}
-            </Button>
+            <label className="text-xs font-semibold text-gray-700">Hide Bill To & Ship To (Show "To The Order" instead)</label>
           </div>
         </form>
       </div>
@@ -967,3 +939,4 @@ const AddEditOrderDispatch: React.FC<AddEditOrderDispatchProps> = ({ dispatch, o
 };
 
 export default AddEditOrderDispatch;
+

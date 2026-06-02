@@ -113,19 +113,26 @@ function App() {
         <Route path="inward/add" element={<Inward />} />
         <Route path="inward/edit/:id" element={<Inward />} />
         <Route path="outward" element={<Outward />} />
+        <Route path="outward/add" element={<Outward />} />
+        <Route path="outward/edit/:id" element={<Outward />} />
         <Route path="profit-loss" element={<ProfitLossAnalysis />} />
         <Route path="inventory" element={<Inventory />} />
         <Route path="samples" element={<Samples />} />
         <Route path="samples/add" element={<Samples />} />
         <Route path="samples/edit/:id" element={<Samples />} />
         <Route path="quotes" element={<Quotes />} />
+        <Route path="quotes/add" element={<Quotes />} />
+        <Route path="quotes/edit/:id" element={<Quotes />} />
         <Route path="sales-orders" element={<SalesOrders />} />
+        <Route path="sales-orders/add" element={<SalesOrders />} />
+        <Route path="sales-orders/edit/:id" element={<SalesOrders />} />
         <Route path="purchase-orders" element={<PurchaseOrders />} />
         <Route path="purchase-orders/add" element={<PurchaseOrders />} />
         <Route path="purchase-orders/edit/:id" element={<PurchaseOrders />} />
         <Route path="order-dispatch" element={<OrderDispatchPage />} />
         <Route path="order-dispatch/add" element={<OrderDispatchPage />} />
         <Route path="order-dispatch/edit/:id" element={<OrderDispatchPage />} />
+        <Route path="order-dispatch/view/:id" element={<OrderDispatchPage />} />
         <Route path="settings" element={<Settings />} />
         <Route path="roles" element={<Roles />} />
         <Route path="roles/add" element={<Roles />} />

@@ -2,7 +2,6 @@ import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
@@ -42,13 +41,13 @@ const ToggleSwitch: React.FC<{ checked: boolean; onChange: (checked: boolean) =>
     type="button"
     onClick={() => !disabled && onChange(!checked)}
     disabled={disabled}
-    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-      checked ? 'bg-blue-600' : 'bg-gray-300'
+    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+      checked ? 'bg-odooTeal' : 'bg-gray-300'
     } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
   >
     <span
-      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-        checked ? 'translate-x-6' : 'translate-x-1'
+      className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+        checked ? 'translate-x-4.5' : 'translate-x-0.5'
       }`}
     />
   </button>
@@ -111,29 +110,30 @@ const AddEditUser: React.FC<AddEditUserProps> = ({ user, onSuccess, onCancel }) 
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={onCancel}
-            className="p-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
-            title="Go back"
-          >
-            <ArrowLeft className="h-5 w-5 text-white" />
-          </button>
-          <h1 className="text-2xl font-bold text-gray-900">
-            {user ? 'Edit User' : 'Add New User'}
-          </h1>
+    <div className="space-y-3 animate-fadeIn">
+      {/* Odoo style Breadcrumb Navigation & Control Bar */}
+      <div className="bg-white border border-gray-200 rounded px-3 py-2 flex items-center justify-between shadow-sm">
+        <div className="flex items-center gap-1.5 text-xs text-gray-400">
+          <span className="hover:text-primary-600 cursor-pointer" onClick={onCancel}>User Management</span>
+          <span>/</span>
+          <span className="font-semibold text-gray-700">{user ? user.name : 'New User'}</span>
+        </div>
+        <div className="flex gap-2">
+          <Button type="button" onClick={handleSubmit(onSubmit)} className="odoo-btn-primary px-4 h-8 text-xs font-semibold" loading={isSubmitting}>
+            Save
+          </Button>
+          <Button type="button" variant="outline" onClick={onCancel} className="odoo-btn-secondary px-4 h-8 text-xs">
+            Discard
+          </Button>
         </div>
       </div>
 
-      {/* Form Card */}
-      <div className="bg-white rounded-lg border border-gray-200 p-8">
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      {/* Odoo Sheet Form Card */}
+      <div className="odoo-sheet max-w-5xl mx-auto">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* Name */}
           <div>
-            <label className="flex items-center gap-2 text-sm font-semibold text-gray-900 mb-3">
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
               Name
             </label>
             <Input
@@ -146,7 +146,7 @@ const AddEditUser: React.FC<AddEditUserProps> = ({ user, onSuccess, onCancel }) 
 
           {/* Email */}
           <div>
-            <label className="flex items-center gap-2 text-sm font-semibold text-gray-900 mb-3">
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
               Email
             </label>
             <Input
@@ -161,7 +161,7 @@ const AddEditUser: React.FC<AddEditUserProps> = ({ user, onSuccess, onCancel }) 
           {/* Password - Only for new users */}
           {!user && (
             <div>
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-900 mb-3">
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
                 Password
               </label>
               <Input
@@ -176,12 +176,12 @@ const AddEditUser: React.FC<AddEditUserProps> = ({ user, onSuccess, onCancel }) 
 
           {/* Role */}
           <div>
-            <label className="flex items-center gap-2 text-sm font-semibold text-gray-900 mb-3">
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
               Role
             </label>
             <select
               {...register('role')}
-              className={`flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+              className={`flex h-8.5 w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 ${
                 errors.role ? 'border-red-500 focus:ring-red-500' : ''
               }`}
             >
@@ -197,41 +197,22 @@ const AddEditUser: React.FC<AddEditUserProps> = ({ user, onSuccess, onCancel }) 
               )}
             </select>
             {errors.role && (
-              <p className="text-sm text-red-600 mt-1">{errors.role.message}</p>
+              <p className="text-xs text-red-650 mt-1">{errors.role.message}</p>
             )}
           </div>
 
           {/* Status Toggle - Only for editing */}
           {user && (
-            <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-2.5 p-2.5 bg-gray-50 border border-gray-200 rounded">
               <ToggleSwitch
                 checked={isActiveValue !== false}
                 onChange={(checked) => setValue('isActive', checked)}
               />
-              <label className="text-sm font-medium text-gray-700">
+              <label className="block text-xs font-semibold text-gray-750">
                 {isActiveValue !== false ? 'Unblocked' : 'Blocked'}
               </label>
             </div>
           )}
-
-          {/* Form Actions */}
-          <div className="flex gap-3 justify-end pt-6 border-t border-gray-200">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onCancel}
-              className="px-8"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              loading={isSubmitting}
-              className="px-8"
-            >
-              {user ? 'Update User' : 'Save User'}
-            </Button>
-          </div>
         </form>
       </div>
     </div>

@@ -9,7 +9,6 @@ import { OrderDispatch } from '@/types';
 import { orderDispatchService } from '@/services/orderDispatchService';
 import { formatDate, debounce } from '@/utils';
 import Button from '@/components/Button';
-import Modal from '@/components/Modal';
 import Table from '@/components/Table';
 import Pagination from '@/components/Pagination';
 import PageHeader from '@/components/PageHeader';
@@ -41,7 +40,6 @@ const OrderDispatchPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [viewDispatch, setViewDispatch] = useState<OrderDispatch | null>(null);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -152,7 +150,7 @@ const OrderDispatchPage: React.FC = () => {
       title: 'Actions',
       render: (_: any, r: OrderDispatch) => (
         <div className="flex gap-1 items-center">
-          <Button variant="ghost" size="sm" onClick={() => setViewDispatch(r)} title="View">
+          <Button variant="ghost" size="sm" onClick={() => navigate(`/order-dispatch/view/${r.id}`)} title="View">
             <Eye className="h-4 w-4" />
           </Button>
           <Button
@@ -185,11 +183,13 @@ const OrderDispatchPage: React.FC = () => {
     },
   ];
 
-  // Show form if in add/edit mode
+  // Show form if in add/edit/view mode
+  const isViewMode = window.location.pathname.includes('/view/');
   if (id || window.location.pathname.includes('/add')) {
     return (
       <AddEditOrderDispatch
         dispatch={id && currentDispatch ? currentDispatch : undefined}
+        viewOnly={isViewMode}
         onSuccess={handleFormSuccess}
         onCancel={handleFormCancel}
       />
@@ -242,22 +242,7 @@ const OrderDispatchPage: React.FC = () => {
         />
       </div>
 
-      {/* View Modal */}
-      <Modal
-        isOpen={!!viewDispatch}
-        onClose={() => setViewDispatch(null)}
-        title={`Dispatch - ${viewDispatch?.dispatchNo}`}
-        size="lg"
-      >
-        {viewDispatch && (
-          <AddEditOrderDispatch
-            dispatch={viewDispatch}
-            viewOnly={true}
-            onSuccess={() => setViewDispatch(null)}
-            onCancel={() => setViewDispatch(null)}
-          />
-        )}
-      </Modal>
+
     </div>
   );
 };

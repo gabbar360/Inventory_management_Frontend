@@ -1,16 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Plus, ChevronDown, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { createQuote, updateQuote, fetchQuotes, fetchQuoteById, clearCurrentQuote } from '@/slices/quoteSlice';
-import { fetchCustomers, createCustomer } from '@/slices/customerSlice';
+import { fetchCustomers } from '@/slices/customerSlice';
 import { fetchProducts } from '@/slices/productSlice';
 import { Quote } from '@/types';
-import { cn } from '@/utils';
 import Input from '@/components/Input';
 import Select from '@/components/Select';
 import Button from '@/components/Button';
 import ProductSearch from '@/components/ProductSearch';
+import AddEditCustomer from '@/components/AddEditCustomer';
 
 interface QuoteItem {
   id?: number;
@@ -32,13 +32,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
   
   const [customerSearch, setCustomerSearch] = useState('');
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
-  const [addCustomerModalOpen, setAddCustomerModalOpen] = useState(false);
-  const [newCustomerData, setNewCustomerData] = useState({ name: '', email: '', phone: '', address: '', state: '', gstNumber: '' });
-  const [stateSearch, setStateSearch] = useState('');
-  const [showStateDropdown, setShowStateDropdown] = useState(false);
-  const stateDropdownRef = useRef<HTMLDivElement>(null);
-  const [indianStates, setIndianStates] = useState<string[]>([]);
-  const [loadingStates, setLoadingStates] = useState(false);
+  const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
   const [formData, setFormData] = useState({
     customerId: '',
     quoteDate: new Date().toISOString().split('T')[0],
@@ -69,49 +63,6 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
     dispatch(fetchCustomers({ limit: 1000 }));
     dispatch(fetchProducts());
   }, [dispatch]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        stateDropdownRef.current &&
-        !stateDropdownRef.current.contains(event.target as Node)
-      ) {
-        setShowStateDropdown(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
-  useEffect(() => {
-    const fetchStates = async () => {
-      setLoadingStates(true);
-      try {
-        const response = await fetch('https://countriesnow.space/api/v0.1/countries/states', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ country: 'India' }),
-        });
-        const result = await response.json();
-        if (!result.error && result.data && result.data.states) {
-          const statesList = result.data.states.map((s: { name: string }) => s.name);
-          setIndianStates(statesList);
-        } else {
-          throw new Error('Failed to fetch from API');
-        }
-      } catch (err) {
-        console.error('Error fetching Indian states:', err);
-      } finally {
-        setLoadingStates(false);
-      }
-    };
-
-    fetchStates();
-  }, []);
 
   // Clear currentQuote when form opens for creating new quote
   useEffect(() => {
@@ -258,31 +209,6 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
     }
   };
 
-  const handleAddCustomer = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const result = await dispatch(createCustomer({
-        name: newCustomerData.name,
-        email: newCustomerData.email,
-        phone: newCustomerData.phone,
-        address: newCustomerData.address,
-        state: newCustomerData.state,
-        gstNumber: newCustomerData.gstNumber,
-      })).unwrap();
-      toast.success('Customer added successfully');
-      await dispatch(fetchCustomers({ limit: 1000 }));
-      setFormData({ ...formData, customerId: result.id.toString() });
-      setCustomerSearch(result.name);
-      setShowCustomerDropdown(false);
-      setAddCustomerModalOpen(false);
-      setNewCustomerData({ name: '', email: '', phone: '', address: '', state: '', gstNumber: '' });
-      setStateSearch('');
-      setShowStateDropdown(false);
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to add customer');
-    }
-  };
-
   if (quote?.id && loading) {
     return <div className="text-center py-4">Loading quote data...</div>;
   }
@@ -345,8 +271,8 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
                 <button
                   type="button"
                   onClick={() => {
-                    setAddCustomerModalOpen(true);
                     setShowCustomerDropdown(false);
+                    setShowAddCustomerModal(true);
                   }}
                   className="w-full text-left text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-2"
                 >
@@ -474,6 +400,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
             <thead>
               <tr className="bg-gray-100">
                 <th className="p-2 text-left">Product</th>
+                <th className="p-2 text-left">SKU</th>
                 <th className="p-2 text-right">Qty</th>
                 <th className="p-2 text-left">UOM</th>
                 <th className="p-2 text-right">Rate</th>
@@ -489,8 +416,11 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
                   <tr className="border-t">
                     <td className="p-2">
                       <div className="font-medium">{getProductName(item)}</div>
-                      <div className="text-xs text-gray-500 mt-0.5">{getProductDescription(item)}</div>
+                      {getProductDescription(item) && (
+                        <div className="text-xs text-gray-500 mt-0.5">{getProductDescription(item)}</div>
+                      )}
                     </td>
+                    <td className="p-2 text-left">{item.product?.sku || products.find((p: any) => p.id === item.productId)?.sku || '-'}</td>
                     <td className="p-2 text-right">{item.quantity}</td>
                     <td className="p-2 text-left">{item.unit}</td>
                     <td className="p-2 text-right">₹{Number(item.rate || 0).toFixed(2)}</td>
@@ -528,7 +458,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
                   </tr>
                   {editingItem === idx && editingData && (
                     <tr className="bg-blue-50 border-t border-blue-200">
-                      <td colSpan={8} className="p-3">
+                      <td colSpan={9} className="p-3">
                         <div className="grid grid-cols-2 gap-3 mb-3">
                           <ProductSearch
                             value={editingData.productId?.toString()}
@@ -684,153 +614,21 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
       </div>
 
       {/* Add Customer Modal */}
-      {addCustomerModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl">
-            <h2 className="text-xl font-bold mb-4">Add New Customer</h2>
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <Input
-                label="Customer Name"
-                placeholder="Enter customer name"
-                value={newCustomerData.name}
-                onChange={(e) => setNewCustomerData({ ...newCustomerData, name: e.target.value })}
-                required
-              />
-              <Input
-                label="Email"
-                type="email"
-                placeholder="Enter email address"
-                value={newCustomerData.email}
-                onChange={(e) => setNewCustomerData({ ...newCustomerData, email: e.target.value })}
-              />
-              <Input
-                label="Phone"
-                placeholder="Enter phone number"
-                value={newCustomerData.phone}
-                onChange={(e) => setNewCustomerData({ ...newCustomerData, phone: e.target.value })}
-              />
-              <Input
-                label="Address"
-                placeholder="Enter address"
-                value={newCustomerData.address}
-                onChange={(e) => setNewCustomerData({ ...newCustomerData, address: e.target.value })}
-              />
-              
-              {/* Searchable State Dropdown */}
-              <div className="relative space-y-1" ref={stateDropdownRef}>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700">
-                  State (Optional)
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Search or select Indian state/UT"
-                    className={cn(
-                      'flex h-10 w-full rounded-md border border-gray-300 bg-white pl-3 pr-10 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200'
-                    )}
-                    value={stateSearch}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setStateSearch(val);
-                      setNewCustomerData({ ...newCustomerData, state: val });
-                      setShowStateDropdown(true);
-                    }}
-                    onFocus={() => setShowStateDropdown(true)}
-                  />
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                    {stateSearch && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setStateSearch('');
-                          setNewCustomerData({ ...newCustomerData, state: '' });
-                          setShowStateDropdown(true);
-                        }}
-                        className="text-gray-400 hover:text-gray-600 p-0.5 rounded-full hover:bg-gray-100 transition-colors"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setShowStateDropdown(!showStateDropdown)}
-                      className="text-gray-400 hover:text-gray-600 p-0.5 rounded-full hover:bg-gray-100 transition-colors"
-                    >
-                      <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", showStateDropdown && "transform rotate-180")} />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Dropdown Suggestions */}
-                {showStateDropdown && (
-                  <div className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-md bg-white py-1 text-sm shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none border border-gray-200 divide-y divide-gray-50 scrollbar-thin">
-                    {loadingStates ? (
-                      <div className="px-4 py-3 text-gray-500 text-xs flex items-center gap-2">
-                        <span className="w-3.5 h-3.5 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></span>
-                        <span>Fetching states dynamically...</span>
-                      </div>
-                    ) : indianStates.filter((state) =>
-                      state.toLowerCase().includes(stateSearch.toLowerCase())
-                    ).length > 0 ? (
-                      indianStates.filter((state) =>
-                        state.toLowerCase().includes(stateSearch.toLowerCase())
-                      ).map((state) => (
-                        <button
-                          key={state}
-                          type="button"
-                          className={cn(
-                            'w-full text-left px-4 py-2 hover:bg-primary-50 hover:text-primary-900 transition-colors flex items-center justify-between',
-                            stateSearch.toLowerCase() === state.toLowerCase() && 'bg-primary-50 text-primary-900 font-medium'
-                          )}
-                          onClick={() => {
-                            setStateSearch(state);
-                            setNewCustomerData({ ...newCustomerData, state });
-                            setShowStateDropdown(false);
-                          }}
-                        >
-                          <span>{state}</span>
-                          {stateSearch.toLowerCase() === state.toLowerCase() && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-primary-600"></span>
-                          )}
-                        </button>
-                      ))
-                    ) : (
-                      <div className="px-4 py-3 text-gray-500 text-xs italic">
-                        No matching Indian states or Union Territories found. You can keep typing to enter a custom state.
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <Input
-                label="GST Number"
-                placeholder="Enter GST number"
-                value={newCustomerData.gstNumber || ''}
-                onChange={(e) => setNewCustomerData({ ...newCustomerData, gstNumber: e.target.value })}
-              />
-            </div>
-            <div className="flex gap-2 justify-end pt-4">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => {
-                  setAddCustomerModalOpen(false);
-                  setNewCustomerData({ name: '', email: '', phone: '', address: '', state: '', gstNumber: '' });
-                  setStateSearch('');
-                  setShowStateDropdown(false);
-                }}
-              >
-                Cancel
-              </Button>
-              <Button 
-                type="button"
-                onClick={handleAddCustomer}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                Add Customer
-              </Button>
-            </div>
+      {showAddCustomerModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4" onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            setShowAddCustomerModal(false);
+          }
+        }}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[95vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <AddEditCustomer
+              onSuccess={async () => {
+                await dispatch(fetchCustomers({ limit: 1000 }));
+                setShowAddCustomerModal(false);
+                toast.success('Customer added! Select from dropdown.');
+              }}
+              onCancel={() => setShowAddCustomerModal(false)}
+            />
           </div>
         </div>
       )}
