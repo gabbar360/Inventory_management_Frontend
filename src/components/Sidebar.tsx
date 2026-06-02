@@ -195,12 +195,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
       >
         <div className="flex h-full flex-col">
           {/* Logo & Header */}
-          <div className="flex h-12 items-center justify-between border-b border-gray-200 px-2 sm:px-3 bg-gray-100/50">
+          <div className="flex h-12 items-center justify-center border-b border-gray-200 px-2 sm:px-3 bg-gray-100/50">
             {isOpen ? (
               <>
-                <div className="flex items-center gap-1.5">
-                  <Warehouse className="h-4.5 w-4.5 text-primary-600" />
-                  <span className="text-sm font-bold tracking-tight text-gray-800">NovaStock</span>
+                <div className="flex items-center gap-1.5 flex-1 justify-center">
+                  <img src="/images/vegnar.webp" alt="Vegnar Logo" className="h-6 w-auto object-contain" />
                 </div>
                 <Button variant="ghost" size="sm" onClick={onToggle} className="p-1 h-7 w-7 text-gray-500 hover:text-gray-850 hover:bg-gray-200">
                   <Menu className="h-4 w-4" />

@@ -98,7 +98,7 @@ const AppSwitcher: React.FC<AppSwitcherProps> = ({ isOpen, onClose }) => {
         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
           <Grid className="h-5.5 w-5.5 text-primary-300" />
           <span className="text-base sm:text-xl font-semibold tracking-wide">
-            NovaStock <span className="hidden sm:inline">Launcher</span>
+           Vegnar Stock <span className="hidden sm:inline">Launcher</span>
           </span>
         </div>
         
