@@ -45,10 +45,8 @@ const Login: React.FC = () => {
       <div className="max-w-md w-full space-y-6">
         {/* Logo/Icon Header */}
         <div className="flex flex-col items-center justify-center text-center">
-          <div className="h-12 w-12 rounded bg-primary-600 flex items-center justify-center shadow text-white mb-2.5">
-            <span className="text-xl font-black italic">N</span>
-          </div>
-          <h2 className="text-xl font-bold text-gray-800 tracking-tight">NovaStock</h2>
+          <img src="/images/vegnar.webp" alt="Vegnar Logo" className="h-16 w-auto object-contain mb-2.5" />
+          {/* <h2 className="text-xl font-bold text-gray-800 tracking-tight">Vegnar Stock</h2> */}
         </div>
 
         {/* Clean Login Sheet Card */}
@@ -131,7 +129,7 @@ const Login: React.FC = () => {
           </form>
         </div>
         <div className="text-center text-[10px] text-gray-400 font-medium">
-          Powered by <a href="https://www.novastock.com" target="_blank" rel="noreferrer" className="text-primary-500 hover:underline">NovaStock</a>
+          Powered by <a href="https://www.vegnar.com" target="_blank" rel="noreferrer" className="text-primary-500 hover:underline">vegnar.com</a>
         </div>
       </div>
     </div>
