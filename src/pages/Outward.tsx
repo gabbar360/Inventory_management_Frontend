@@ -44,7 +44,6 @@ const Outward: React.FC = () => {
 
   useEffect(() => {
     dispatch(fetchOutwardInvoices({ page: currentPage, limit: 10, search }));
-    dispatch(fetchOutwardInvoices({ page: 1, limit: 1000 })); // for master data
   }, [dispatch, search, currentPage]);
 
   useEffect(() => {

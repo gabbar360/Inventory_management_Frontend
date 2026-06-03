@@ -5,6 +5,13 @@ import { StockBatch } from '@/types';
 interface InventoryState {
   stockSummary: StockSummary[];
   availableStock: StockBatch[];
+  lowStockItems: any[];
+  globalStats: {
+    totalStockValue: number;
+    totalProducts: number;
+    lowStockItemsCount: number;
+  } | null;
+  pagination: any;
   loading: boolean;
   error: string | null;
 }
@@ -12,14 +19,17 @@ interface InventoryState {
 const initialState: InventoryState = {
   stockSummary: [],
   availableStock: [],
+  lowStockItems: [],
+  globalStats: null,
+  pagination: null,
   loading: false,
   error: null,
 };
 
 export const fetchStockSummary = createAsyncThunk(
   'inventory/fetchStockSummary',
-  async ({ locationId, search }: { locationId?: string; search?: string } = {}) => {
-    return await inventoryService.getStockSummary(locationId, search);
+  async ({ page, limit, locationId, search }: { page?: number; limit?: number; locationId?: string; search?: string } = {}) => {
+    return await inventoryService.getStockSummary(page, limit, locationId, search);
   }
 );
 
@@ -57,14 +67,17 @@ const inventorySlice = createSlice({
       })
       .addCase(fetchStockSummary.fulfilled, (state, action) => {
         state.loading = false;
-        state.stockSummary = action.payload;
+        state.stockSummary = action.payload?.data || [];
+        state.lowStockItems = action.payload?.lowStockItems || [];
+        state.globalStats = action.payload?.globalStats || null;
+        state.pagination = action.payload?.pagination || null;
       })
       .addCase(fetchStockSummary.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch stock summary';
       })
       .addCase(fetchAvailableStock.fulfilled, (state, action) => {
-        state.availableStock = action.payload;
+        state.availableStock = action.payload || [];
       });
   },
 });

@@ -431,6 +431,7 @@ export interface PaginationQuery {
   sortOrder?: 'asc' | 'desc';
   startDate?: string;
   endDate?: string;
+  source?: string;
 }
 
 export interface PurchaseOrderItem {
