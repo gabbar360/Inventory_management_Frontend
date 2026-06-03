@@ -198,16 +198,24 @@ const AddEditSalesOrder: React.FC<AddEditSalesOrderProps> = ({ order, onSuccess,
   }, [order]);
 
   // ── Calc ──
-  const calcTotal = () => {
+  const calcRawTotal = () => {
     const itemsTotal = items.reduce((sum, item) => {
       const base = item.quantity * item.rate;
       return sum + base + base * (item.taxRate / 100);
     }, 0);
     const shipping = parseFloat(formData.shippingCharge) || 0;
-    const adj = parseFloat(formData.adjustment) || 0;
     const discount = parseFloat(formData.discount) || 0;
-    return itemsTotal + shipping - adj - discount;
+    return itemsTotal + shipping - discount;
   };
+
+  const calcTotal = () => Math.round(calcRawTotal());
+
+  // Auto-calculate rounding adjustment whenever items/shipping/discount change
+  useEffect(() => {
+    const raw = calcRawTotal();
+    const rounding = raw - Math.round(raw); // negative = rounded up, positive = rounded down
+    setFormData((prev) => ({ ...prev, adjustment: rounding.toFixed(2) }));
+  }, [items, formData.shippingCharge, formData.discount]);
 
   const buildPayload = () => ({
     customerId: parseInt(formData.customerId),
@@ -478,7 +486,7 @@ const AddEditSalesOrder: React.FC<AddEditSalesOrderProps> = ({ order, onSuccess,
             <Input label="Discount" type="number" step="0.01" min="0" value={formData.discount}
               onChange={(e) => setFormData({ ...formData, discount: e.target.value })} placeholder="e.g. 100" />
             <Input label="Amount Rounding" type="number" step="0.01" value={formData.adjustment}
-              onChange={(e) => setFormData({ ...formData, adjustment: e.target.value })} placeholder="e.g. -0.50" />
+              onChange={() => {}} readOnly placeholder="Auto-calculated" />
             <Input label="Amount Received" type="number" step="0.01" min="0" value={formData.amountReceived}
               onChange={(e) => setFormData({ ...formData, amountReceived: e.target.value })} placeholder="e.g. 5000" />
           </div>
@@ -517,7 +525,7 @@ const AddEditSalesOrder: React.FC<AddEditSalesOrderProps> = ({ order, onSuccess,
               {adjustmentVal !== 0 && (
                 <div className="flex justify-between text-xs text-gray-600">
                   <span>Round Off:</span>
-                  <span className="font-semibold">{adjustmentVal > 0 ? '-' : '+'}₹{Math.abs(adjustmentVal).toFixed(2)}</span>
+                  <span className="font-semibold">{adjustmentVal < 0 ? '+' : '-'}₹{Math.abs(adjustmentVal).toFixed(2)}</span>
                 </div>
               )}
               <div className="flex justify-between border-t border-green-200 pt-2">
