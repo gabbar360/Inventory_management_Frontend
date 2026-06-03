@@ -12,12 +12,13 @@ import PageHeader from '@/components/PageHeader';
 import ConfirmModal from '@/components/ConfirmModal';
 import Modal from '@/components/Modal';
 import AddEditPurchaseOrder from '@/components/AddEditPurchaseOrder';
+import Pagination from '@/components/Pagination';
 
 const PurchaseOrders: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const dispatch = useAppDispatch();
-  const { orders, currentPurchaseOrder, loading } = useAppSelector((state) => state.purchaseOrders);
+  const { orders, currentPurchaseOrder, pagination, loading } = useAppSelector((state) => state.purchaseOrders);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -27,7 +28,7 @@ const PurchaseOrders: React.FC = () => {
   const [search, setSearch] = useState('');
 
   useEffect(() => {
-    dispatch(fetchPurchaseOrders({ page, search }));
+    dispatch(fetchPurchaseOrders({ page, limit: 10, search }));
   }, [dispatch, page, search]);
 
   // Fetch PO data when in edit mode
@@ -52,7 +53,7 @@ const PurchaseOrders: React.FC = () => {
 
   const handleFormSuccess = () => {
     navigate('/purchase-orders');
-    dispatch(fetchPurchaseOrders({ page, search }));
+    dispatch(fetchPurchaseOrders({ page, limit: 10, search }));
   };
 
   const handleFormCancel = () => {
@@ -148,6 +149,18 @@ const PurchaseOrders: React.FC = () => {
 
       <div className="card overflow-hidden">
         <Table columns={columns} data={orders} loading={loading} />
+        {pagination && pagination.totalPages > 1 && (
+          <div className="card-footer border-t border-gray-200">
+            <Pagination
+              currentPage={page}
+              totalPages={pagination.totalPages}
+              total={pagination.total}
+              limit={pagination.limit}
+              onPageChange={setPage}
+              loading={loading}
+            />
+          </div>
+        )}
       </div>
 
       <ConfirmModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDelete} title="Delete Purchase Order" message="Are you sure you want to delete this purchase order?" />

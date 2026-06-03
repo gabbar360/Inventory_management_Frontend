@@ -28,7 +28,7 @@ import { toast } from 'react-hot-toast';
 
 const Inventory: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { stockSummary, availableStock, loading } = useAppSelector(
+  const { stockSummary, availableStock, lowStockItems, globalStats, pagination, loading } = useAppSelector(
     (state) => state.inventory
   );
   const { locations } = useAppSelector((state) => state.locations);
@@ -37,6 +37,7 @@ const Inventory: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = useState<string>('');
   const [viewMode, setViewMode] = useState<'summary' | 'batches'>('summary');
   const [currentPage, setCurrentPage] = useState(1);
+  const [summaryPage, setSummaryPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [transferModalOpen, setTransferModalOpen] = useState(false);
@@ -51,11 +52,20 @@ const Inventory: React.FC = () => {
   }, [searchQuery]);
 
   useEffect(() => {
-    loadData();
+    setSummaryPage(1);
   }, [selectedLocation, debouncedSearch]);
 
+  useEffect(() => {
+    loadData();
+  }, [selectedLocation, debouncedSearch, summaryPage]);
+
   const loadData = async () => {
-    dispatch(fetchStockSummary({ locationId: selectedLocation || undefined, search: debouncedSearch || undefined }));
+    dispatch(fetchStockSummary({
+      page: summaryPage,
+      limit: 10,
+      locationId: selectedLocation || undefined,
+      search: debouncedSearch || undefined,
+    }));
     dispatch(fetchLocations({ limit: 100 }));
   };
 
@@ -79,12 +89,9 @@ const Inventory: React.FC = () => {
     })),
   ];
 
-  const totalStockValue = stockSummary.reduce(
-    (sum, item) => sum + item.totalValue,
-    0
-  );
-  const totalProducts = stockSummary.length;
-  const lowStockItems = stockSummary.filter((item) => item.totalPcs < 100);
+  const totalStockValue = globalStats?.totalStockValue || 0;
+  const totalProducts = globalStats?.totalProducts || 0;
+  const lowStockItemsCount = globalStats?.lowStockItemsCount || 0;
 
   const summaryColumns = [
     {
@@ -378,7 +385,7 @@ const Inventory: React.FC = () => {
                 Low Stock Items
               </p>
               <p className="text-lg sm:text-2xl font-semibold text-gray-900 break-words">
-                {lowStockItems.length}
+                {lowStockItemsCount}
               </p>
             </div>
           </div>
@@ -404,6 +411,18 @@ const Inventory: React.FC = () => {
             loading={loading}
             emptyMessage="No stock available"
           />
+          {pagination && pagination.totalPages > 1 && (
+            <div className="card-footer border-t border-gray-200">
+              <Pagination
+                currentPage={summaryPage}
+                totalPages={pagination.totalPages}
+                total={pagination.total}
+                limit={pagination.limit}
+                onPageChange={setSummaryPage}
+                loading={loading}
+              />
+            </div>
+          )}
         </div>
       )}
 
