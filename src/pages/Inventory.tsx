@@ -8,6 +8,12 @@ import {
   User,
   Archive,
   ArrowRightLeft,
+  ArrowLeft,
+  ChevronDown,
+  ChevronUp,
+  Warehouse,
+  ChevronRight,
+  Clock,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
@@ -18,7 +24,6 @@ import {
 import { fetchLocations } from '@/slices/locationSlice';
 import { StockBatch, StockSummary } from '@/types';
 import { formatCurrency, formatNumber } from '@/utils';
-import Button from '@/components/Button';
 import Select from '@/components/Select';
 import Table from '@/components/Table';
 import Pagination from '@/components/Pagination';
@@ -28,21 +33,25 @@ import { toast } from 'react-hot-toast';
 
 const Inventory: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { stockSummary, availableStock, lowStockItems, globalStats, pagination, loading } = useAppSelector(
-    (state) => state.inventory
-  );
-  const { locations } = useAppSelector((state) => state.locations);
+  const {
+    stockSummary = [],
+    availableStock = [],
+    lowStockItems = [],
+    globalStats = null,
+    pagination = null,
+    loading = false,
+  } = useAppSelector((state) => state.inventory) || {};
+  const { locations = [] } = useAppSelector((state) => state.locations) || {};
 
   const [selectedLocation, setSelectedLocation] = useState<string>('');
   const [selectedProduct, setSelectedProduct] = useState<string>('');
-  const [viewMode, setViewMode] = useState<'summary' | 'batches'>('summary');
-  const [currentPage, setCurrentPage] = useState(1);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [summaryPage, setSummaryPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [transferModalOpen, setTransferModalOpen] = useState(false);
   const [selectedBatch, setSelectedBatch] = useState<StockBatch | null>(null);
-  const itemsPerPage = 10;
+  const [lowStockOpen, setLowStockOpen] = useState(true);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -77,13 +86,26 @@ const Inventory: React.FC = () => {
       })
     );
     setSelectedProduct(productId);
-    setViewMode('batches');
-    setCurrentPage(1);
+    setDrawerOpen(true);
+  };
+
+  const handleTransfer = async (data: any) => {
+    try {
+      await transferStock(data);
+      toast.success('Stock transferred successfully');
+      loadData();
+      if (selectedProduct) {
+        loadBatches(selectedProduct);
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to transfer stock');
+      throw error;
+    }
   };
 
   const locationOptions = [
     { value: '', label: 'All Locations' },
-    ...locations.map((loc) => ({
+    ...(locations || []).map((loc) => ({
       value: loc.id,
       label: loc.name,
     })),
@@ -101,43 +123,54 @@ const Inventory: React.FC = () => {
       sticky: true,
       render: (value: string, record: StockSummary) => (
         <div>
-          <div className="font-medium text-gray-900">{value}</div>
-          <div className="text-sm text-gray-500">{record.categoryName}</div>
+          <div className="font-semibold text-gray-900 text-xs sm:text-sm tracking-tight">{value}</div>
+          <div className="inline-block mt-0.5 px-2 py-0.5 rounded bg-gray-100 text-[10px] font-bold text-gray-500 tracking-wide">
+            {record.categoryName}
+          </div>
         </div>
       ),
     },
     {
       key: 'totalBoxes',
       title: 'Boxes',
-      render: (value: number) => formatNumber(value),
+      render: (value: number) => (
+        <span className="font-semibold text-gray-950 text-xs sm:text-sm">{formatNumber(value)}</span>
+      ),
     },
     {
       key: 'totalPacks',
       title: 'Packs',
-      render: (_: any, record: StockSummary) =>
-        formatNumber(record.totalPacks || 0),
+      render: (_: any, record: StockSummary) => (
+        <span className="text-gray-600 text-xs sm:text-sm font-medium">{formatNumber(record.totalPacks || 0)}</span>
+      ),
     },
     {
       key: 'totalPcs',
       title: 'Pieces',
-      render: (value: number) => formatNumber(value),
+      render: (value: number) => (
+        <span className="text-gray-600 text-xs sm:text-sm font-medium">{formatNumber(value)}</span>
+      ),
     },
     {
       key: 'totalValue',
       title: 'Value',
-      render: (value: number) => formatCurrency(value),
+      render: (value: number) => (
+        <span className="font-bold text-emerald-600 text-xs sm:text-sm">{formatCurrency(value)}</span>
+      ),
     },
     {
       key: 'locations',
       title: 'Locations',
-      render: (locations: any[]) => (
-        <div className="space-y-1">
-          {locations.map((loc, index) => (
-            <div key={index} className="text-sm">
-              <span className="font-medium">{loc.locationName}:</span>
-              <span className="ml-1 text-gray-600">
-                {formatNumber(loc.boxes)} boxes, {formatNumber(loc.packs || 0)}{' '}
-                packs, {formatNumber(loc.pcs)} pcs
+      render: (locationsList: any[]) => (
+        <div className="flex flex-wrap gap-1.5 max-w-md">
+          {(locationsList || []).map((loc, index) => (
+            <div key={index} className="inline-flex flex-col px-2 py-1 rounded-md bg-gray-50 border border-gray-200/60 text-[10px] sm:text-[11px] shadow-sm">
+              <span className="font-bold text-gray-700 flex items-center gap-1">
+                <MapPin className="w-2.5 h-2.5 text-primary-500" />
+                {loc.locationName}
+              </span>
+              <span className="text-gray-500 mt-0.5">
+                <strong className="text-gray-950">{formatNumber(loc.boxes)}</strong> bxs • <strong className="text-gray-950">{formatNumber(loc.pcs)}</strong> pcs
               </span>
             </div>
           ))}
@@ -151,23 +184,16 @@ const Inventory: React.FC = () => {
         const isLowStock = record.totalPcs < 100;
         return (
           <span
-            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
               isLowStock
-                ? 'bg-red-100 text-red-800'
-                : 'bg-green-100 text-green-800'
+                ? 'bg-rose-50 text-rose-700 border border-rose-200/50'
+                : 'bg-emerald-50 text-emerald-700 border border-emerald-200/50'
             }`}
           >
-            {isLowStock ? (
-              <>
-                <AlertTriangle className="w-3 h-3 mr-1" />
-                Low Stock
-              </>
-            ) : (
-              <>
-                <Package className="w-3 h-3 mr-1" />
-                In Stock
-              </>
-            )}
+            <span className={`w-1.5 h-1.5 rounded-full ${
+              isLowStock ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'
+            }`} />
+            {isLowStock ? 'Low Stock' : 'In Stock'}
           </span>
         );
       },
@@ -176,411 +202,495 @@ const Inventory: React.FC = () => {
       key: 'actions',
       title: 'Actions',
       render: (_: any, record: StockSummary) => (
-        <Button
-          variant="outline"
-          size="sm"
+        <button
           onClick={() => loadBatches(record.productId)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-primary-700 hover:text-white bg-primary-50 hover:bg-primary-600 rounded border border-primary-200/70 hover:border-primary-600 transition-all duration-200 shadow-sm"
         >
           View Batches
-        </Button>
+          <ChevronRight className="w-3.5 h-3.5" />
+        </button>
       ),
     },
   ];
-
-  const batchColumns = [
-    {
-      key: 'inwardDate',
-      title: 'Batch Date',
-      render: (value: string) => (
-        <div className="flex items-center">
-          <Calendar className="w-4 h-4 mr-2 text-gray-400" />
-          {new Date(value).toLocaleDateString()}
-        </div>
-      ),
-    },
-    {
-      key: 'vendor',
-      title: 'Vendor',
-      render: (vendor: any) => (
-        <div className="flex items-center">
-          <User className="w-4 h-4 mr-2 text-gray-400" />
-          <div>
-            <div className="font-medium text-gray-900">
-              {vendor?.name || 'N/A'}
-            </div>
-            <div className="text-sm text-gray-500">{vendor?.code || ''}</div>
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: 'location',
-      title: 'Location',
-      render: (location: any) => (
-        <div className="flex items-center">
-          <MapPin className="w-4 h-4 mr-2 text-gray-400" />
-          {location?.name || 'N/A'}
-        </div>
-      ),
-    },
-    {
-      key: 'remainingBoxes',
-      title: 'Remaining Stock',
-      render: (_: any, record: StockBatch) => {
-        const packsPerBox = record.packPerBox || 1;
-        const pcsPerPack = record.packPerPiece || 1;
-        return (
-          <div>
-            <div className="font-medium text-gray-900">
-              {formatNumber(record.remainingBoxes)} boxes ({formatNumber(packsPerBox)} packs/box)
-            </div>
-            <div className="text-sm text-gray-500">
-              {formatNumber(record.remainingPacks || 0)} packs ({formatNumber(pcsPerPack)} pcs/pack)
-            </div>
-            <div className="text-sm text-gray-500">
-              {formatNumber(record.remainingPcs)} pieces
-            </div>
-          </div>
-        );
-      },
-    },
-    {
-      key: 'costPerBox',
-      title: 'Cost/Box',
-      render: (value: number) => formatCurrency(value),
-    },
-    {
-      key: 'costPerPack',
-      title: 'Cost/Pack',
-      render: (_: any, record: StockBatch) => {
-        const costPerPack =
-          record.costPerPack ||
-          record.costPerBox / (record.packPerBox || record.pcsPerBox || 1);
-        return formatCurrency(costPerPack);
-      },
-    },
-    {
-      key: 'costPerPcs',
-      title: 'Cost/Piece',
-      render: (value: number) => formatCurrency(value),
-    },
-    {
-      key: 'totalValue',
-      title: 'Batch Value',
-      render: (_: any, record: StockBatch) => {
-        const totalRemainingPcs = record.remainingPcs;
-        const totalValue = totalRemainingPcs * record.costPerPcs;
-        return formatCurrency(totalValue);
-      },
-    },
-    {
-      key: 'actions',
-      title: 'Actions',
-      render: (_: any, record: StockBatch) => (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            setSelectedBatch(record);
-            setTransferModalOpen(true);
-          }}
-        >
-          <ArrowRightLeft className="w-4 h-4 mr-1" />
-          Transfer
-        </Button>
-      ),
-    },
-  ];
-
-  const handleTransfer = async (data: any) => {
-    try {
-      await transferStock(data);
-      toast.success('Stock transferred successfully');
-      loadData();
-      if (selectedProduct) {
-        loadBatches(selectedProduct);
-      }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to transfer stock');
-      throw error;
-    }
-  };
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Inventory</h1>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-            {viewMode === 'batches' && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setViewMode('summary');
-                  setSelectedProduct('');
-                  dispatch(clearAvailableStock());
-                }}
-              >
-                ← Back
-              </Button>
-            )}
-            <input
-              type="text"
-              placeholder="Search products..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-64"
-            />
-            <Select
-              value={selectedLocation}
-              onChange={(e) => setSelectedLocation(e.target.value)}
-              options={locationOptions}
-              className="w-full sm:w-48"
-            />
+    <div className="space-y-6">
+      {/* High-Tech Glassmorphic Header */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200/80 p-4 sm:p-5 relative overflow-hidden">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <Warehouse className="w-5.5 h-5.5 text-primary-600" />
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">Stock Control Dashboard</h1>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Live tracking metrics, safety threshold warnings, and FIFO batch movements across warehouses.
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            {/* Search Input with inline icon */}
+            <div className="relative w-full sm:w-64">
+              {/* <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                <Search className="h-4 w-4 text-gray-400" />
+              </span> */}
+              <input
+                type="text"
+                placeholder="Search products..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{ paddingLeft: '2.25rem' }}
+                className="w-full pr-3 py-2 border border-gray-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white text-gray-800"
+              />
+            </div>
+
+            {/* Location selector */}
+            <div className="relative w-full sm:w-48 flex items-center">
+              {/* <span className="absolute left-3 z-10 pointer-events-none text-gray-400">
+                <MapPin className="w-3.5 h-3.5" />
+              </span> */}
+              <Select
+                value={selectedLocation}
+                onChange={(e) => setSelectedLocation(e.target.value)}
+                options={locationOptions}
+                className="w-full"
+                style={{ paddingLeft: '2.1rem' }}
+              />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div className="stat-card">
-          <div className="flex items-center min-w-0">
-            <div className="flex-shrink-0 p-2 sm:p-3 rounded-lg bg-blue-500">
-              <Package className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-            </div>
-            <div className="ml-3 sm:ml-4 min-w-0 flex-1">
-              <p className="text-xs sm:text-sm font-medium text-gray-600">
+      {/* Summary KPI Cards with Glowing Shadows */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {/* Total Products Card */}
+        <div className="group relative overflow-hidden bg-white rounded-xl border border-gray-200/80 p-5 shadow-sm hover:shadow-[0_0_25px_rgba(113,75,103,0.12)] hover:border-primary-300 transition-all duration-300 cursor-pointer">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-primary-50 rounded-full -mr-16 -mt-16 opacity-40 group-hover:scale-110 transition-transform duration-500"></div>
+          <div className="relative flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
                 Total Products
               </p>
-              <p className="text-lg sm:text-2xl font-semibold text-gray-900 break-words">
+              <h3 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
                 {totalProducts}
+              </h3>
+              <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary-500"></span>
+                Active SKU items
               </p>
+            </div>
+            <div className="p-3 bg-primary-50 text-primary-600 rounded-xl group-hover:bg-primary-600 group-hover:text-white transition-all duration-300 shadow-inner">
+              <Package className="w-6 h-6" />
             </div>
           </div>
         </div>
 
-        <div className="stat-card">
-          <div className="flex items-center min-w-0">
-            <div className="flex-shrink-0 p-2 sm:p-3 rounded-lg bg-green-500">
-              <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-            </div>
-            <div className="ml-3 sm:ml-4 min-w-0 flex-1">
-              <p className="text-xs sm:text-sm font-medium text-gray-600">Total Value</p>
-              <p className="text-lg sm:text-2xl font-semibold text-gray-900 break-words">
+        {/* Valuation Card */}
+        <div className="group relative overflow-hidden bg-white rounded-xl border border-gray-200/80 p-5 shadow-sm hover:shadow-[0_0_25px_rgba(1,126,132,0.12)] hover:border-emerald-300 transition-all duration-300 cursor-pointer">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-full -mr-16 -mt-16 opacity-40 group-hover:scale-110 transition-transform duration-500"></div>
+          <div className="relative flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                Asset Valuation
+              </p>
+              <h3 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
                 {formatCurrency(totalStockValue)}
+              </h3>
+              <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                Total inventory worth
               </p>
+            </div>
+            <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300 shadow-inner">
+              <TrendingUp className="w-6 h-6" />
             </div>
           </div>
         </div>
 
-        <div className="stat-card">
-          <div className="flex items-center min-w-0">
-            <div className="flex-shrink-0 p-2 sm:p-3 rounded-lg bg-red-500">
-              <AlertTriangle className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-            </div>
-            <div className="ml-3 sm:ml-4 min-w-0 flex-1">
-              <p className="text-xs sm:text-sm font-medium text-gray-600">
+        {/* Low Stock Items Card */}
+        <div 
+          onClick={() => {
+            if (lowStockItemsCount > 0) {
+              setLowStockOpen(true);
+              document.getElementById('low-stock-alert-section')?.scrollIntoView({ behavior: 'smooth' });
+            }
+          }}
+          className={`group relative overflow-hidden bg-white rounded-xl border p-5 shadow-sm hover:shadow-[0_0_25px_rgba(244,63,94,0.12)] transition-all duration-300 cursor-pointer ${
+            lowStockItemsCount > 0 
+              ? 'border-rose-200 bg-rose-50/5' 
+              : 'border-gray-200/80 hover:border-gray-300'
+          }`}
+        >
+          <div className={`absolute top-0 right-0 w-32 h-32 rounded-full -mr-16 -mt-16 opacity-40 group-hover:scale-110 transition-transform duration-500 ${
+            lowStockItemsCount > 0 ? 'bg-rose-50' : 'bg-gray-50'
+          }`}></div>
+          <div className="relative flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
                 Low Stock Items
               </p>
-              <p className="text-lg sm:text-2xl font-semibold text-gray-900 break-words">
+              <h3 className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${
+                lowStockItemsCount > 0 ? 'text-rose-600' : 'text-gray-900'
+              }`}>
                 {lowStockItemsCount}
+              </h3>
+              <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                <span className={`w-1.5 h-1.5 rounded-full ${
+                  lowStockItemsCount > 0 ? 'bg-rose-500 animate-pulse' : 'bg-gray-400'
+                }`}></span>
+                {lowStockItemsCount > 0 ? 'Replenishment needed' : 'All items well-stocked'}
               </p>
+            </div>
+            <div className={`p-3 rounded-xl transition-all duration-300 shadow-inner ${
+              lowStockItemsCount > 0 
+                ? 'bg-rose-50 text-rose-600 group-hover:bg-rose-600 group-hover:text-white' 
+                : 'bg-gray-50 text-gray-500 group-hover:bg-gray-600 group-hover:text-white'
+            }`}>
+              <AlertTriangle className="w-6 h-6" />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Stock Summary Table */}
-      {viewMode === 'summary' && (
-        <div className="card">
-          <div className="card-header">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900">
+      {/* Main Stock Table */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+          <div>
+            <h3 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
               Stock Summary
               {selectedLocation && (
-                <span className="ml-2 text-xs sm:text-sm font-normal text-gray-500">
-                  - {locations.find((l) => l.id === selectedLocation)?.name}
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-normal text-gray-600 bg-white rounded border border-gray-200">
+                  <MapPin className="w-3 h-3 text-primary-500" />
+                  {locations.find((l) => l.id === selectedLocation)?.name}
                 </span>
               )}
             </h3>
+            <p className="text-xs text-gray-500 mt-0.5">
+              General overview of product pieces and boxes. Click on "View Batches" to inspect individual lots and storage timelines.
+            </p>
           </div>
+        </div>
+
+        {/* Desktop Table View */}
+        <div className="hidden md:block">
           <Table
             data={stockSummary}
             columns={summaryColumns}
             loading={loading}
-            emptyMessage="No stock available"
+            emptyMessage="No stock inventory available"
           />
-          {pagination && pagination.totalPages > 1 && (
-            <div className="card-footer border-t border-gray-200">
-              <Pagination
-                currentPage={summaryPage}
-                totalPages={pagination.totalPages}
-                total={pagination.total}
-                limit={pagination.limit}
-                onPageChange={setSummaryPage}
-                loading={loading}
-              />
+        </div>
+
+        {/* Mobile Custom Card View */}
+        <div className="md:hidden">
+          {loading ? (
+            <div className="p-4 space-y-3">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="animate-pulse bg-gray-50 border border-gray-150 rounded-xl p-4 h-36"></div>
+              ))}
+            </div>
+          ) : stockSummary.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 px-4">
+              <Archive className="h-10 w-10 text-gray-300 mb-2" strokeWidth={1.5} />
+              <p className="text-gray-500 text-sm font-semibold">No stock inventory available</p>
+            </div>
+          ) : (
+            <div className="p-3.5 space-y-3.5 bg-gray-50/30">
+              {stockSummary.map((item, index) => {
+                const isLowStock = item.totalPcs < 100;
+                return (
+                  <div 
+                    key={index} 
+                    className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 space-y-3 hover:border-primary-200 transition-colors"
+                  >
+                    {/* Header: Name, Category, Status */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div>
+                          <h4 className="font-bold text-gray-900 text-[13px] leading-snug tracking-tight">{item.productName}</h4>
+                          <span className="inline-block mt-0.5 px-2 py-0.5 rounded bg-gray-100 text-[9px] font-bold text-gray-500 uppercase tracking-wider">
+                            {item.categoryName}
+                          </span>
+                        </div>
+                      </div>
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                          isLowStock
+                            ? 'bg-rose-50 text-rose-700 border border-rose-200/50'
+                            : 'bg-emerald-50 text-emerald-700 border border-emerald-200/50'
+                        }`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${isLowStock ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`} />
+                        {isLowStock ? 'Low' : 'In Stock'}
+                      </span>
+                    </div>
+
+                    {/* Quantities & Value Grid */}
+                    <div className="grid grid-cols-3 gap-2 bg-gray-50/50 p-2.5 rounded-lg border border-gray-200/60 text-center">
+                      <div>
+                        <span className="text-[8px] font-bold text-gray-400 uppercase tracking-wider block">Boxes</span>
+                        <span className="text-xs font-bold text-gray-900 mt-0.5">{formatNumber(item.totalBoxes)}</span>
+                      </div>
+                      <div>
+                        <span className="text-[8px] font-bold text-gray-400 uppercase tracking-wider block">Pieces</span>
+                        <span className="text-xs font-bold text-gray-900 mt-0.5">{formatNumber(item.totalPcs)}</span>
+                      </div>
+                      <div>
+                        <span className="text-[8px] font-bold text-gray-400 uppercase tracking-wider block">Valuation</span>
+                        <span className="text-xs font-bold text-emerald-600 mt-0.5">{formatCurrency(item.totalValue)}</span>
+                      </div>
+                    </div>
+
+                    {/* Locations List */}
+                    {item.locations && item.locations.length > 0 && (
+                      <div className="space-y-1.5 pt-1.5 border-t border-gray-100">
+                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Warehouse Stock</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {item.locations.map((loc, idx) => (
+                            <div key={idx} className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-gray-50 border border-gray-200 text-[10px] text-gray-700 font-semibold shadow-xs">
+                              <MapPin className="w-2.5 h-2.5 text-primary-500" />
+                              <span>{loc.locationName}:</span>
+                              <span className="text-gray-950 font-bold">{formatNumber(loc.boxes)} bxs</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* View Batches CTA */}
+                    <button
+                      onClick={() => loadBatches(item.productId)}
+                      className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold text-primary-700 hover:text-white bg-primary-50 hover:bg-primary-600 rounded-lg border border-primary-200 transition-all shadow-xs"
+                    >
+                      View Batches & Lots
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
-      )}
 
-      {/* Stock Batches Table */}
-      {viewMode === 'batches' && (
-        <>
-          {/* Batch Statistics */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
-            <div className="stat-card">
-              <div className="flex items-center min-w-0">
-                <div className="flex-shrink-0 p-2 sm:p-3 rounded-lg bg-blue-500">
-                  <Archive className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-                </div>
-                <div className="ml-3 sm:ml-4 min-w-0 flex-1">
-                  <p className="text-xs sm:text-sm font-medium text-gray-600">
-                    Total Batches
-                  </p>
-                  <p className="text-lg sm:text-2xl font-semibold text-gray-900 break-words">
-                    {availableStock.length}
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="stat-card">
-              <div className="flex items-center min-w-0">
-                <div className="flex-shrink-0 p-2 sm:p-3 rounded-lg bg-green-500">
-                  <Package className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-                </div>
-                <div className="ml-3 sm:ml-4 min-w-0 flex-1">
-                  <p className="text-xs sm:text-sm font-medium text-gray-600">
-                    Total Boxes
-                  </p>
-                  <p className="text-lg sm:text-2xl font-semibold text-gray-900 break-words">
-                    {formatNumber(
-                      availableStock.reduce(
-                        (sum, batch) => sum + batch.remainingBoxes,
-                        0
-                      )
-                    )}
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="stat-card">
-              <div className="flex items-center min-w-0">
-                <div className="flex-shrink-0 p-2 sm:p-3 rounded-lg bg-purple-500">
-                  <Package className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-                </div>
-                <div className="ml-3 sm:ml-4 min-w-0 flex-1">
-                  <p className="text-xs sm:text-sm font-medium text-gray-600">
-                    Total Packs
-                  </p>
-                  <p className="text-lg sm:text-2xl font-semibold text-gray-900 break-words">
-                    {formatNumber(
-                      availableStock.reduce(
-                        (sum, batch) => sum + (batch.remainingPacks || 0),
-                        0
-                      )
-                    )}
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="stat-card">
-              <div className="flex items-center min-w-0">
-                <div className="flex-shrink-0 p-2 sm:p-3 rounded-lg bg-indigo-500">
-                  <Package className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-                </div>
-                <div className="ml-3 sm:ml-4 min-w-0 flex-1">
-                  <p className="text-xs sm:text-sm font-medium text-gray-600">
-                    Total Pieces
-                  </p>
-                  <p className="text-lg sm:text-2xl font-semibold text-gray-900 break-words">
-                    {formatNumber(
-                      availableStock.reduce(
-                        (sum, batch) => sum + batch.remainingPcs,
-                        0
-                      )
-                    )}
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="stat-card">
-              <div className="flex items-center min-w-0">
-                <div className="flex-shrink-0 p-2 sm:p-3 rounded-lg bg-orange-500">
-                  <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-                </div>
-                <div className="ml-3 sm:ml-4 min-w-0 flex-1">
-                  <p className="text-xs sm:text-sm font-medium text-gray-600">
-                    Total Value
-                  </p>
-                  <p className="text-lg sm:text-2xl font-semibold text-gray-900 break-words">
-                    {formatCurrency(
-                      availableStock.reduce((sum, batch) => {
-                        const batchValue =
-                          batch.remainingPcs * batch.costPerPcs;
-                        return sum + batchValue;
-                      }, 0)
-                    )}
-                  </p>
-                </div>
-              </div>
-            </div>
+        {pagination && pagination.totalPages > 1 && (
+          <div className="px-4 py-3 border-t border-gray-100 bg-white">
+            <Pagination
+              currentPage={summaryPage}
+              totalPages={pagination.totalPages}
+              total={pagination.total}
+              limit={pagination.limit}
+              onPageChange={setSummaryPage}
+              loading={loading}
+            />
           </div>
+        )}
+      </div>
 
-          <div className="card">
-            <div className="card-header">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div>
-                  <h3 className="text-base sm:text-lg font-semibold text-gray-900">
-                    Stock Batches
-                    {selectedProduct && (
-                      <span className="ml-2 text-xs sm:text-sm font-normal text-gray-500">
-                        -{' '}
-                        {
-                          stockSummary.find(
-                            (s) => s.productId === selectedProduct
-                          )?.productName
-                        }
-                      </span>
-                    )}
+      {/* Futuristic Slide-over Side Drawer for Batches */}
+      <div className={`fixed inset-0 z-50 overflow-hidden transition-all duration-300 ${
+        drawerOpen ? 'visible' : 'invisible pointer-events-none'
+      }`}>
+        {/* Blurred Backdrop */}
+        <div 
+          className={`absolute inset-0 bg-black/45 backdrop-blur-xs transition-opacity duration-300 ${
+            drawerOpen ? 'opacity-100' : 'opacity-0'
+          }`}
+          onClick={() => {
+            setDrawerOpen(false);
+            setSelectedProduct('');
+            dispatch(clearAvailableStock());
+          }}
+        />
+
+        {/* Drawer Container Panel */}
+        <div className={`absolute right-0 top-0 h-full w-full max-w-lg sm:max-w-xl md:max-w-2xl bg-gray-50 shadow-2xl border-l border-gray-200/80 flex flex-col transform transition-transform duration-300 ease-out z-50 ${
+          drawerOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}>
+          {/* Drawer Header */}
+          <div className="px-5 py-4.5 border-b border-gray-200 bg-white flex items-center justify-between shadow-xs">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  setDrawerOpen(false);
+                  setSelectedProduct('');
+                  dispatch(clearAvailableStock());
+                }}
+                className="flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 hover:text-primary-700 hover:border-primary-200 hover:bg-primary-50/40 transition-all shadow-sm"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-sm sm:text-base font-bold text-gray-900 tracking-tight">
+                    {stockSummary.find((s) => s.productId === selectedProduct)?.productName || 'Batch Lots'}
                   </h3>
-                  <p className="text-xs sm:text-sm text-gray-600 mt-1">
-                    Showing batch-wise inventory details (FIFO order)
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Archive className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
-                  <span className="text-xs sm:text-sm text-gray-600">
-                    {availableStock.length} batches
+                  <span className="px-2 py-0.5 bg-primary-50 text-[9px] font-bold uppercase text-primary-700 rounded border border-primary-100/50">
+                    {stockSummary.find((s) => s.productId === selectedProduct)?.categoryName || 'Category'}
                   </span>
                 </div>
+                <p className="text-[11px] text-gray-500 mt-0.5">
+                  FIFO (First In, First Out) sequence log
+                </p>
               </div>
             </div>
-            <Table
-              data={availableStock.slice(
-                (currentPage - 1) * itemsPerPage,
-                currentPage * itemsPerPage
-              )}
-              columns={batchColumns}
-              loading={loading}
-              emptyMessage="No batches available for this product"
-            />
-            {availableStock.length > itemsPerPage && (
-              <div className="card-footer">
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={Math.ceil(availableStock.length / itemsPerPage)}
-                  total={availableStock.length}
-                  limit={itemsPerPage}
-                  onPageChange={setCurrentPage}
-                />
+            <button
+              onClick={() => {
+                setDrawerOpen(false);
+                setSelectedProduct('');
+                dispatch(clearAvailableStock());
+              }}
+              className="text-gray-500 hover:text-gray-800 transition-colors text-xs font-semibold px-3 py-1.5 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 shadow-sm"
+            >
+              Close
+            </button>
+          </div>
+
+          {/* Drawer Content */}
+          <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5">
+            {loading ? (
+              <div className="animate-pulse space-y-4">
+                <div className="h-10 bg-gray-200 rounded-lg"></div>
+                <div className="h-28 bg-gray-100 rounded-lg"></div>
+                <div className="h-28 bg-gray-100 rounded-lg"></div>
               </div>
+            ) : availableStock.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <Archive className="h-12 w-12 text-gray-300 mb-3" strokeWidth={1.5} />
+                <p className="text-sm font-medium text-gray-500">No active batches available</p>
+                <p className="text-xs text-gray-400 mt-1">This product does not currently have any stock items stored.</p>
+              </div>
+            ) : (
+              <>
+                {/* Product Stats Ribbon inside Drawer */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white p-3 rounded-xl border border-gray-200/80 shadow-xs">
+                  <div className="bg-gray-50/50 rounded-lg p-2.5 border border-gray-150 shadow-inner">
+                    <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Total Boxes</div>
+                    <div className="text-base font-extrabold text-gray-900 mt-0.5">
+                      {formatNumber(availableStock.reduce((sum, batch) => sum + batch.remainingBoxes, 0))}
+                    </div>
+                  </div>
+                  <div className="bg-gray-50/50 rounded-lg p-2.5 border border-gray-150 shadow-inner">
+                    <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Total Packs</div>
+                    <div className="text-base font-extrabold text-gray-900 mt-0.5">
+                      {formatNumber(availableStock.reduce((sum, batch) => sum + (batch.remainingPacks || 0), 0))}
+                    </div>
+                  </div>
+                  <div className="bg-gray-50/50 rounded-lg p-2.5 border border-gray-150 shadow-inner">
+                    <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Total Pieces</div>
+                    <div className="text-base font-extrabold text-gray-900 mt-0.5">
+                      {formatNumber(availableStock.reduce((sum, batch) => sum + batch.remainingPcs, 0))}
+                    </div>
+                  </div>
+                  <div className="bg-emerald-50/60 rounded-lg p-2.5 border border-emerald-200/80 shadow-inner">
+                    <div className="text-[9px] font-bold text-emerald-600 uppercase tracking-wider">Lot Value</div>
+                    <div className="text-base font-extrabold text-emerald-700 mt-0.5">
+                      {formatCurrency(availableStock.reduce((sum, batch) => sum + batch.remainingPcs * batch.costPerPcs, 0))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Chronological LOT Cards */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" />
+                      FIFO Lot Queue ({availableStock.length} lots)
+                    </h4>
+                    <span className="text-[10px] text-gray-400 italic font-medium">First in gets dispatched first</span>
+                  </div>
+                  <div className="space-y-3">
+                    {availableStock.map((batch, index) => {
+                      const isFirstLot = index === 0;
+                      return (
+                        <div 
+                          key={batch.id} 
+                          className={`relative p-4 rounded-xl border border-gray-200 transition-all duration-300 ${
+                            isFirstLot 
+                              ? 'border-l-4 border-l-primary-600 bg-primary-50/[0.02] shadow-sm hover:shadow-md' 
+                              : 'border-l-4 border-l-gray-300 bg-white shadow-sm hover:shadow'
+                          }`}
+                        >
+                          {isFirstLot && (
+                            <span className="absolute top-3 right-3 px-2.5 py-0.5 bg-primary-600 text-white rounded-full text-[8.5px] font-extrabold uppercase tracking-wider shadow-xs">
+                              FIFO ACTIVE LOT
+                            </span>
+                          )}
+
+                          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                            <div className="space-y-2">
+                              {/* Lot Date and Vendor */}
+                              <div className="flex items-center gap-3">
+                                <span className="text-[11px] font-bold text-gray-700 flex items-center gap-1">
+                                  <Calendar className="w-3 h-3 text-gray-400" />
+                                  {new Date(batch.inwardDate).toLocaleDateString()}
+                                </span>
+                                <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                                <span className="text-[11px] text-gray-600 flex items-center gap-1 font-semibold">
+                                  <User className="w-3 h-3 text-gray-400" />
+                                  {batch.vendor?.name || 'N/A'}
+                                </span>
+                              </div>
+
+                              {/* Location Badge */}
+                              <div className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-gray-50 border border-gray-200/60 rounded text-[10px] text-gray-700 font-bold shadow-xs">
+                                <MapPin className="w-3 h-3 text-primary-500" />
+                                {batch.location?.name || 'N/A'}
+                              </div>
+
+                              {/* Stock quantities */}
+                              <div className="grid grid-cols-3 gap-5 pt-1">
+                                <div>
+                                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Boxes</span>
+                                  <span className="text-xs font-bold text-gray-900">{formatNumber(batch.remainingBoxes)}</span>
+                                  <span className="text-[9px] text-gray-400 block font-normal">({batch.packPerBox || 1} p/b)</span>
+                                </div>
+                                <div>
+                                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Packs</span>
+                                  <span className="text-xs font-bold text-gray-900">{formatNumber(batch.remainingPacks || 0)}</span>
+                                  <span className="text-[9px] text-gray-400 block font-normal">({batch.packPerPiece || 1} p/p)</span>
+                                </div>
+                                <div>
+                                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Total Pieces</span>
+                                  <span className="text-xs font-extrabold text-primary-700">{formatNumber(batch.remainingPcs)}</span>
+                                </div>
+                              </div>
+
+                              {/* Cost Breakdown details */}
+                              <div className="flex gap-4 pt-1.5 border-t border-gray-100 text-[10px] text-gray-500">
+                                <span>Cost/Box: <strong className="text-gray-700 font-bold">{formatCurrency(batch.costPerBox)}</strong></span>
+                                <span>Cost/Piece: <strong className="text-gray-700 font-bold">{formatCurrency(batch.costPerPcs)}</strong></span>
+                              </div>
+                            </div>
+
+                            {/* Right side Valuation and Transfer action */}
+                            <div className="flex sm:flex-col items-end justify-between sm:justify-start gap-4 sm:text-right border-t sm:border-t-0 pt-3 sm:pt-0 border-gray-100">
+                              <div>
+                                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Lot Valuation</span>
+                                <span className="text-sm font-extrabold text-emerald-600">{formatCurrency(batch.remainingPcs * batch.costPerPcs)}</span>
+                              </div>
+                              
+                              <button
+                                onClick={() => {
+                                  setSelectedBatch(batch);
+                                  setTransferModalOpen(true);
+                                }}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 border-0 rounded-lg transition-all duration-200 shadow-sm hover:shadow"
+                              >
+                                <ArrowRightLeft className="w-3.5 h-3.5" />
+                                Transfer
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
             )}
           </div>
-        </>
-      )}
+        </div>
+      </div>
 
       {/* Stock Transfer Modal */}
       <StockTransferModal
@@ -594,51 +704,89 @@ const Inventory: React.FC = () => {
         onTransfer={handleTransfer}
       />
 
-      {/* Low Stock Alert */}
+      {/* Collapsible Low Stock Alert Accordion */}
       {lowStockItems.length > 0 && (
-        <div className="card border-red-200">
-          <div className="card-header bg-red-50">
-            <div className="flex items-center">
-              <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-red-600 mr-2" />
-              <h3 className="text-base sm:text-lg font-semibold text-red-900">
-                Low Stock Alert ({lowStockItems.length} items)
-              </h3>
+        <div 
+          id="low-stock-alert-section"
+          className={`bg-white rounded-xl border transition-all duration-300 ${
+            lowStockOpen ? 'shadow-md border-rose-200' : 'shadow-sm border-gray-200'
+          }`}
+        >
+          {/* Widget Trigger Header */}
+          <button
+            onClick={() => setLowStockOpen(!lowStockOpen)}
+            className={`w-full flex items-center justify-between px-5 py-4 rounded-xl focus:outline-none transition-colors ${
+              lowStockOpen ? 'bg-rose-50/50 border-b border-rose-100' : 'bg-white'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <div className="p-1 rounded bg-rose-100 text-rose-700 animate-pulse">
+                <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5" />
+              </div>
+              <div className="text-left">
+                <h3 className="text-sm sm:text-base font-bold text-gray-900">
+                  Critical Replenishment Alert ({lowStockItems.length} items)
+                </h3>
+                <p className="text-[11px] text-gray-500 mt-0.5">
+                  The following items have dropped below the safe threshold of 100 pieces.
+                </p>
+              </div>
             </div>
-          </div>
-          <div className="card-content">
-            <div className="space-y-2">
-              {lowStockItems.slice(0, 5).map((item, index) => (
-                <div
-                  key={index}
-                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 py-2 border-b border-gray-200 last:border-0"
-                >
-                  <div className="min-w-0">
-                    <span className="font-medium text-gray-900 text-sm sm:text-base">
-                      {item.productName}
-                    </span>
-                    <span className="ml-2 text-xs sm:text-sm text-gray-500">
-                      ({item.categoryName})
-                    </span>
-                  </div>
-                  <div className="text-left sm:text-right flex-shrink-0">
-                    <div className="text-xs sm:text-sm font-medium text-red-600">
-                      {formatNumber(item.totalPcs)} pieces remaining
+            <div className="text-gray-400 hover:text-gray-600 transition-colors">
+              {lowStockOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+            </div>
+          </button>
+
+          {/* Collapsible Content */}
+          {lowStockOpen && (
+            <div className="p-4 sm:p-5 space-y-3 divide-y divide-gray-100 max-h-96 overflow-y-auto">
+              {lowStockItems.slice(0, 8).map((item, index) => {
+                const safetyThreshold = 100;
+                const percent = Math.min(100, Math.max(0, (item.totalPcs / safetyThreshold) * 100));
+                
+                return (
+                  <div
+                    key={index}
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-3 first:pt-0"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-gray-900 text-xs sm:text-sm">
+                          {item.productName}
+                        </span>
+                        <span className="px-1.5 py-0.5 bg-gray-100 text-[10px] font-bold text-gray-500 rounded uppercase">
+                          {item.categoryName}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-gray-400 mt-0.5">
+                        Valuation at Risk: {formatCurrency(item.totalValue)}
+                      </div>
                     </div>
-                    <div className="text-xs text-gray-500">
-                      Value: {formatCurrency(item.totalValue)}
+
+                    <div className="w-full sm:w-52 flex-shrink-0">
+                      <div className="flex justify-between text-[10px] text-gray-500 font-bold mb-1">
+                        <span className="text-rose-600 uppercase tracking-wider font-extrabold">Critical</span>
+                        <span>{item.totalPcs} / {safetyThreshold} pcs</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden border border-gray-200/50">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            percent < 30 ? 'bg-red-500 shadow-[0_0_10px_#f43f5e]' : percent < 70 ? 'bg-orange-500' : 'bg-amber-500'
+                          }`}
+                          style={{ width: `${percent}%` }}
+                        ></div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-              {lowStockItems.length > 5 && (
-                <div className="text-center py-2">
-                  <span className="text-sm text-gray-500">
-                    ... and {lowStockItems.length - 5} more items
-                  </span>
+                );
+              })}
+              {lowStockItems.length > 8 && (
+                <div className="text-center pt-3 text-xs text-gray-500 font-medium">
+                  And {lowStockItems.length - 8} more products currently require restock.
                 </div>
               )}
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>

@@ -67,17 +67,17 @@ const inventorySlice = createSlice({
       })
       .addCase(fetchStockSummary.fulfilled, (state, action) => {
         state.loading = false;
-        state.stockSummary = action.payload.data;
-        state.lowStockItems = action.payload.lowStockItems;
-        state.globalStats = action.payload.globalStats;
-        state.pagination = action.payload.pagination;
+        state.stockSummary = action.payload?.data || [];
+        state.lowStockItems = action.payload?.lowStockItems || [];
+        state.globalStats = action.payload?.globalStats || null;
+        state.pagination = action.payload?.pagination || null;
       })
       .addCase(fetchStockSummary.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch stock summary';
       })
       .addCase(fetchAvailableStock.fulfilled, (state, action) => {
-        state.availableStock = action.payload;
+        state.availableStock = action.payload || [];
       });
   },
 });

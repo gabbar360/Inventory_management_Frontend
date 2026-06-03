@@ -462,11 +462,11 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
                         <td className="px-3 py-1 text-right font-semibold">₹{calculateItemTotal(item).toFixed(2)}</td>
                         <td className="px-3 py-1 text-center">
                           <div className="flex gap-1 justify-center">
-                            <Button type="button" size="sm" variant="ghost" onClick={() => handleEditItem(idx)} title="Edit" className="h-7 w-7 p-0">
-                              <Edit2 className="h-3 w-3" />
+                            <Button type="button" size="sm" variant="ghost" onClick={() => handleEditItem(idx)} title="Edit" className="h-10 w-10 p-0 hover:bg-gray-100">
+                              <Edit2 className="h-4 w-4" />
                             </Button>
-                            <Button type="button" size="sm" variant="ghost" onClick={() => handleRemoveItem(idx)} title="Delete" className="h-7 w-7 p-0">
-                              <Trash2 className="h-3 w-3 text-red-500" />
+                            <Button type="button" size="sm" variant="ghost" onClick={() => handleRemoveItem(idx)} title="Delete" className="h-10 w-10 p-0 hover:bg-red-50 text-red-500">
+                              <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
                         </td>
