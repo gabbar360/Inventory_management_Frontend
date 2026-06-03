@@ -45,6 +45,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
     termsOfDelivery: '',
     paymentTerms: '',
     reference: '',
+    adjustment: 0 as number,
   });
 
   const [items, setItems] = useState<QuoteItem[]>([]);
@@ -80,6 +81,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
         termsOfDelivery: '',
         paymentTerms: '',
         reference: '',
+        adjustment: 0,
       });
       setItems([]);
       setNewItem({
@@ -115,6 +117,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
         termsOfDelivery: (currentQuote as any).termsOfDelivery || '',
         paymentTerms: (currentQuote as any).paymentTerms || '',
         reference: (currentQuote as any).reference || '',
+        adjustment: (currentQuote as any).adjustment ?? 0,
       });
       const selectedCustomer = customers.find((c: any) => c.id === currentQuote.customerId || c.id === Number(currentQuote.customerId));
       if (selectedCustomer) setCustomerSearch((selectedCustomer as any).name);
@@ -158,7 +161,9 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
   }, 0);
   const totalAmount = subtotal + totalTax;
   const shippingCharge = Number(formData.shippingCharge) || 0;
-  const finalAmount = totalAmount - (Number(formData.discount) || 0) + shippingCharge;
+  const rawFinalAmount = totalAmount - (Number(formData.discount) || 0) + shippingCharge;
+  const roundingAdjustment = rawFinalAmount - Math.round(rawFinalAmount);
+  const finalAmount = Math.round(rawFinalAmount);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -179,6 +184,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
       totalAmount: finalAmount,
       discount: Number(formData.discount) || 0,
       shippingCharge: Number(formData.shippingCharge) || 0,
+      adjustment: roundingAdjustment,
       tax: totalTax,
       notes: formData.notes,
       termsAndConditions: formData.termsAndConditions,
@@ -573,14 +579,22 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
             <span>Total Tax:</span>
             <span>+₹{totalTax.toFixed(2)}</span>
           </div>
-          <div className="flex justify-between mb-1">
-            <span>Discount:</span>
-            <span>-₹{Number(formData.discount || 0).toFixed(2)}</span>
-          </div>
+          {Number(formData.discount || 0) > 0 && (
+            <div className="flex justify-between mb-1">
+              <span>Discount:</span>
+              <span>-₹{Number(formData.discount || 0).toFixed(2)}</span>
+            </div>
+          )}
           {shippingCharge > 0 && (
             <div className="flex justify-between mb-1">
               <span>Shipping Charge:</span>
               <span>+₹{shippingCharge.toFixed(2)}</span>
+            </div>
+          )}
+          {roundingAdjustment !== 0 && (
+            <div className="flex justify-between mb-1 text-gray-500">
+              <span>Round Off:</span>
+              <span>{roundingAdjustment < 0 ? '+' : '-'}₹{Math.abs(roundingAdjustment).toFixed(2)}</span>
             </div>
           )}
           <div className="flex justify-between font-bold text-lg border-t pt-2">
