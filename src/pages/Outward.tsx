@@ -41,13 +41,11 @@ const Outward: React.FC = () => {
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [downloadingId, setDownloadingId] = useState<string | number | null>(null);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
 
   useEffect(() => {
-    dispatch(fetchOutwardInvoices({ page: currentPage, limit: 10, search, startDate, endDate }));
+    dispatch(fetchOutwardInvoices({ page: currentPage, limit: 10, search }));
     dispatch(fetchOutwardInvoices({ page: 1, limit: 1000 })); // for master data
-  }, [dispatch, search, currentPage, startDate, endDate]);
+  }, [dispatch, search, currentPage]);
 
   useEffect(() => {
     if (error) {
@@ -77,18 +75,6 @@ const Outward: React.FC = () => {
   };
 
   const handleFormCancel = () => navigate('/outward');
-
-  const handleDateFilter = (start: string, end: string) => {
-    setStartDate(start);
-    setEndDate(end);
-    setCurrentPage(1);
-  };
-
-  const clearDateFilter = () => {
-    setStartDate('');
-    setEndDate('');
-    setCurrentPage(1);
-  };
 
   const viewInvoice = async (invoice: OutwardInvoice) => {
     try {
@@ -333,44 +319,7 @@ const Outward: React.FC = () => {
         ]}
       />
 
-      {/* Date Filter */}
-      <div className="card">
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex flex-col sm:flex-row gap-3 items-end">
-            <div className="flex-1 min-w-0">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Start Date</label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
-              />
-            </div>
-            <div className="flex-1 min-w-0">
-              <label className="block text-xs font-medium text-gray-700 mb-1">End Date</label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
-              />
-            </div>
-            <Button onClick={() => handleDateFilter(startDate, endDate)} className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white">
-              Apply Filter
-            </Button>
-            {(startDate || endDate) && (
-              <Button onClick={clearDateFilter} variant="outline" className="w-full sm:w-auto">
-                Clear
-              </Button>
-            )}
-          </div>
-          {(startDate || endDate) && (
-            <div className="mt-2 text-xs text-gray-600">
-              Showing data from {startDate || 'start'} to {endDate || 'end'}
-            </div>
-          )}
-        </div>
-      </div>
+
 
       <div className="card overflow-x-auto">
         <Table data={invoices} columns={columns} loading={loading} />

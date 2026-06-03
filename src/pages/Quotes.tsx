@@ -62,14 +62,12 @@ const Quotes: React.FC = () => {
   const [stockCache, setStockCache] = useState<Record<string, StockBatch[]>>({});
   const [stockLoading, setStockLoading] = useState(false);
   const [submittingInvoice, setSubmittingInvoice] = useState(false);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
   useEffect(() => {
-    dispatch(fetchQuotes({ search, startDate, endDate, page: currentPage, limit: pageSize }));
-  }, [dispatch, search, startDate, endDate, currentPage, pageSize]);
+    dispatch(fetchQuotes({ search, page: currentPage, limit: pageSize }));
+  }, [dispatch, search, currentPage, pageSize]);
 
   useEffect(() => {
     if (error) toast.error(error);
@@ -88,18 +86,6 @@ const Quotes: React.FC = () => {
     setCurrentPage(1);
   });
 
-  const handleDateFilter = (start: string, end: string) => {
-    setStartDate(start);
-    setEndDate(end);
-    setCurrentPage(1);
-  };
-
-  const clearDateFilter = () => {
-    setStartDate('');
-    setEndDate('');
-    setCurrentPage(1);
-  };
-
   // ── Navigation handlers (Product-module flow) ──
   const handleAddQuote = () => navigate('/quotes/add');
   const handleEditQuote = (quote: Quote) => {
@@ -110,7 +96,7 @@ const Quotes: React.FC = () => {
   const handleFormClose = () => {
     navigate('/quotes');
     setEditingQuote(null);
-    dispatch(fetchQuotes({ search, startDate, endDate, page: currentPage, limit: pageSize }));
+    dispatch(fetchQuotes({ search, page: currentPage, limit: pageSize }));
   };
 
   const handleDelete = async (quote: Quote) => {
@@ -277,31 +263,6 @@ const Quotes: React.FC = () => {
       />
 
       {/* Date Filter */}
-      <div className="card">
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex flex-col sm:flex-row gap-3 items-end">
-            <div className="flex-1 min-w-0">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Start Date</label>
-              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <label className="block text-xs font-medium text-gray-700 mb-1">End Date</label>
-              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm" />
-            </div>
-            <Button onClick={() => handleDateFilter(startDate, endDate)} className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white">
-              Apply Filter
-            </Button>
-            {(startDate || endDate) && (
-              <Button onClick={clearDateFilter} variant="outline" className="w-full sm:w-auto">Clear</Button>
-            )}
-          </div>
-          {(startDate || endDate) && (
-            <div className="mt-2 text-xs text-gray-600">Showing data from {startDate || 'start'} to {endDate || 'end'}</div>
-          )}
-        </div>
-      </div>
 
       <div className="card overflow-x-auto">
         <Table data={quotes} columns={columns} loading={loading} />
