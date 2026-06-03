@@ -69,7 +69,7 @@ const Layout: React.FC = () => {
         {/* Main content */}
         <div className="flex flex-1 flex-col overflow-hidden">
           {/* Odoo Premium Purple Header */}
-          <header className="bg-primary-600 shadow-md z-30">
+          <header className="bg-[#4D8B9F]">
             <div className="flex h-12 items-center justify-between px-3 sm:px-4">
               <div className="flex items-center gap-2">
                 {/* Odoo App Switcher Icon */}

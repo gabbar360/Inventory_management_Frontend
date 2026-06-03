@@ -226,7 +226,6 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
   });
 
   const watchedExpense = watch('expense') || 0;
-  const watchedAdjustment = watch('adjustment') || '0';
   const watchedReceived = watch('amountReceived') || '0';
   const watchedShipping = watch('shippingCharge') || '0';
   const watchedDiscount = watch('discount') || '0';
@@ -235,6 +234,23 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
   useEffect(() => {
     setValue('items', items, { shouldValidate: true });
   }, [items, setValue]);
+
+  // ── Auto-calculate rounding adjustment ──
+  useEffect(() => {
+    let totalBase = 0;
+    let totalGst = 0;
+    items.forEach((item) => {
+      const { baseAmount, gstAmount } = getPreviewDetails(item);
+      totalBase += baseAmount;
+      totalGst += gstAmount;
+    });
+    const expenseVal = parseFloat(watchedExpense.toString()) || 0;
+    const shippingVal = parseFloat(watchedShipping.toString()) || 0;
+    const discountVal = parseFloat(watchedDiscount.toString()) || 0;
+    const raw = totalBase + totalGst + expenseVal + shippingVal - discountVal;
+    const rounding = raw - Math.round(raw);
+    setValue('adjustment', rounding.toFixed(2));
+  }, [items, watchedExpense, watchedShipping, watchedDiscount]);
 
   // ── Load customers & Indian states ──
   useEffect(() => {
@@ -371,11 +387,12 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
     });
 
     const expenseVal = parseFloat(watchedExpense.toString()) || 0;
-    const adjustmentVal = parseFloat(watchedAdjustment.toString()) || 0;
     const shippingVal = parseFloat(watchedShipping.toString()) || 0;
     const discountVal = parseFloat(watchedDiscount.toString()) || 0;
 
-    const grandTotal = totalBase + totalGst + expenseVal + shippingVal - adjustmentVal - discountVal;
+    const rawTotal = totalBase + totalGst + expenseVal + shippingVal - discountVal;
+    const adjustmentVal = rawTotal - Math.round(rawTotal); // auto rounding
+    const grandTotal = Math.round(rawTotal);
     const receivedVal = parseFloat(watchedReceived.toString()) || 0;
     const balanceDue = grandTotal - receivedVal;
 
@@ -1161,7 +1178,7 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 border-t pt-4">
             <Input label="Shipping Charge" type="number" step="0.01" min="0" {...register('shippingCharge')} placeholder="500.00" />
             <Input label="Discount" type="number" step="0.01" min="0" {...register('discount')} placeholder="100.00" />
-            <Input label="Amount Rounding" type="number" step="0.01" error={errors.adjustment?.message} {...register('adjustment')} placeholder="-0.50" />
+            <Input label="Amount Rounding" type="number" step="0.01" readOnly {...register('adjustment')} placeholder="Auto-calculated" />
             <Input label="Amount Received" type="number" step="0.01" min="0" error={errors.amountReceived?.message} {...register('amountReceived')} placeholder="5000.00" />
           </div>
 
@@ -1202,7 +1219,7 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
                       <div className="flex justify-between text-xs text-gray-600">
                         <span>Round Off:</span>
                         <span className="font-semibold">
-                          {adjustmentVal > 0 ? '-' : '+'}{formatCurrency(Math.abs(adjustmentVal))}
+                          {adjustmentVal < 0 ? '+' : '-'}{formatCurrency(Math.abs(adjustmentVal))}
                         </span>
                       </div>
                     )}
