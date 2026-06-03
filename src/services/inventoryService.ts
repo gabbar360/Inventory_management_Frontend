@@ -21,14 +21,19 @@ export interface StockSummary {
 }
 
 export const inventoryService = {
-  async getStockSummary(locationId?: string, search?: string): Promise<StockSummary[]> {
-    const response = await api.get<ApiResponse<StockSummary[]>>(
+  async getStockSummary(page?: number, limit?: number, locationId?: string, search?: string): Promise<{ data: StockSummary[]; lowStockItems: any[]; globalStats: any; pagination: any }> {
+    const response = await api.get<any>(
       '/inventory/stock-summary',
       {
-        params: { locationId, search },
+        params: { page, limit, locationId, search },
       }
     );
-    return response.data.data!;
+    return {
+      data: response.data.data,
+      lowStockItems: response.data.lowStockItems,
+      globalStats: response.data.globalStats,
+      pagination: response.data.pagination
+    };
   },
 
   async getAvailableStock(

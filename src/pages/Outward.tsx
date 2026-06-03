@@ -46,7 +46,6 @@ const Outward: React.FC = () => {
 
   useEffect(() => {
     dispatch(fetchOutwardInvoices({ page: currentPage, limit: 10, search, startDate, endDate }));
-    dispatch(fetchOutwardInvoices({ page: 1, limit: 1000 })); // for master data
   }, [dispatch, search, currentPage, startDate, endDate]);
 
   useEffect(() => {
@@ -73,7 +72,7 @@ const Outward: React.FC = () => {
 
   const handleFormSuccess = () => {
     navigate('/outward');
-    dispatch(fetchOutwardInvoices({ page: currentPage, limit: 10, search }));
+    dispatch(fetchOutwardInvoices({ page: currentPage, limit: 10, search, startDate, endDate }));
   };
 
   const handleFormCancel = () => navigate('/outward');
@@ -105,7 +104,7 @@ const Outward: React.FC = () => {
       try {
         await dispatch(deleteOutwardInvoice(invoice.id)).unwrap();
         toast.success('Outward invoice deleted successfully');
-        dispatch(fetchOutwardInvoices({ page: currentPage, limit: 10, search }));
+        dispatch(fetchOutwardInvoices({ page: currentPage, limit: 10, search, startDate, endDate }));
       } catch (error) {
         // Error handled by Redux
       }
@@ -185,7 +184,7 @@ const Outward: React.FC = () => {
       setPaymentAmount(''); setPaymentTxnId(''); setPaymentNotes(''); setRecordingPayment(false);
       const fullInvoice = await dispatch(fetchOutwardInvoiceById(selectedInvoice.id)).unwrap();
       setSelectedInvoice(fullInvoice);
-      dispatch(fetchOutwardInvoices({ page: currentPage, limit: 10, search }));
+      dispatch(fetchOutwardInvoices({ page: currentPage, limit: 10, search, startDate, endDate }));
     } catch (err: any) {
       toast.error(err?.response?.data?.error || err?.message || 'Failed to record payment');
     } finally {
@@ -555,7 +554,7 @@ const Outward: React.FC = () => {
         type="outward"
         isOpen={bulkUploadOpen}
         onClose={() => setBulkUploadOpen(false)}
-        onSuccess={() => dispatch(fetchOutwardInvoices({ page: currentPage, limit: 10, search }))}
+        onSuccess={() => dispatch(fetchOutwardInvoices({ page: currentPage, limit: 10, search, startDate, endDate }))}
       />
     </div>
   );

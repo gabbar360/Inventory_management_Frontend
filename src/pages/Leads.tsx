@@ -13,6 +13,7 @@ import { Lead } from '@/types';
 import { formatDate } from '@/utils';
 import Modal from '@/components/Modal';
 import Table from '@/components/Table';
+import Pagination from '@/components/Pagination';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const getInitials = (name: string) => {
@@ -237,15 +238,18 @@ const LeadCard: React.FC<{
 };
 
 // ── Main Component ────────────────────────────────────────────────────────────
+// ── Main Component ────────────────────────────────────────────────────────────
 const Leads: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { leads, loading, error } = useAppSelector((state) => state.leads);
+  const { leads, pagination, loading, error } = useAppSelector((state) => state.leads);
 
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
-  const [search, setSearch] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const [viewLead, setViewLead] = useState<Lead | null>(null);
   const [dragOverCol, setDragOverCol] = useState<Lead['status'] | null>(null);
   const [filterSource, setFilterSource] = useState<string>('all');
@@ -253,8 +257,37 @@ const Leads: React.FC = () => {
   const dragLeadId = useRef<string | null>(null);
 
   useEffect(() => {
-    dispatch(fetchLeads({ page: 1, limit: 500 }));
-  }, [dispatch]);
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [viewMode, debouncedSearch, filterSource]);
+
+  useEffect(() => {
+    if (viewMode === 'list') {
+      dispatch(
+        fetchLeads({
+          page: currentPage,
+          limit: 10,
+          search: debouncedSearch || undefined,
+          source: filterSource !== 'all' ? filterSource : undefined,
+        })
+      );
+    } else {
+      dispatch(
+        fetchLeads({
+          page: 1,
+          limit: 500,
+          search: debouncedSearch || undefined,
+          source: filterSource !== 'all' ? filterSource : undefined,
+        })
+      );
+    }
+  }, [dispatch, viewMode, currentPage, debouncedSearch, filterSource]);
 
   useEffect(() => {
     if (error) {
@@ -263,17 +296,7 @@ const Leads: React.FC = () => {
     }
   }, [error, dispatch]);
 
-  const filtered = leads.filter((l) => {
-    if (l.source === 'website' && l.formType === 'QuoteCartForm') return false;
-    const matchesSearch =
-      l.name.toLowerCase().includes(search.toLowerCase()) ||
-      l.email?.toLowerCase().includes(search.toLowerCase()) ||
-      l.company?.toLowerCase().includes(search.toLowerCase());
-    const matchesSource = filterSource === 'all' || l.source === filterSource;
-    return matchesSearch && matchesSource;
-  });
-
-  const byStage = (status: Lead['status']) => filtered.filter((l) => l.status === status);
+  const byStage = (status: Lead['status']) => leads.filter((l) => l.status === status);
 
   // ── Drag & Drop ─────────────────────────────────────────────────────────────
   const onDragStart = (e: React.DragEvent, leadId: string) => {
@@ -338,8 +361,11 @@ const Leads: React.FC = () => {
   };
 
   // ── Metrics ──────────────────────────────────────────────────────────────────
-  const convertedCount = leads.filter((l) => l.status === 'converted').length;
-  const conversionRate = leads.length > 0 ? Math.round((convertedCount / leads.length) * 100) : 0;
+  const totalLeads = pagination?.stats?.total ?? leads.length;
+  const newCount = pagination?.stats?.new ?? leads.filter((l) => l.status === 'new').length;
+  const contactedCount = pagination?.stats?.contacted ?? leads.filter((l) => l.status === 'contacted').length;
+  const convertedCount = pagination?.stats?.converted ?? leads.filter((l) => l.status === 'converted').length;
+  const conversionRate = totalLeads > 0 ? Math.round((convertedCount / totalLeads) * 100) : 0;
 
   // ── Table Columns ────────────────────────────────────────────────────────────
   const tableColumns = [
@@ -436,7 +462,7 @@ const Leads: React.FC = () => {
             <div className="min-w-0">
               <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Lead Pipeline Manager</h1>
               <p className="text-xs sm:text-sm text-gray-500 mt-0.5 flex flex-wrap items-center gap-x-1.5">
-                <span className="font-semibold text-slate-700">{leads.length} Active Leads</span>
+                <span className="font-semibold text-slate-700">{totalLeads} Active Leads</span>
                 <span>&bull;</span>
                 <span className="font-semibold text-emerald-600">{conversionRate}% Conversion</span>
               </p>
@@ -470,13 +496,13 @@ const Leads: React.FC = () => {
               <input
                 type="text"
                 placeholder="Search leads..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="pr-8 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600 w-full sm:w-44 md:w-52 transition-all placeholder:text-gray-400"
               />
-              {search && (
+              {searchQuery && (
                 <button
-                  onClick={() => setSearch('')}
+                  onClick={() => setSearchQuery('')}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors bg-gray-100 rounded-md p-0.5"
                 >
                   <X className="h-3 w-3" />
@@ -515,10 +541,10 @@ const Leads: React.FC = () => {
 
       {/* ── Stats Row ────────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatCard icon={<Users className="h-5 w-5" />} label="Total Pipeline" value={leads.length} highlightClass="bg-slate-800" />
-        <StatCard icon={<MessageSquare className="h-5 w-5" />} label="In Discussion" value={leads.filter((l) => l.status === 'contacted').length} highlightClass="bg-amber-600" />
+        <StatCard icon={<Users className="h-5 w-5" />} label="Total Pipeline" value={totalLeads} highlightClass="bg-slate-800" />
+        <StatCard icon={<MessageSquare className="h-5 w-5" />} label="In Discussion" value={contactedCount} highlightClass="bg-amber-600" />
         <StatCard icon={<CheckCircle2 className="h-5 w-5" />} label="Won Leads" value={convertedCount} highlightClass="bg-emerald-600" pct={`${conversionRate}% Rate`} />
-        <StatCard icon={<Briefcase className="h-5 w-5" />} label="New Opportunities" value={leads.filter((l) => l.status === 'new').length} highlightClass="bg-blue-600" />
+        <StatCard icon={<Briefcase className="h-5 w-5" />} label="New Opportunities" value={newCount} highlightClass="bg-blue-600" />
       </div>
 
       {/* ── Content View ─────────────────────────────────────────────────────── */}
@@ -584,11 +610,23 @@ const Leads: React.FC = () => {
             ) : (
               <div className="p-0">
                 <Table
-                  data={filtered}
+                  data={leads}
                   columns={tableColumns}
                   loading={loading}
                   emptyMessage="No leads match your current filters."
                 />
+                {pagination && pagination.totalPages > 1 && (
+                  <div className="card-footer border-t border-gray-200 p-4">
+                    <Pagination
+                      currentPage={currentPage}
+                      totalPages={pagination.totalPages}
+                      total={pagination.total}
+                      limit={pagination.limit}
+                      onPageChange={setCurrentPage}
+                      loading={loading}
+                    />
+                  </div>
+                )}
               </div>
             )}
           </>
