@@ -68,7 +68,7 @@ const ProfitLossAnalysis: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [dispatch]);
 
   useEffect(() => {
     if (profitLossError) {
@@ -79,9 +79,15 @@ const ProfitLossAnalysis: React.FC = () => {
   useEffect(() => {
     const data = viewMode === 'product' ? productWiseProfitLossData : profitLossData;
     if (data && data.length > 0) {
-      const totalRevenue = data.reduce((sum: number, item: any) => sum + parseFloat(item.totalSalesPrice), 0);
-      const totalCOGS = data.reduce((sum: number, item: any) => sum + parseFloat(item.totalPurchasePrice), 0);
-      const totalProfit = data.reduce((sum: number, item: any) => sum + parseFloat(item.totalProfit || item.difference), 0);
+      const totalRevenue = data.reduce((sum: number, item: any) => sum + parseFloat(item.totalSalesPrice || 0), 0);
+      const totalCOGS = data.reduce((sum: number, item: any) => sum + parseFloat(item.totalPurchasePrice || 0), 0);
+      const totalProfit = data.reduce((sum: number, item: any) => {
+        if (viewMode === 'product') {
+          return sum + parseFloat(item.totalProfit || 0);
+        } else {
+          return sum + parseFloat(item.difference || 0);
+        }
+      }, 0);
       const profitMargin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100) : 0;
 
       setSummary({
@@ -91,12 +97,26 @@ const ProfitLossAnalysis: React.FC = () => {
         profitMargin,
         totalItems: data.length,
       });
+    } else {
+      setSummary({
+        totalRevenue: 0,
+        totalCOGS: 0,
+        totalProfit: 0,
+        profitMargin: 0,
+        totalItems: 0,
+      });
     }
   }, [profitLossData, productWiseProfitLossData, viewMode]);
 
-  const loadData = () => {
-    dispatch(fetchProfitLossData({ startDate: undefined, endDate: undefined }));
-    dispatch(fetchProductWiseProfitLossData({ startDate: undefined, endDate: undefined }));
+  const loadData = (view?: 'invoice' | 'product') => {
+    if (view === 'invoice' || viewMode === 'invoice') {
+      dispatch(fetchProfitLossData({ startDate: undefined, endDate: undefined }));
+    } else if (view === 'product' || viewMode === 'product') {
+      dispatch(fetchProductWiseProfitLossData({ startDate: undefined, endDate: undefined }));
+    } else {
+      dispatch(fetchProfitLossData({ startDate: undefined, endDate: undefined }));
+      dispatch(fetchProductWiseProfitLossData({ startDate: undefined, endDate: undefined }));
+    }
   };
 
   const handleDownloadPDF = async () => {
@@ -366,7 +386,10 @@ const ProfitLossAnalysis: React.FC = () => {
       {/* View Mode Toggle */}
       <div className="flex gap-2">
         <button
-          onClick={() => setViewMode('product')}
+          onClick={() => {
+            setViewMode('product');
+            loadData('product');
+          }}
           className={`px-4 py-2 rounded font-medium transition ${
             viewMode === 'product'
               ? 'bg-blue-600 text-white'
@@ -376,7 +399,10 @@ const ProfitLossAnalysis: React.FC = () => {
           Product-wise View
         </button>
         <button
-          onClick={() => setViewMode('invoice')}
+          onClick={() => {
+            setViewMode('invoice');
+            loadData('invoice');
+          }}
           className={`px-4 py-2 rounded font-medium transition ${
             viewMode === 'invoice'
               ? 'bg-blue-600 text-white'
@@ -446,7 +472,7 @@ const ProfitLossAnalysis: React.FC = () => {
 
       {/* Data Table */}
       <div className="card overflow-x-auto">
-        {viewMode === 'product' ? (
+        {viewMode === 'product' && productWiseProfitLossData.length > 0 ? (
           <div>
             <table className="w-full text-sm">
               <thead className="bg-gray-100 border-b">
@@ -480,8 +506,12 @@ const ProfitLossAnalysis: React.FC = () => {
               <div className="text-center py-8 text-gray-500">Loading...</div>
             )}
           </div>
-        ) : (
+        ) : viewMode === 'invoice' && profitLossData.length > 0 ? (
           <Table data={profitLossData} columns={invoiceColumns} loading={profitLossLoading} />
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            {productWiseProfitLossLoading || profitLossLoading ? 'Loading...' : 'No data available'}
+          </div>
         )}
       </div>
     </div>
