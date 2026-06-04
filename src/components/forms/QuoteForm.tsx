@@ -45,6 +45,8 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
     termsOfDelivery: '',
     paymentTerms: '',
     reference: '',
+    billToDetails: '',
+    shipToDetails: '',
     adjustment: 0 as number,
   });
 
@@ -81,6 +83,8 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
         termsOfDelivery: '',
         paymentTerms: '',
         reference: '',
+        billToDetails: '',
+        shipToDetails: '',
         adjustment: 0,
       });
       setItems([]);
@@ -117,6 +121,8 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
         termsOfDelivery: (currentQuote as any).termsOfDelivery || '',
         paymentTerms: (currentQuote as any).paymentTerms || '',
         reference: (currentQuote as any).reference || '',
+        billToDetails: (currentQuote as any).billToDetails || '',
+        shipToDetails: (currentQuote as any).shipToDetails || '',
         adjustment: (currentQuote as any).adjustment ?? 0,
       });
       const selectedCustomer = customers.find((c: any) => c.id === currentQuote.customerId || c.id === Number(currentQuote.customerId));
@@ -136,6 +142,18 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
       setItems(mappedItems);
     }
   }, [currentQuote, quote?.id]);
+
+  const handleCustomerSelect = (customerId: string) => {
+    setFormData({ ...formData, customerId });
+    const selectedCustomer = customers.find((c: any) => c.id === parseInt(customerId));
+    if (selectedCustomer) {
+      const billToText = `${selectedCustomer.name}\n${selectedCustomer.address || ''}${selectedCustomer.state ? `\nState: ${selectedCustomer.state}` : ''}${selectedCustomer.phone ? `\nPhone: ${selectedCustomer.phone}` : ''}${selectedCustomer.email ? `\nEmail: ${selectedCustomer.email}` : ''}${selectedCustomer.gstNumber ? `\nGSTIN: ${selectedCustomer.gstNumber}` : ''}`;
+      setFormData(prev => ({
+        ...prev,
+        billToDetails: billToText.trim(),
+      }));
+    }
+  };
 
   const handleAddItem = () => {
     if (newItem.productId && newItem.quantity !== '' && newItem.rate !== '') {
@@ -191,6 +209,8 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
       termsOfDelivery: formData.termsOfDelivery || null,
       paymentTerms: formData.paymentTerms || null,
       reference: formData.reference || null,
+      billToDetails: formData.billToDetails || null,
+      shipToDetails: formData.shipToDetails || null,
     };
 
     try {
@@ -261,7 +281,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
                   <li
                     key={c.id}
                     onMouseDown={() => {
-                      setFormData({ ...formData, customerId: c.id.toString() });
+                      handleCustomerSelect(c.id.toString());
                       setCustomerSearch(c.name);
                       setShowCustomerDropdown(false);
                     }}
@@ -335,6 +355,30 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
           onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
           placeholder="Enter reference"
         />
+      </div>
+
+      <div className="border-t pt-4 space-y-3">
+        <h3 className="font-semibold">Bill To & Ship To</h3>
+        <div>
+          <label className="block text-sm font-medium mb-1">Bill To Details</label>
+          <textarea
+            value={formData.billToDetails}
+            onChange={(e) => setFormData({ ...formData, billToDetails: e.target.value })}
+            placeholder="Enter billing address and details (leave blank to use customer details)"
+            rows={3}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Ship To Details</label>
+          <textarea
+            value={formData.shipToDetails}
+            onChange={(e) => setFormData({ ...formData, shipToDetails: e.target.value })}
+            placeholder="Enter shipping address and details (leave blank to use customer details)"
+            rows={3}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
       </div>
 
       <div className="border-t pt-4">
