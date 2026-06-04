@@ -300,6 +300,8 @@ export interface Quote {
   shippingCharge?: number;
   notes?: string;
   termsAndConditions?: string;
+  billToDetails?: string;
+  shipToDetails?: string;
   status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired';
   createdAt: string;
   updatedAt: string;
