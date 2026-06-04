@@ -99,7 +99,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
     }
   };
 
-  const navLink = (item: { name: string; href: string; icon: React.ElementType }) => {
+  const navLink = (item: { name: string; href: string; icon: React.ElementType }, isChild: boolean = false) => {
     const isActive = location.pathname === item.href;
     return (
       <Link
@@ -107,9 +107,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
         to={item.href}
         onClick={handleLinkClick}
         className={cn(
-          'group flex items-center py-1.5 text-xs sm:text-sm font-medium transition-colors mb-0.5',
+          'group flex items-center py-1.5 text-xs sm:text-sm font-medium transition-colors mb-0.5 rounded-md',
+          isChild && 'px-2',
           isActive
-            ? 'bg-primary-100/60 text-primary-900 border-l-[3px] border-primary-600 rounded-r-sm pl-2 sm:pl-3'
+            ? 'bg-primary-100/60 text-primary-900 border-l-[3px] border-primary-600 rounded-r-sm'
+            : isChild
+            ? 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
             : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 pl-3'
         )}
       >
@@ -123,7 +126,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
         {isOpen && <span className="truncate">{item.name}</span>}
       </Link>
     );
-  };
+  }
 
   const dropdownGroup = (
     label: string,
@@ -166,8 +169,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
           )}
         </button>
         {isOpen && open && (
-          <div className="ml-5.5 mt-0.5 space-y-0.5 border-l border-gray-200 pl-1.5">
-            {items.map(navLink)}
+          <div className="ml-3 mt-0.5 space-y-0.5 border-l-2 border-primary-200 pl-3">
+            {items.map((item) => navLink(item, true))}
           </div>
         )}
       </div>
@@ -214,12 +217,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
 
           {/* Navigation links */}
           <nav className="flex-1 space-y-0.5 px-1.5 py-3 overflow-y-auto">
-            {topNavigation.map(navLink)}
+            {topNavigation.map((item) => navLink(item, false))}
 
             {dropdownGroup('Purchase', ShoppingCart, purchaseItems, purchaseOpen, setPurchaseOpen)}
             {dropdownGroup('Sales', ShoppingBag, salesItems, salesOpen, setSalesOpen)}
 
-            {bottomNavigation.map(navLink)}
+            {bottomNavigation.map((item) => navLink(item, false))}
 
             {dropdownGroup('System Settings', Users, userManagementItems, userManagementOpen, setUserManagementOpen)}
           </nav>
