@@ -343,6 +343,7 @@ export interface SalesOrder {
   totalAmount: number;
   notes?: string;
   reference?: string;
+  referenceBy?: string;
   expectedShipmentDate?: string;
   placeOfSupply?: string;
   deliveryMethod?: string;

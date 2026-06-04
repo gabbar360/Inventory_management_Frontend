@@ -123,6 +123,7 @@ const AddEditSalesOrder: React.FC<AddEditSalesOrderProps> = ({ order, onSuccess,
     status: 'pending',
     notes: '',
     reference: '',
+    referenceBy: '',
     expectedShipmentDate: '',
     placeOfSupply: '',
     deliveryMethod: '',
@@ -181,6 +182,7 @@ const AddEditSalesOrder: React.FC<AddEditSalesOrderProps> = ({ order, onSuccess,
         status: order.status,
         notes: order.notes || '',
         reference: order.reference || '',
+        referenceBy: order.referenceBy || '',
         expectedShipmentDate: order.expectedShipmentDate ? order.expectedShipmentDate.split('T')[0] : '',
         placeOfSupply: order.placeOfSupply || '',
         deliveryMethod: order.deliveryMethod || '',
@@ -224,6 +226,7 @@ const AddEditSalesOrder: React.FC<AddEditSalesOrderProps> = ({ order, onSuccess,
     status: formData.status,
     notes: formData.notes,
     reference: formData.reference,
+    referenceBy: formData.referenceBy,
     expectedShipmentDate: formData.expectedShipmentDate || null,
     placeOfSupply: formData.placeOfSupply,
     deliveryMethod: formData.deliveryMethod,
@@ -320,8 +323,8 @@ const AddEditSalesOrder: React.FC<AddEditSalesOrderProps> = ({ order, onSuccess,
               onChange={(e) => setFormData({ ...formData, orderDate: e.target.value })} />
           </div>
 
-          {/* Row 2: Status, Reference, Shipment Date, Delivery */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {/* Row 2: Status, Reference, Reference By, Shipment Date, Delivery */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">Status</label>
               <select className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 bg-white"
@@ -331,6 +334,8 @@ const AddEditSalesOrder: React.FC<AddEditSalesOrderProps> = ({ order, onSuccess,
             </div>
             <Input label="Reference" value={formData.reference}
               onChange={(e) => setFormData({ ...formData, reference: e.target.value })} />
+            <Input label="Reference By" value={formData.referenceBy}
+              onChange={(e) => setFormData({ ...formData, referenceBy: e.target.value })} />
             <Input label="Expected Shipment" type="date" value={formData.expectedShipmentDate}
               onChange={(e) => setFormData({ ...formData, expectedShipmentDate: e.target.value })} />
             <div>
