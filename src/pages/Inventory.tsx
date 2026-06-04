@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Package,
   MapPin,
@@ -30,6 +30,95 @@ import Pagination from '@/components/Pagination';
 import StockTransferModal from '@/components/StockTransferModal';
 import { transferStock } from '@/services/stockTransferService';
 import { toast } from 'react-hot-toast';
+import ReactDOM from 'react-dom';
+
+/* ── Locations hover popover (portal-based) ── */
+const LocationsPopover: React.FC<{ locations: any[] }> = ({ locations }) => {
+  const [open, setOpen] = useState(false);
+  const [page, setPage] = useState(0);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const PER_PAGE = 5;
+  const totalPages = Math.ceil(locations.length / PER_PAGE);
+  const visible = locations.slice(page * PER_PAGE, page * PER_PAGE + PER_PAGE);
+
+  const handleMouseEnter = () => {
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setPos({ top: rect.top, left: rect.left });
+    }
+    setOpen(true);
+  };
+
+  return (
+    <div
+      ref={triggerRef}
+      className="inline-block"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={() => { setOpen(false); setPage(0); }}
+    >
+      {/* Pill trigger */}
+      <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gray-100 border border-gray-200 text-[10px] font-semibold text-gray-700 cursor-default whitespace-nowrap select-none">
+        <MapPin className="w-2.5 h-2.5 text-primary-500 flex-shrink-0" />
+        <span>{locations.length} Locations</span>
+      </div>
+
+      {/* Portal popup – renders at document.body to escape overflow:hidden */}
+      {open && ReactDOM.createPortal(
+        <div
+          style={{
+            position: 'fixed',
+            top: pos.top,
+            left: pos.left,
+            transform: 'translateY(calc(-100% - 6px))',
+            zIndex: 9999,
+          }}
+          className="w-48 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden"
+          onMouseEnter={() => setOpen(true)}
+          onMouseLeave={() => { setOpen(false); setPage(0); }}
+        >
+          {/* Header */}
+          <div className="px-2.5 py-1.5 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Locations</span>
+            <span className="text-[9px] text-gray-400 font-medium">{locations.length} total</span>
+          </div>
+
+          {/* Location list */}
+          <div className="px-2 py-1.5 space-y-0.5">
+            {visible.map((loc: any, i: number) => (
+              <div key={i} className="flex items-center gap-1.5 py-0.5">
+                <MapPin className="w-2.5 h-2.5 text-primary-400 flex-shrink-0" />
+                <span className="text-[11px] text-gray-700 font-semibold truncate">{loc.locationName}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Pagination – appears only when > PER_PAGE */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-2.5 py-1.5 border-t border-gray-100 bg-gray-50">
+              <button
+                onClick={(e) => { e.stopPropagation(); setPage(p => Math.max(0, p - 1)); }}
+                disabled={page === 0}
+                className="text-[9px] font-bold text-gray-500 hover:text-primary-600 disabled:opacity-30 transition-colors"
+              >
+                ‹ Prev
+              </button>
+              <span className="text-[9px] text-gray-400 font-medium">{page + 1} / {totalPages}</span>
+              <button
+                onClick={(e) => { e.stopPropagation(); setPage(p => Math.min(totalPages - 1, p + 1)); }}
+                disabled={page === totalPages - 1}
+                className="text-[9px] font-bold text-gray-500 hover:text-primary-600 disabled:opacity-30 transition-colors"
+              >
+                Next ›
+              </button>
+            </div>
+          )}
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+};
 
 const Inventory: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -161,21 +250,27 @@ const Inventory: React.FC = () => {
     {
       key: 'locations',
       title: 'Locations',
-      render: (locationsList: any[]) => (
-        <div className="flex flex-wrap gap-1.5 max-w-md">
-          {(locationsList || []).map((loc, index) => (
-            <div key={index} className="inline-flex flex-col px-2 py-1 rounded-md bg-gray-50 border border-gray-200/60 text-[10px] sm:text-[11px] shadow-sm">
-              <span className="font-bold text-gray-700 flex items-center gap-1">
-                <MapPin className="w-2.5 h-2.5 text-primary-500" />
-                {loc.locationName}
-              </span>
-              <span className="text-gray-500 mt-0.5">
-                <strong className="text-gray-950">{formatNumber(loc.boxes)}</strong> bxs • <strong className="text-gray-950">{formatNumber(loc.pcs)}</strong> pcs
-              </span>
-            </div>
-          ))}
-        </div>
-      ),
+      render: (locationsList: any[]) => {
+        const list = locationsList || [];
+        if (list.length === 0) return <span className="text-gray-400 text-[10px]">—</span>;
+        if (list.length > 3) {
+          return <LocationsPopover locations={list} />;
+        }
+        return (
+          <div className="flex flex-wrap gap-1">
+            {list.map((loc: any, index: number) => (
+              <div
+                key={index}
+                title={`${loc.locationName}: ${formatNumber(loc.boxes)} boxes · ${formatNumber(loc.pcs)} pcs`}
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-100 border border-gray-200 text-[10px] font-semibold text-gray-700 whitespace-nowrap"
+              >
+                <MapPin className="w-2 h-2 text-primary-500 flex-shrink-0" />
+                <span className="max-w-[80px] truncate">{loc.locationName}</span>
+              </div>
+            ))}
+          </div>
+        );
+      },
     },
     {
       key: 'status',
@@ -224,7 +319,7 @@ const Inventory: React.FC = () => {
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">Stock Control Dashboard</h1>
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              Live tracking metrics, safety threshold warnings, and FIFO batch movements across warehouses.
+              Live tracking metrics, safety threshold warnings, and batch movements across warehouses.
             </p>
           </div>
 
@@ -443,17 +538,24 @@ const Inventory: React.FC = () => {
 
                     {/* Locations List */}
                     {item.locations && item.locations.length > 0 && (
-                      <div className="space-y-1.5 pt-1.5 border-t border-gray-100">
-                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Warehouse Stock</span>
-                        <div className="flex flex-wrap gap-1.5">
-                          {item.locations.map((loc, idx) => (
-                            <div key={idx} className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-gray-50 border border-gray-200 text-[10px] text-gray-700 font-semibold shadow-xs">
-                              <MapPin className="w-2.5 h-2.5 text-primary-500" />
-                              <span>{loc.locationName}:</span>
-                              <span className="text-gray-950 font-bold">{formatNumber(loc.boxes)} bxs</span>
-                            </div>
-                          ))}
-                        </div>
+                      <div className="pt-1.5 border-t border-gray-100">
+                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Locations</span>
+                        {item.locations.length > 3 ? (
+                          <LocationsPopover locations={item.locations} />
+                        ) : (
+                          <div className="flex flex-wrap gap-1">
+                            {item.locations.map((loc: any, idx: number) => (
+                              <div
+                                key={idx}
+                                title={`${loc.locationName}: ${formatNumber(loc.boxes)} boxes`}
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-100 border border-gray-200 text-[10px] text-gray-700 font-semibold"
+                              >
+                                <MapPin className="w-2 h-2 text-primary-500 flex-shrink-0" />
+                                <span className="max-w-[70px] truncate">{loc.locationName}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -486,8 +588,8 @@ const Inventory: React.FC = () => {
         )}
       </div>
 
-      {/* Futuristic Slide-over Side Drawer for Batches */}
-      <div className={`fixed inset-0 z-50 overflow-hidden transition-all duration-300 ${
+      {/* Slide-over Side Drawer for Batches */}
+      <div className={`fixed top-12 inset-x-0 bottom-0 z-50 overflow-hidden transition-all duration-300 ${
         drawerOpen ? 'visible' : 'invisible pointer-events-none'
       }`}>
         {/* Blurred Backdrop */}
@@ -529,7 +631,7 @@ const Inventory: React.FC = () => {
                   </span>
                 </div>
                 <p className="text-[11px] text-gray-500 mt-0.5">
-                  FIFO (First In, First Out) sequence log
+                  Batch lot sequence log
                 </p>
               </div>
             </div>
@@ -594,27 +696,17 @@ const Inventory: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
                       <Clock className="w-3.5 h-3.5" />
-                      FIFO Lot Queue ({availableStock.length} lots)
+                      Lot Queue ({availableStock.length} lots)
                     </h4>
-                    <span className="text-[10px] text-gray-400 italic font-medium">First in gets dispatched first</span>
                   </div>
                   <div className="space-y-3">
-                    {availableStock.map((batch, index) => {
-                      const isFirstLot = index === 0;
+                    {availableStock.map((batch) => {
                       return (
                         <div 
                           key={batch.id} 
-                          className={`relative p-4 rounded-xl border border-gray-200 transition-all duration-300 ${
-                            isFirstLot 
-                              ? 'border-l-4 border-l-primary-600 bg-primary-50/[0.02] shadow-sm hover:shadow-md' 
-                              : 'border-l-4 border-l-gray-300 bg-white shadow-sm hover:shadow'
-                          }`}
+                          className="relative p-4 rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow transition-all duration-300"
                         >
-                          {isFirstLot && (
-                            <span className="absolute top-3 right-3 px-2.5 py-0.5 bg-primary-600 text-white rounded-full text-[8.5px] font-extrabold uppercase tracking-wider shadow-xs">
-                              FIFO ACTIVE LOT
-                            </span>
-                          )}
+
 
                           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                             <div className="space-y-2">
@@ -658,6 +750,7 @@ const Inventory: React.FC = () => {
                               {/* Cost Breakdown details */}
                               <div className="flex gap-4 pt-1.5 border-t border-gray-100 text-[10px] text-gray-500">
                                 <span>Cost/Box: <strong className="text-gray-700 font-bold">{formatCurrency(batch.costPerBox)}</strong></span>
+                                <span>Cost/Pack: <strong className="text-gray-700 font-bold">{formatCurrency(batch.costPerPack)}</strong></span>
                                 <span>Cost/Piece: <strong className="text-gray-700 font-bold">{formatCurrency(batch.costPerPcs)}</strong></span>
                               </div>
                             </div>
