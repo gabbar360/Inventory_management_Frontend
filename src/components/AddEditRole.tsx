@@ -36,7 +36,7 @@ const ToggleSwitch: React.FC<{ checked: boolean; onChange: (checked: boolean) =>
     type="button"
     onClick={() => !disabled && onChange(!checked)}
     disabled={disabled}
-    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+    className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${
       checked ? 'bg-odooTeal' : 'bg-gray-300'
     } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
   >

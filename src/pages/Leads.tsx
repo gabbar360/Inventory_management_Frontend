@@ -240,6 +240,17 @@ const Leads: React.FC = () => {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setViewMode('list');
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   useEffect(() => { setCurrentPage(1); }, [viewMode, debouncedSearch, filterSource]);
 
   useEffect(() => {
@@ -392,9 +403,9 @@ const Leads: React.FC = () => {
           </div>
 
           {/* Right: Controls */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
             {/* View Toggle */}
-            <div className="flex bg-gray-100 border border-gray-300 rounded p-0.5">
+            <div className="hidden md:flex bg-gray-100 border border-gray-300 rounded p-0.5">
               <button
                 onClick={() => setViewMode('kanban')}
                 className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium transition-all ${viewMode === 'kanban' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
@@ -410,14 +421,14 @@ const Leads: React.FC = () => {
             </div>
 
             {/* Search */}
-            <div className="relative">
+            <div className="relative flex-1 min-w-[120px] md:w-40">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
               <input
                 type="text"
                 placeholder="Search leads..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 pr-3 py-1.5 text-xs border border-gray-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 w-40 transition-all placeholder:text-gray-400"
+                className="pl-8 pr-7 py-1.5 text-xs border border-gray-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 w-full transition-all placeholder:text-gray-400"
               />
               {searchQuery && (
                 <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -427,12 +438,12 @@ const Leads: React.FC = () => {
             </div>
 
             {/* Filter */}
-            <div className="relative">
+            <div className="relative flex-1 min-w-[110px] md:w-auto">
               <Filter className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400 pointer-events-none" />
               <select
                 value={filterSource}
                 onChange={(e) => setFilterSource(e.target.value)}
-                className="appearance-none pl-6 pr-6 py-1.5 text-xs border border-gray-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-primary-500 text-gray-700 cursor-pointer"
+                className="appearance-none pl-6 pr-6 py-1.5 text-xs border border-gray-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-primary-500 text-gray-700 cursor-pointer w-full"
               >
                 <option value="all">All Sources</option>
                 <option value="website">Website</option>
@@ -444,10 +455,11 @@ const Leads: React.FC = () => {
             {/* New Lead Button */}
             <button
               onClick={() => setShowModal(true)}
-              className="odoo-btn-primary"
+              className="odoo-btn-primary flex-shrink-0"
             >
               <Plus className="h-3.5 w-3.5" />
-              New Lead
+              <span className="hidden sm:inline">New Lead</span>
+              <span className="sm:hidden">New</span>
             </button>
           </div>
         </div>

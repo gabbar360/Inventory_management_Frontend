@@ -3,86 +3,157 @@
    All pages mobile optimized card view
    ========================================== */
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   /* ==========================================
-     ENHANCED MOBILE CARD VIEW
+     ENHANCED MOBILE CARD VIEW (REVAMPED)
      ========================================== */
   
-  /* Card container styling - more spacious and clear */
-  .md\:hidden > div[class*="bg-white"] {
-    padding: 0.875rem !important;
-    border-radius: 8px !important;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08) !important;
-    margin-bottom: 0.75rem !important;
-  }
-
-  /* Primary field header - highly visible */
-  .md\:hidden .text-\[9px\] {
-    font-size: 10.5px !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.6px !important;
-    color: #714B67 !important;
-    margin-bottom: 0.125rem !important;
-  }
-
-  /* Primary value - larger and bolder */
-  .md\:hidden .text-xs.font-bold,
-  .md\:hidden .text-sm.font-bold {
-    font-size: 0.9375rem !important;
-    line-height: 1.3 !important;
-    color: #1f2937 !important;
-    font-weight: 700 !important;
-  }
-
-  /* Field labels - clear and visible */
-  .md\:hidden .text-\[8\.5px\] {
-    font-size: 10px !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.5px !important;
-    color: #6b7280 !important;
-    text-transform: uppercase !important;
-    margin-bottom: 0.125rem !important;
-  }
-
-  /* Field values - readable and clear */
-  .md\:hidden .text-\[11px\] {
-    font-size: 12.5px !important;
-    line-height: 1.4 !important;
-    font-weight: 600 !important;
-    color: #374151 !important;
-  }
-
-  /* Grid spacing in cards - better breathing room */
-  .md\:hidden .grid.grid-cols-2 {
-    gap: 0.875rem 0.75rem !important;
-  }
-
-  /* Better spacing between cards */
-  .md\:hidden.flex.flex-col {
-    gap: 0.75rem !important;
+  .mobile-card-list {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.625rem !important;
     padding: 0.5rem !important;
     background-color: #f9fafb !important;
   }
 
-  /* Status badges in mobile cards - larger and clearer */
-  .md\:hidden span[class*="bg-"][class*="text-"],
-  .md\:hidden span[class*="rounded"] {
-    font-size: 10.5px !important;
-    padding: 0.3rem 0.6rem !important;
-    line-height: 1.2 !important;
-    font-weight: 600 !important;
-    border-radius: 12px !important;
+  .mobile-card {
+    background-color: #ffffff !important;
+    border-radius: 10px !important;
+    border: 1px solid #e5e7eb !important;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05) !important;
+    padding: 0.75rem 0.875rem !important;
+    position: relative !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.625rem !important;
+    overflow: hidden !important;
+    transition: all 0.2s ease-in-out !important;
   }
 
-  /* Action buttons in mobile cards - touch-friendly */
-  .md\:hidden button[class*="h-4"],
-  .md\:hidden button svg.h-4 {
-    width: 1.25rem !important;
-    height: 1.25rem !important;
+  .mobile-card:active {
+    transform: scale(0.995);
+    background-color: #fcfcfc !important;
   }
 
-  .md\:hidden .flex.gap-1 {
+  .mobile-card-accent {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: 4px !important;
+    background-color: #4D8B9F !important;
+  }
+
+  .mobile-card-header {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    gap: 0.75rem !important;
+  }
+
+  .mobile-card-title-section {
+    min-width: 0 !important;
+    flex: 1 !important;
+  }
+
+  .mobile-card-label {
+    display: block !important;
+    font-size: 9px !important;
+    font-weight: 700 !important;
+    color: #4D8B9F !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    margin-bottom: 0.125rem !important;
+  }
+
+  .mobile-card-title-value {
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    color: #111827 !important;
+    line-height: 1.25 !important;
+    word-break: break-word !important;
+  }
+
+  .mobile-card-actions {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
     gap: 0.375rem !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Compact buttons in mobile card actions */
+  .mobile-card-actions button,
+  .mobile-card-actions a[role="button"],
+  .mobile-card-actions select {
+    min-width: 28px !important;
+    min-height: 28px !important;
+    height: 28px !important;
+    width: auto !important;
+    padding: 0 0.375rem !important;
+    border-radius: 6px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 11px !important;
+    line-height: 1 !important;
+    background-color: #f3f4f6 !important;
+    border: 1px solid #e5e7eb !important;
+    color: #4b5563 !important;
+  }
+
+  .mobile-card-actions button.hidden {
+    display: none !important;
+  }
+
+  .mobile-card-actions select {
+    padding-right: 1.25rem !important;
+  }
+
+  .mobile-card-actions button svg {
+    width: 14px !important;
+    height: 14px !important;
+  }
+
+  .mobile-card-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.625rem 0.75rem !important;
+    padding-top: 0.625rem !important;
+    border-top: 1px solid #f3f4f6 !important;
+  }
+
+  .mobile-card-grid-item {
+    display: flex !important;
+    flex-direction: column !important;
+    min-width: 0 !important;
+  }
+
+  .mobile-card-item-label {
+    font-size: 9px !important;
+    font-weight: 700 !important;
+    color: #9ca3af !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    margin-bottom: 0.125rem !important;
+  }
+
+  .mobile-card-item-value {
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    color: #4b5563 !important;
+    line-height: 1.35 !important;
+    word-break: break-word !important;
+  }
+
+  /* Reset pagination button sizes to prevent bloating */
+  .border-t.border-gray-200.bg-white button {
+    min-width: 32px !important;
+    min-height: 32px !important;
+    height: 32px !important;
+    padding: 0 0.5rem !important;
+    font-size: 12px !important;
+    border-radius: 6px !important;
   }
 
   /* ==========================================
@@ -90,6 +161,8 @@
      ========================================== */
   
   /* Search bar full width */
+  .bg-white.border.rounded input[type="search"],
+  .bg-white.border.rounded input[placeholder*="Search"],
   .bg-white.border.rounded-lg input[type="search"],
   .bg-white.border.rounded-lg input[placeholder*="Search"] {
     width: 100% !important;
@@ -99,6 +172,8 @@
   }
 
   /* Action buttons wrap properly */
+  .bg-white.border.rounded .flex.gap-2,
+  .bg-white.border.rounded .flex.gap-3,
   .bg-white.border.rounded-lg .flex.gap-2,
   .bg-white.border.rounded-lg .flex.gap-3 {
     flex-wrap: wrap !important;
@@ -119,6 +194,13 @@
     min-height: 2.75rem !important;
     padding: 0.625rem 1rem !important;
     font-size: 0.875rem !important;
+  }
+
+  /* Prevent card button styling from bloating toggle switches and circular icon buttons */
+  button.rounded-full[class*="w-"] {
+    min-height: 0 !important;
+    min-width: 0 !important;
+    padding: 0 !important;
   }
 
   /* ==========================================
@@ -180,14 +262,14 @@
     gap: 0.875rem !important;
   }
 
-  .flex.items-center.gap-2 button {
+  .border-t.border-gray-200.bg-white .flex.items-center.gap-2 button {
     min-height: 2.5rem !important;
     font-size: 0.875rem !important;
     padding: 0.5rem 0.875rem !important;
   }
 
   /* Page numbers */
-  .flex.items-center.gap-1 button {
+  .border-t.border-gray-200.bg-white .flex.items-center.gap-1 button {
     min-width: 2.25rem !important;
     min-height: 2.25rem !important;
   }
@@ -248,16 +330,23 @@
      TOUCH TARGETS
      ========================================== */
   
-  button,
-  a[role="button"] {
+  /* Standard standalone action buttons get full touch height */
+  button.odoo-btn-primary,
+  button.odoo-btn-secondary,
+  button.btn-main,
+  form button[type="submit"],
+  .touch-target {
     min-height: 44px !important;
     min-width: 44px !important;
   }
 
-  button[class*="ghost"] svg,
-  button[class*="outline"] svg {
-    width: 1.25rem !important;
-    height: 1.25rem !important;
+  /* Subtitle/header action buttons remain compact */
+  .bg-white.border.rounded button,
+  .bg-white.border.rounded-lg button,
+  header button {
+    min-height: 32px !important;
+    min-width: 32px !important;
+    height: 32px !important;
   }
 
   /* ==========================================
