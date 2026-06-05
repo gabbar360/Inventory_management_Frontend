@@ -166,19 +166,19 @@ function Table<T extends Record<string, any>>(
       </div>
 
       {/* Mobile Card List View */}
-      <div className="md:hidden flex flex-col gap-2.5 p-2 bg-gray-50/30">
+      <div className="md:hidden mobile-card-list">
         {data.map((record, index) => (
-          <div
-            key={index}
-            className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 relative flex flex-col space-y-3 hover:shadow-md transition-shadow duration-200"
-          >
+          <div key={index} className="mobile-card">
+            {/* Left Accent Bar */}
+            <div className="mobile-card-accent" />
+
             {/* Header Row: Primary Field & Actions */}
-            <div className="flex justify-between items-start gap-3">
-              <div className="min-w-0 flex-1">
-                <span className="text-[9px] font-bold text-primary-500 uppercase tracking-wider block mb-1">
+            <div className="mobile-card-header">
+              <div className="mobile-card-title-section">
+                <span className="mobile-card-label">
                   {columns[0].title}
                 </span>
-                <div className="text-sm font-bold text-gray-900 break-words leading-snug">
+                <div className="mobile-card-title-value">
                   {columns[0].render
                     ? columns[0].render(getValue(record, columns[0].key), record, index)
                     : getValue(record, columns[0].key)}
@@ -187,7 +187,7 @@ function Table<T extends Record<string, any>>(
 
               {/* Actions on Top Right */}
               {actionsColumn && (
-                <div className="flex-shrink-0 flex items-center justify-end gap-1">
+                <div className="mobile-card-actions">
                   {actionsColumn.render
                     ? actionsColumn.render(getValue(record, actionsColumn.key), record, index)
                     : getValue(record, actionsColumn.key)}
@@ -197,18 +197,18 @@ function Table<T extends Record<string, any>>(
 
             {/* Other Fields Grid */}
             {otherColumns.length > 0 && (
-              <div className="grid grid-cols-2 gap-x-3 gap-y-2.5 pt-2.5 border-t border-gray-100">
+              <div className="mobile-card-grid">
                 {otherColumns.map((col) => {
                   const val = col.render
                     ? col.render(getValue(record, col.key), record, index)
                     : getValue(record, col.key);
 
                   return (
-                    <div key={String(col.key)} className="flex flex-col min-w-0">
-                      <span className="text-[8.5px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">
+                    <div key={String(col.key)} className="mobile-card-grid-item">
+                      <span className="mobile-card-item-label">
                         {col.title}
                       </span>
-                      <div className="text-[11px] font-semibold text-gray-700 break-words leading-relaxed">
+                      <div className="mobile-card-item-value">
                         {val !== undefined && val !== null && val !== '' ? val : '—'}
                       </div>
                     </div>

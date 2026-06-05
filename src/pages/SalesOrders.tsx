@@ -175,11 +175,11 @@ const SalesOrders: React.FC = () => {
       render: (_: any, r: SalesOrder) => (
         <div className="flex gap-1 items-center">
           <Button variant="ghost" size="sm" onClick={() => setViewOrder(r)} title="View"><Eye className="h-4 w-4" /></Button>
-          <Button variant="ghost" size="sm" onClick={() => handleDownloadPDF(r)} title="Download PDF" disabled={downloadingId === r.id}>
+          <Button variant="ghost" size="sm" onClick={() => handleDownloadPDF(r)} title="Download PDF" disabled={downloadingId === r.id} className="hidden md:inline-flex">
             {downloadingId === r.id ? <Loader2 className="h-4 w-4 animate-spin text-blue-500" /> : <Download className="h-4 w-4" />}
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => handleEditOrder(r)} title="Edit"><Edit className="h-4 w-4" /></Button>
-          <Button variant="ghost" size="sm" onClick={() => handleDelete(r)} className="text-red-600 hover:text-red-700" title="Delete"><Trash2 className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="sm" onClick={() => handleEditOrder(r)} title="Edit" className="hidden md:inline-flex"><Edit className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="sm" onClick={() => handleDelete(r)} className="text-red-600 hover:text-red-700 hidden md:inline-flex" title="Delete"><Trash2 className="h-4 w-4" /></Button>
           {/* Action Trigger Button */}
           <Button variant="ghost" size="sm" onClick={() => setActionModalOrder(r)} title="More options">
             <MoreVertical className="h-4 w-4" />
@@ -364,19 +364,67 @@ const SalesOrders: React.FC = () => {
       <Modal isOpen={!!actionModalOrder} onClose={() => setActionModalOrder(null)}
         title={`Actions - ${actionModalOrder?.orderNo}`} size="sm">
         {actionModalOrder && (
-          <div className="space-y-3 p-1">
+          <div className="space-y-2 p-1">
             <button
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors border border-gray-100 font-medium"
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors border border-gray-150 font-medium"
               onClick={() => {
                 const o = actionModalOrder;
                 setActionModalOrder(null);
                 openInvoiceModal(o);
               }}
             >
-              <FileText className="h-5 w-5 text-blue-600" />
+              <FileText className="h-5 w-5 text-blue-600 flex-shrink-0" />
               <div className="text-left">
-                <div className="font-semibold text-gray-900">Convert to Invoice</div>
+                <div className="font-semibold text-gray-950">Convert to Invoice</div>
                 <div className="text-xs text-gray-500">Generate an outward invoice for this order</div>
+              </div>
+            </button>
+
+            {/* Mobile-only action: Download PDF */}
+            <button
+              className="md:hidden w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors border border-gray-150 font-medium"
+              onClick={() => {
+                const o = actionModalOrder;
+                setActionModalOrder(null);
+                handleDownloadPDF(o);
+              }}
+            >
+              <Download className="h-5 w-5 text-green-600 flex-shrink-0" />
+              <div className="text-left">
+                <div className="font-semibold text-gray-950">Download PDF</div>
+                <div className="text-xs text-gray-500">Download the PDF version of this order</div>
+              </div>
+            </button>
+
+            {/* Mobile-only action: Edit */}
+            <button
+              className="md:hidden w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors border border-gray-150 font-medium"
+              onClick={() => {
+                const o = actionModalOrder;
+                setActionModalOrder(null);
+                handleEditOrder(o);
+              }}
+            >
+              <Edit className="h-5 w-5 text-amber-600 flex-shrink-0" />
+              <div className="text-left">
+                <div className="font-semibold text-gray-950">Edit Order</div>
+                <div className="text-xs text-gray-500">Modify order details or items</div>
+              </div>
+            </button>
+
+            {/* Mobile-only action: Delete */}
+            <button
+              className="md:hidden w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-red-650 hover:bg-red-50 transition-colors border border-red-100 font-medium"
+              onClick={() => {
+                const o = actionModalOrder;
+                setActionModalOrder(null);
+                handleDelete(o);
+              }}
+            >
+              <Trash2 className="h-5 w-5 text-red-650 flex-shrink-0" />
+              <div className="text-left">
+                <div className="font-semibold text-red-950">Delete Order</div>
+                <div className="text-xs text-red-550">Remove this order from the system</div>
               </div>
             </button>
           </div>
