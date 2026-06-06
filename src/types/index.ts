@@ -73,6 +73,7 @@ export interface Customer {
   email?: string;
   phone?: string;
   address?: string;
+  shippingAddress?: string;
   gstNumber?: string;
   state?: string;
   createdAt: string;

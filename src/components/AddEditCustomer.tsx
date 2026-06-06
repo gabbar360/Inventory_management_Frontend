@@ -22,6 +22,7 @@ interface CustomerFormData {
   email?: string;
   phone?: string;
   address?: string;
+  shippingAddress?: string;
   gstNumber?: string;
   state?: string;
 }
@@ -31,6 +32,7 @@ const customerSchema = z.object({
   email: z.string().email().optional().or(z.literal('')),
   phone: z.string().optional(),
   address: z.string().optional(),
+  shippingAddress: z.string().optional(),
   gstNumber: z.string().optional(),
   state: z.string().optional(),
 });
@@ -49,6 +51,7 @@ const AddEditCustomer: React.FC<AddEditCustomerProps> = ({ customer, onSuccess, 
       email: '',
       phone: '',
       address: '',
+      shippingAddress: '',
       gstNumber: '',
       state: '',
     },
@@ -107,6 +110,7 @@ const AddEditCustomer: React.FC<AddEditCustomerProps> = ({ customer, onSuccess, 
       setValue('email', customer.email || '');
       setValue('phone', customer.phone || '');
       setValue('address', customer.address || '');
+      setValue('shippingAddress', customer.shippingAddress || '');
       setValue('gstNumber', customer.gstNumber || '');
       setValue('state', customer.state || '');
       setStateSearch(customer.state || '');
@@ -200,6 +204,22 @@ const AddEditCustomer: React.FC<AddEditCustomerProps> = ({ customer, onSuccess, 
                 placeholder="Enter address"
                 error={errors.address?.message}
                 {...register('address')}
+                className="w-full"
+              />
+            </div>
+          </div>
+
+          {/* Row 2b: Shipping Address */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="lg:col-start-2">
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Shipping Address
+                <span className="text-gray-400 font-normal ml-1">(optional)</span>
+              </label>
+              <Input
+                placeholder="Enter shipping address (if different from above)"
+                error={errors.shippingAddress?.message}
+                {...register('shippingAddress')}
                 className="w-full"
               />
             </div>
