@@ -309,49 +309,39 @@ const Inventory: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6">
-      {/* High-Tech Glassmorphic Header */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200/80 p-4 sm:p-5 relative overflow-hidden">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+    <div className="space-y-4 sm:space-y-6">
+      {/* Header */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200/80 p-3 sm:p-5 relative overflow-hidden">
+        <div className="flex flex-col gap-3">
+          {/* Title row */}
           <div>
             <div className="flex items-center gap-2">
-              <Warehouse className="w-5.5 h-5.5 text-primary-600" />
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">Stock Control Dashboard</h1>
+              <Warehouse className="w-4 h-4 sm:w-5 sm:h-5 text-primary-600 flex-shrink-0" />
+              <h1 className="text-base sm:text-xl lg:text-2xl font-bold text-gray-900 tracking-tight leading-tight">Stock Control Dashboard</h1>
             </div>
-            <p className="text-xs text-gray-500 mt-1">
-              Live tracking metrics, safety threshold warnings, and batch movements across warehouses.
+            <p className="text-[11px] sm:text-xs text-gray-500 mt-1 leading-relaxed">
+              Live tracking · safety alerts · batch movements
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-            {/* Search Input with inline icon */}
-            <div className="relative w-full sm:w-64">
-              {/* <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                <Search className="h-4 w-4 text-gray-400" />
-              </span> */}
-              <input
-                type="text"
-                placeholder="Search products..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{ paddingLeft: '2.25rem' }}
-                className="w-full pr-3 py-2 border border-gray-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white text-gray-800"
-              />
-            </div>
-
-            {/* Location selector */}
-            <div className="relative w-full sm:w-48 flex items-center">
-              {/* <span className="absolute left-3 z-10 pointer-events-none text-gray-400">
-                <MapPin className="w-3.5 h-3.5" />
-              </span> */}
-              <Select
-                value={selectedLocation}
-                onChange={(e) => setSelectedLocation(e.target.value)}
-                options={locationOptions}
-                className="w-full"
-                style={{ paddingLeft: '2.1rem' }}
-              />
-            </div>
+          {/* Search + Location row */}
+          <div className="flex flex-col gap-2">
+            <input
+              type="text"
+              placeholder="Search products..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-3 pr-3 py-2 border border-gray-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white text-gray-800"
+            />
+            <select
+              value={selectedLocation}
+              onChange={(e) => setSelectedLocation(e.target.value)}
+              className="w-full h-8.5 border border-gray-300 rounded-lg px-3 py-1 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 text-gray-700"
+            >
+              {locationOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
           </div>
         </div>
       </div>

@@ -198,12 +198,12 @@ const Samples: React.FC = () => {
       />
 
       <div className="card overflow-x-auto">
-        <div className="flex gap-2 p-4 border-b border-gray-200">
+        <div className="flex gap-2 p-3 border-b border-gray-200 overflow-x-auto scrollbar-hide">
           {sourceTabs.map(tab => (
             <button
               key={tab.key}
               onClick={() => { setSourceFilter(tab.key); setCurrentPage(1); }}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-colors ${
                 sourceFilter === tab.key
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'

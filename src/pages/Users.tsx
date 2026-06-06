@@ -167,12 +167,12 @@ const Users: React.FC = () => {
       key: 'isActive',
       title: 'Status',
       render: (value: boolean, record: any) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 flex-nowrap">
           <ToggleSwitch
             checked={value}
             onChange={() => handleToggleStatus(record.id, value)}
           />
-          <span className="text-sm font-medium text-gray-700">
+          <span className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">
             {value ? 'Unblocked' : 'Blocked'}
           </span>
         </div>

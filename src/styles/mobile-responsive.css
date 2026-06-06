@@ -408,3 +408,83 @@
     box-shadow: none !important;
   }
 }
+
+/* ==========================================
+   320px EXTRA-SMALL SCREEN FIXES
+   ========================================== */
+
+@media (max-width: 380px) {
+  /* Prevent any horizontal overflow */
+  body, #root {
+    overflow-x: hidden !important;
+  }
+
+  /* Tighter page padding */
+  main {
+    padding: 0.5rem !important;
+  }
+
+  /* Compact PageHeader title */
+  .md\:hidden h1 {
+    font-size: 0.8125rem !important;
+    line-height: 1.2 !important;
+  }
+
+  /* PageHeader action buttons — very compact */
+  .md\:hidden .odoo-btn-primary,
+  .md\:hidden .odoo-btn-secondary {
+    height: 1.75rem !important;
+    min-height: 1.75rem !important;
+    padding: 0 0.5rem !important;
+    font-size: 0.6875rem !important;
+  }
+
+  /* Mobile card padding tighter */
+  .mobile-card {
+    padding: 0.625rem 0.75rem !important;
+  }
+
+  .mobile-card-grid {
+    gap: 0.5rem !important;
+  }
+
+  /* Inventory KPI card font sizes */
+  .mobile-card-title-value,
+  .mobile-card-item-value {
+    font-size: 10px !important;
+  }
+
+  /* Status filter select full width */
+  .flex.flex-wrap.gap-2 select {
+    min-width: 0 !important;
+    width: 100% !important;
+    flex: 1 1 100% !important;
+  }
+
+  /* Quotes / dispatch action buttons in cards */
+  .mobile-card-actions {
+    gap: 0.25rem !important;
+  }
+
+  .mobile-card-actions button {
+    min-width: 26px !important;
+    min-height: 26px !important;
+    height: 26px !important;
+    padding: 0 0.25rem !important;
+  }
+
+  /* Inventory header search full width */
+  .rounded-xl input[type="text"],
+  .rounded-xl select {
+    width: 100% !important;
+    font-size: 0.75rem !important;
+  }
+
+  /* Quotes pagination compact */
+  .p-3.border-t.border-gray-200 .h-7 {
+    height: 1.625rem !important;
+    font-size: 0.6875rem !important;
+    padding-left: 0.375rem !important;
+    padding-right: 0.375rem !important;
+  }
+}

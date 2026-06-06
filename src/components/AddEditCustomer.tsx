@@ -153,12 +153,12 @@ const AddEditCustomer: React.FC<AddEditCustomerProps> = ({ customer, onSuccess, 
 
       {/* Odoo Sheet Form Card */}
       <div className="odoo-sheet max-w-5xl mx-auto">
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
           {/* Row 1: Name and Email */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Customer Name
+              <label className="block text-xs font-semibold text-gray-600 mb-1">
+                Customer Name <span className="text-red-500">*</span>
               </label>
               <Input
                 placeholder="Enter customer name"
@@ -169,7 +169,7 @@ const AddEditCustomer: React.FC<AddEditCustomerProps> = ({ customer, onSuccess, 
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
+              <label className="block text-xs font-semibold text-gray-600 mb-1">
                 Email
               </label>
               <Input
@@ -182,10 +182,10 @@ const AddEditCustomer: React.FC<AddEditCustomerProps> = ({ customer, onSuccess, 
             </div>
           </div>
 
-          {/* Row 2: Phone and Address */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Row 2: Phone and GST Number */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
+              <label className="block text-xs font-semibold text-gray-600 mb-1">
                 Phone
               </label>
               <Input
@@ -197,38 +197,22 @@ const AddEditCustomer: React.FC<AddEditCustomerProps> = ({ customer, onSuccess, 
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Address
+              <label className="block text-xs font-semibold text-gray-600 mb-1">
+                GST Number
               </label>
               <Input
-                placeholder="Enter address"
-                error={errors.address?.message}
-                {...register('address')}
+                placeholder="Enter GST number"
+                error={errors.gstNumber?.message}
+                {...register('gstNumber')}
                 className="w-full"
               />
             </div>
           </div>
 
-          {/* Row 2b: Shipping Address */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="lg:col-start-2">
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Shipping Address
-                <span className="text-gray-400 font-normal ml-1">(optional)</span>
-              </label>
-              <Input
-                placeholder="Enter shipping address (if different from above)"
-                error={errors.shippingAddress?.message}
-                {...register('shippingAddress')}
-                className="w-full"
-              />
-            </div>
-          </div>
-
-          {/* Row 3: State and GST Number */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Row 3: State and Address */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="relative" ref={stateDropdownRef}>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
+              <label className="block text-xs font-semibold text-gray-600 mb-1">
                 State
               </label>
               <div className="relative">
@@ -319,16 +303,30 @@ const AddEditCustomer: React.FC<AddEditCustomerProps> = ({ customer, onSuccess, 
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
-                GST Number
+              <label className="block text-xs font-semibold text-gray-600 mb-1">
+                Billing Address
               </label>
               <Input
-                placeholder="Enter GST number"
-                error={errors.gstNumber?.message}
-                {...register('gstNumber')}
+                placeholder="Enter billing address"
+                error={errors.address?.message}
+                {...register('address')}
                 className="w-full"
               />
             </div>
+          </div>
+
+          {/* Row 4: Shipping Address (full width) */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">
+              Shipping Address
+              <span className="text-gray-400 font-normal ml-1">(optional – if different from billing)</span>
+            </label>
+            <Input
+              placeholder="Enter shipping address"
+              error={errors.shippingAddress?.message}
+              {...register('shippingAddress')}
+              className="w-full"
+            />
           </div>
         </form>
       </div>

@@ -238,7 +238,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
     <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} className="space-y-4">
       <h2 className="text-xl font-bold">{quote ? 'Edit Quote' : 'Create Quote'}</h2>
       
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <div className="relative">
           <label className="block text-sm font-medium mb-1">Customer <span className="text-red-500">*</span></label>
           <input
@@ -344,7 +344,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
       <div className="border-t pt-4">
         <h3 className="font-semibold mb-3">Quote Items</h3>
         
-        <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4">
           <ProductSearch
             value={newItem.productId?.toString()}
             onChange={(productId, product) => {
@@ -469,7 +469,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
                   {editingItem === idx && editingData && (
                     <tr className="bg-blue-50 border-t border-blue-200">
                       <td colSpan={9} className="p-3">
-                        <div className="grid grid-cols-2 gap-3 mb-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                           <ProductSearch
                             value={editingData.productId?.toString()}
                             onChange={(productId, product) => {
@@ -554,7 +554,7 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
       </div>
 
       <div className="border-t pt-4 space-y-2">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <Input
             type="number"
             label="Discount"

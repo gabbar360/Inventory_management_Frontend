@@ -268,35 +268,76 @@ const Quotes: React.FC = () => {
         <Table data={quotes} columns={columns} loading={loading} />
 
         {/* Pagination */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-gray-200">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">Items per page:</span>
-            <select value={pageSize} onChange={(e) => { setPageSize(parseInt(e.target.value)); setCurrentPage(1); }}
-              className="px-3 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-          </div>
-          <div className="text-sm text-gray-600">
-            Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, pagination?.total || 0)} of {pagination?.total || 0} quotes
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1 || loading} className="flex items-center gap-1">
-              <ChevronLeft className="h-4 w-4" /> Previous
-            </Button>
-            <div className="flex items-center gap-1">
-              {Array.from({ length: pagination?.totalPages || 1 }, (_, i) => i + 1).map((page) => (
-                <button key={page} onClick={() => setCurrentPage(page)}
-                  className={`px-3 py-1 rounded text-sm font-medium transition-colors ${currentPage === page ? 'bg-blue-600 text-white' : 'border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
-                  disabled={loading}>{page}</button>
-              ))}
+        <div className="p-3 border-t border-gray-200 space-y-2">
+          {/* Row 1: Items per page + record count */}
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-gray-500">Per page:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => { setPageSize(parseInt(e.target.value)); setCurrentPage(1); }}
+                className="px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
             </div>
-            <Button variant="outline" size="sm" onClick={() => setCurrentPage(Math.min(pagination?.totalPages || 1, currentPage + 1))}
-              disabled={currentPage === (pagination?.totalPages || 1) || loading} className="flex items-center gap-1">
-              Next <ChevronRight className="h-4 w-4" />
+            <div className="text-xs text-gray-500">
+              {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, pagination?.total || 0)} of {pagination?.total || 0}
+            </div>
+          </div>
+          {/* Row 2: Page navigation */}
+          <div className="flex items-center justify-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1 || loading}
+              className="flex items-center gap-0.5 px-2 py-1 text-xs h-7"
+            >
+              <ChevronLeft className="h-3 w-3" /> Prev
+            </Button>
+            <div className="flex items-center gap-0.5">
+              {Array.from({ length: pagination?.totalPages || 1 }, (_, i) => i + 1)
+                .filter(page => {
+                  const total = pagination?.totalPages || 1;
+                  return page === 1 || page === total || (page >= currentPage - 1 && page <= currentPage + 1);
+                })
+                .reduce<(number | '...')[]>((acc, page, idx, arr) => {
+                  if (idx > 0 && typeof arr[idx - 1] === 'number' && (page as number) - (arr[idx - 1] as number) > 1) {
+                    acc.push('...');
+                  }
+                  acc.push(page);
+                  return acc;
+                }, [])
+                .map((page, idx) =>
+                  page === '...' ? (
+                    <span key={`ellipsis-${idx}`} className="px-1 text-xs text-gray-400">…</span>
+                  ) : (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page as number)}
+                      className={`w-7 h-7 rounded text-xs font-medium transition-colors ${
+                        currentPage === page ? 'bg-blue-600 text-white' : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                      }`}
+                      disabled={loading}
+                    >
+                      {page}
+                    </button>
+                  )
+                )
+              }
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(Math.min(pagination?.totalPages || 1, currentPage + 1))}
+              disabled={currentPage === (pagination?.totalPages || 1) || loading}
+              className="flex items-center gap-0.5 px-2 py-1 text-xs h-7"
+            >
+              Next <ChevronRight className="h-3 w-3" />
             </Button>
           </div>
         </div>
