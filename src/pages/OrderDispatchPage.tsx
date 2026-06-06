@@ -212,14 +212,14 @@ const OrderDispatchPage: React.FC = () => {
         ]}
       />
 
-      <div className="flex gap-4 mb-4">
+      <div className="flex flex-wrap gap-2 mb-4">
         <select
           value={statusFilter}
           onChange={(e) => {
             setStatusFilter(e.target.value);
             setCurrentPage(1);
           }}
-          className="px-3 py-2 border rounded-lg text-sm"
+          className="flex-1 min-w-[140px] max-w-xs px-3 py-2 border rounded-lg text-sm bg-white focus:outline-none focus:ring-1 focus:ring-primary-500"
         >
           <option value="">All Status</option>
           <option value="pending">Pending</option>
