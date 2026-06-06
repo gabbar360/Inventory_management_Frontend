@@ -24,7 +24,6 @@ import {
 import { fetchLocations } from '@/slices/locationSlice';
 import { StockBatch, StockSummary } from '@/types';
 import { formatCurrency, formatNumber } from '@/utils';
-import Select from '@/components/Select';
 import Table from '@/components/Table';
 import Pagination from '@/components/Pagination';
 import StockTransferModal from '@/components/StockTransferModal';
