@@ -23,6 +23,8 @@ interface ProductFormData {
   grade?: string;
   description?: string;
   categoryId: string;
+  color?: string;
+  brand?: string;
 }
 
 const productSchema = z.object({
@@ -32,6 +34,8 @@ const productSchema = z.object({
   grade: z.string().optional(),
   description: z.string().optional(),
   categoryId: z.string().min(1, 'Category is required'),
+  color: z.string().optional(),
+  brand: z.string().optional(),
 });
 
 const AddEditProduct: React.FC<AddEditProductProps> = ({ product, onSuccess, onCancel }) => {
@@ -52,6 +56,8 @@ const AddEditProduct: React.FC<AddEditProductProps> = ({ product, onSuccess, onC
       grade: '',
       description: '',
       categoryId: '',
+      color: '',
+      brand: '',
     },
   });
 
@@ -69,6 +75,8 @@ const AddEditProduct: React.FC<AddEditProductProps> = ({ product, onSuccess, onC
       setValue('grade', product.grade || '');
       setValue('description', product.description || '');
       setValue('categoryId', product.categoryId.toString());
+      setValue('color', product.color || '');
+      setValue('brand', product.brand || '');
     }
   }, [product, setValue]);
 
@@ -180,6 +188,33 @@ const AddEditProduct: React.FC<AddEditProductProps> = ({ product, onSuccess, onC
                 )) : null}
               </select>
               {errors.categoryId?.message && <p className="text-xs text-red-650 mt-1">{errors.categoryId.message}</p>}
+            </div>
+          </div>
+
+          {/* Row: Color and Brand */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Colour
+              </label>
+              <Input
+                placeholder="Enter colour (e.g. WHITE)"
+                error={errors.color?.message}
+                {...register('color')}
+                className="w-full"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Brand
+              </label>
+              <Input
+                placeholder="Enter brand (e.g. NON BRANDED)"
+                error={errors.brand?.message}
+                {...register('brand')}
+                className="w-full"
+              />
             </div>
           </div>
 

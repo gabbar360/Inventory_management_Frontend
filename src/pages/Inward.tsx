@@ -7,8 +7,12 @@ import {
   Upload,
   Download,
   Edit,
+  Printer,
+  Camera,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import axios from 'axios';
+import BarcodeScannerModal from '@/components/BarcodeScannerModal';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   fetchInwardInvoices,
@@ -16,6 +20,7 @@ import {
   deleteInwardInvoice,
   clearError,
 } from '@/slices/inwardSlice';
+import { fetchLocations } from '@/slices/locationSlice';
 import { bulkUploadService } from '@/services/bulkUploadService';
 import { InwardInvoice } from '@/types';
 import {
@@ -37,6 +42,7 @@ const Inward: React.FC = () => {
   const dispatch = useAppDispatch();
   const { invoices, currentInvoice, pagination, loading, error } =
     useAppSelector((state) => state.inward);
+  const { locations } = useAppSelector((state) => state.locations);
 
   const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
@@ -46,6 +52,35 @@ const Inward: React.FC = () => {
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [dateSortOrder, setDateSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [directScannerOpen, setDirectScannerOpen] = useState(false);
+  const [showScanLocationModal, setShowScanLocationModal] = useState(false);
+  const [selectedScanLocation, setSelectedScanLocation] = useState('');
+
+  useEffect(() => {
+    dispatch(fetchLocations({ limit: 100 }));
+  }, [dispatch]);
+
+  const handleDirectInwardScan = async (barcode: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post('/api/v1/barcodes/scan', {
+        barcode,
+        flow: 'inward',
+        locationId: selectedScanLocation ? parseInt(selectedScanLocation) : 1
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.data?.success) {
+        toast.success(response.data.message || "Box inwarded successfully!");
+        dispatch(fetchInwardInvoices({ page: currentPage, limit: 10, search }));
+      } else {
+        toast.error(response.data?.message || "Failed to scan box.");
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.response?.data?.message || "Scan failed.");
+    }
+  };
 
   useEffect(() => {
     dispatch(fetchInwardInvoices({ page: currentPage, limit: 10, search }));
@@ -210,6 +245,15 @@ const Inward: React.FC = () => {
         searchPlaceholder="Search invoices..."
         onSearch={(value) => debouncedSearch(value)}
         actions={[
+          {
+            label: 'Scan Inward',
+            icon: <Camera className="h-4 w-4" />,
+            onClick: () => {
+              setSelectedScanLocation('');
+              setShowScanLocationModal(true);
+            },
+            variant: 'outline' as const,
+          },
           {
             label: 'Bulk Upload',
             icon: <Upload className="h-4 w-4" />,
@@ -387,6 +431,27 @@ const Inward: React.FC = () => {
                 </table>
               </div>
             </div>
+
+            <div className="flex justify-end gap-2 pt-4 border-t">
+              <Button
+                type="button"
+                onClick={() => {
+                  setViewModalOpen(false);
+                  navigate(`/print-barcodes/inward/${selectedInvoice.id}`);
+                }}
+                className="odoo-btn-primary px-4 h-8 text-xs font-semibold"
+              >
+                <Printer className="h-3.5 w-3.5 mr-1" /> Print Barcodes
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setViewModalOpen(false)}
+                className="odoo-btn-secondary px-4 h-8 text-xs"
+              >
+                Close
+              </Button>
+            </div>
           </div>
         )}
       </Modal>
@@ -401,6 +466,61 @@ const Inward: React.FC = () => {
             fetchInwardInvoices({ page: currentPage, limit: 10, search })
           )
         }
+      />
+
+      {/* Scan Location Selector Modal */}
+      <Modal
+        isOpen={showScanLocationModal}
+        onClose={() => setShowScanLocationModal(false)}
+        title="Select Inward Location"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
+              Select Destination Location <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={selectedScanLocation}
+              onChange={(e) => setSelectedScanLocation(e.target.value)}
+              className="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-sm outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 bg-white"
+            >
+              <option value="">-- Select Location --</option>
+              {locations.map((loc) => (
+                <option key={loc.id} value={loc.id}>
+                  {loc.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowScanLocationModal(false)}
+              className="odoo-btn-secondary px-4 h-8 text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={!selectedScanLocation}
+              onClick={() => {
+                setShowScanLocationModal(false);
+                setDirectScannerOpen(true);
+              }}
+              className="odoo-btn-primary px-4 h-8 text-xs font-semibold"
+            >
+              Start Scanning
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <BarcodeScannerModal
+        isOpen={directScannerOpen}
+        onClose={() => setDirectScannerOpen(false)}
+        onScanSuccess={handleDirectInwardScan}
       />
     </div>
   );

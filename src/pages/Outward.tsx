@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Plus, Eye, Upload, Download, Edit, Trash2, Loader2 } from 'lucide-react';
+import { Plus, Eye, Upload, Download, Edit, Trash2, Loader2, Camera } from 'lucide-react';
 import toast from 'react-hot-toast';
+import axios from 'axios';
+import BarcodeScannerModal from '@/components/BarcodeScannerModal';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   fetchOutwardInvoices,
@@ -9,6 +11,8 @@ import {
   deleteOutwardInvoice,
   clearError,
 } from '@/slices/outwardSlice';
+import { fetchCustomers } from '@/slices/customerSlice';
+import { fetchLocations } from '@/slices/locationSlice';
 import { bulkUploadService } from '@/services/bulkUploadService';
 import { outwardService } from '@/services/outwardService';
 import { OutwardInvoice } from '@/types';
@@ -26,6 +30,8 @@ const Outward: React.FC = () => {
   const { id } = useParams();
   const dispatch = useAppDispatch();
   const { invoices, currentInvoice, pagination, loading, error } = useAppSelector((state) => state.outward);
+  const { customers } = useAppSelector((state) => state.customers);
+  const { locations } = useAppSelector((state) => state.locations);
 
   const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
@@ -41,6 +47,38 @@ const Outward: React.FC = () => {
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [downloadingId, setDownloadingId] = useState<string | number | null>(null);
+  const [directScannerOpen, setDirectScannerOpen] = useState(false);
+  const [showScanOutwardModal, setShowScanOutwardModal] = useState(false);
+  const [selectedScanCustomer, setSelectedScanCustomer] = useState('');
+  const [selectedScanLocation, setSelectedScanLocation] = useState('');
+
+  useEffect(() => {
+    dispatch(fetchCustomers({ limit: 500 }));
+    dispatch(fetchLocations({ limit: 100 }));
+  }, [dispatch]);
+
+  const handleDirectOutwardScan = async (barcode: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post('/api/v1/barcodes/scan', {
+        barcode,
+        flow: 'outward',
+        customerId: selectedScanCustomer ? parseInt(selectedScanCustomer) : 1,
+        locationId: selectedScanLocation ? parseInt(selectedScanLocation) : undefined
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.data?.success) {
+        toast.success(response.data.message || "Box outwarded successfully!");
+        dispatch(fetchOutwardInvoices({ page: currentPage, limit: 10, search }));
+      } else {
+        toast.error(response.data?.message || "Failed to scan box.");
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.response?.data?.message || "Scan failed.");
+    }
+  };
 
   useEffect(() => {
     dispatch(fetchOutwardInvoices({ page: currentPage, limit: 10, search }));
@@ -312,6 +350,16 @@ const Outward: React.FC = () => {
         searchPlaceholder="Search invoices..."
         onSearch={(value) => debouncedSearch(value)}
         actions={[
+          {
+            label: 'Scan Outward',
+            icon: <Camera className="h-4 w-4" />,
+            onClick: () => {
+              setSelectedScanCustomer('');
+              setSelectedScanLocation('');
+              setShowScanOutwardModal(true);
+            },
+            variant: 'outline' as const,
+          },
           { label: 'Bulk Upload', icon: <Upload className="h-4 w-4" />, onClick: () => setBulkUploadOpen(true) },
           { label: 'Export', icon: <Download className="h-4 w-4" />, onClick: handleExport },
           { label: 'Create Invoice', icon: <Plus className="h-4 w-4" />, onClick: handleAddInvoice, variant: 'primary' as const },
@@ -504,6 +552,78 @@ const Outward: React.FC = () => {
         isOpen={bulkUploadOpen}
         onClose={() => setBulkUploadOpen(false)}
         onSuccess={() => dispatch(fetchOutwardInvoices({ page: currentPage, limit: 10, search }))}
+      />
+
+      {/* Scan Customer & Location Selector Modal */}
+      <Modal
+        isOpen={showScanOutwardModal}
+        onClose={() => setShowScanOutwardModal(false)}
+        title="Select Outward Details"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
+              Select Customer <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={selectedScanCustomer}
+              onChange={(e) => setSelectedScanCustomer(e.target.value)}
+              className="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-sm outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 bg-white"
+            >
+              <option value="">-- Select Customer --</option>
+              {customers.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.code} - {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
+              Select Source Location (Optional)
+            </label>
+            <select
+              value={selectedScanLocation}
+              onChange={(e) => setSelectedScanLocation(e.target.value)}
+              className="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-sm outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 bg-white"
+            >
+              <option value="">-- Select Location --</option>
+              {locations.map((loc) => (
+                <option key={loc.id} value={loc.id}>
+                  {loc.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowScanOutwardModal(false)}
+              className="odoo-btn-secondary px-4 h-8 text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={!selectedScanCustomer}
+              onClick={() => {
+                setShowScanOutwardModal(false);
+                setDirectScannerOpen(true);
+              }}
+              className="odoo-btn-primary px-4 h-8 text-xs font-semibold"
+            >
+              Start Scanning
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <BarcodeScannerModal
+        isOpen={directScannerOpen}
+        onClose={() => setDirectScannerOpen(false)}
+        onScanSuccess={handleDirectOutwardScan}
       />
     </div>
   );

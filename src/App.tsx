@@ -26,6 +26,7 @@ import ProfitLossAnalysis from '@/pages/ProfitLossAnalysis';
 import Users from '@/pages/Users';
 import Roles from '@/pages/Roles';
 import PurchaseOrders from '@/pages/PurchaseOrders';
+import BarcodePrint from '@/pages/BarcodePrint';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -82,6 +83,14 @@ function App() {
         }
       />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route
+        path="/print-barcodes/:source/:id"
+        element={
+          <ProtectedRoute>
+            <BarcodePrint />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/"
         element={

@@ -751,16 +751,18 @@ const Inventory: React.FC = () => {
                                 <span className="text-sm font-extrabold text-emerald-600">{formatCurrency(batch.remainingPcs * batch.costPerPcs)}</span>
                               </div>
                               
-                              <button
-                                onClick={() => {
-                                  setSelectedBatch(batch);
-                                  setTransferModalOpen(true);
-                                }}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 border-0 rounded-lg transition-all duration-200 shadow-sm hover:shadow"
-                              >
-                                <ArrowRightLeft className="w-3.5 h-3.5" />
-                                Transfer
-                              </button>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => {
+                                    setSelectedBatch(batch);
+                                    setTransferModalOpen(true);
+                                  }}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 border-0 rounded-lg transition-all duration-200 shadow-sm hover:shadow"
+                                >
+                                  <ArrowRightLeft className="w-3.5 h-3.5" />
+                                  Transfer
+                                </button>
+                              </div>
                             </div>
                           </div>
                         </div>

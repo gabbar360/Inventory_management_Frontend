@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Download, Plus, Edit2, Trash2, Eye } from 'lucide-react';
+import { Download, Plus, Edit2, Trash2, Eye, Printer } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchPurchaseOrders, fetchPurchaseOrderById, deletePurchaseOrder, downloadPurchaseOrderPDF } from '@/slices/purchaseOrderSlice';
@@ -243,6 +243,27 @@ const PurchaseOrders: React.FC = () => {
                 <p className="text-sm">{selectedOrder.notes}</p>
               </div>
             )}
+
+            <div className="flex justify-end gap-2 pt-4 border-t">
+              <Button
+                type="button"
+                onClick={() => {
+                  setIsDetailsModalOpen(false);
+                  navigate(`/print-barcodes/po/${selectedOrder.id}`);
+                }}
+                className="odoo-btn-primary px-4 h-8 text-xs font-semibold"
+              >
+                <Printer className="h-3.5 w-3.5 mr-1" /> Print Barcode Labels
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsDetailsModalOpen(false)}
+                className="odoo-btn-secondary px-4 h-8 text-xs"
+              >
+                Close
+              </Button>
+            </div>
           </div>
         )}
       </Modal>

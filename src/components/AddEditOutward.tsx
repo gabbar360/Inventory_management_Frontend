@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, ChevronDown, ChevronRight, X, Edit2 } from 'lucide-react';
+import { Plus, ChevronDown, ChevronRight, X, Edit2, Camera } from 'lucide-react';
 import toast from 'react-hot-toast';
+import axios from 'axios';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { createOutwardInvoice, updateOutwardInvoice } from '@/slices/outwardSlice';
 import { fetchAvailableStock } from '@/slices/inventorySlice';
@@ -15,6 +16,7 @@ import Input from '@/components/Input';
 import Select from '@/components/Select';
 import Modal from '@/components/Modal';
 import ProductSearch from '@/components/ProductSearch';
+import BarcodeScannerModal from '@/components/BarcodeScannerModal';
 
 // ─── Types & Schemas ────────────────────────────────────────────────────────
 
@@ -203,6 +205,87 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingData, setEditingData] = useState<OutwardItem | null>(null);
   const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
+
+  const [scannerOpen, setScannerOpen] = useState(false);
+
+  const handleScanSuccess = async (barcode: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`/api/v1/barcodes/lookup/${barcode}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.data?.success && response.data?.data) {
+        const box = response.data.data;
+        
+        // 1. Verify box status
+        if (box.status === 'expected') {
+          toast.error("This box has not been inwarded yet.");
+          return;
+        }
+        if (box.status === 'outwarded') {
+          toast.error("This box has already been outwarded.");
+          return;
+        }
+        if (!box.stockBatchId) {
+          toast.error("Box is not linked to any stock batch.");
+          return;
+        }
+
+        // 2. Fetch available stock cache for this product
+        const batches = await loadAvailableStock(box.productId.toString());
+        const selectedBatch = batches.find((b: any) => b.id.toString() === box.stockBatchId.toString());
+        if (!selectedBatch) {
+          toast.error("Stock batch associated with this box was not found or is empty.");
+          return;
+        }
+
+        // Cache the product
+        if (box.product) {
+          setProductsCache((prev) => ({ ...prev, [box.productId]: box.product }));
+        }
+
+        // 3. Check if we already have this batch + unit in the invoice list
+        const existingIdx = items.findIndex(
+          (it) => it.stockBatchId.toString() === box.stockBatchId.toString() && it.saleUnit === 'box'
+        );
+
+        const currentQty = existingIdx >= 0 ? items[existingIdx].quantity : 0;
+        const maxQty = selectedBatch.remainingBoxes + (invoice ? (invoice.items?.find((oi: any) => oi.stockBatchId.toString() === box.stockBatchId.toString() && oi.saleUnit === 'box')?.quantity || 0) : 0);
+
+        if (currentQty + 1 > maxQty) {
+          toast.error(`Cannot add box. Available stock in batch is only ${maxQty} boxes.`);
+          return;
+        }
+
+        if (existingIdx >= 0) {
+          const updated = [...items];
+          updated[existingIdx].quantity += 1;
+          setItems(updated);
+          toast.success(`Incremented quantity for product: ${box.product?.name} in stock batch.`);
+        } else {
+          const suggestedRate = Math.round(selectedBatch.costPerBox * 1.2 * 100) / 100;
+          const itemToAdd: OutwardItem = {
+            productId: String(box.productId),
+            stockBatchId: String(box.stockBatchId),
+            locationId: String(selectedBatch.locationId || box.locationId || 1),
+            saleUnit: 'box',
+            quantity: 1,
+            ratePerUnit: suggestedRate,
+            description: box.product?.description || '',
+            product: box.product,
+            stockBatch: selectedBatch
+          };
+          setItems([...items, itemToAdd]);
+          toast.success(`Added box for product: ${box.product?.name}`);
+        }
+      } else {
+        toast.error("Scanned barcode not found or invalid.");
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.response?.data?.message || "Failed to look up barcode.");
+    }
+  };
 
   const {
     register,
@@ -711,7 +794,18 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
 
           {/* Outward Items Section */}
           <div className="border-t pt-4">
-            <h3 className="text-sm font-bold text-gray-800 mb-2">Outward Items & Lines</h3>
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-sm font-bold text-gray-800">Outward Items & Lines</h3>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setScannerOpen(true)}
+                className="odoo-btn-secondary h-7 text-xs flex items-center gap-1 border-primary-300 text-primary-700 hover:bg-primary-50"
+              >
+                <Camera className="h-3.5 w-3.5" /> Scan Box Barcode
+              </Button>
+            </div>
 
             {/* Input fields to add new items */}
             <div className="bg-gray-50 border border-gray-200 p-3 rounded space-y-3 mb-4">
@@ -1395,6 +1489,12 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
           </div>
         </form>
       </Modal>
+
+      <BarcodeScannerModal
+        isOpen={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScanSuccess={handleScanSuccess}
+      />
     </div>
   );
 };

@@ -39,6 +39,8 @@ export interface Product {
   barcode?: string;
   qrCode?: string;
   isActive?: boolean;
+  color?: string;
+  brand?: string;
   createdAt: string;
   updatedAt: string;
   category?: {
@@ -111,6 +113,10 @@ export interface InwardItem {
   ratePerPcs: number;
   gstAmount: number;
   totalCost: number;
+  batchCode?: string;
+  mfgDate?: string;
+  color?: string;
+  brand?: string;
   product?: Product;
   subItems?: InwardItem[];
   // Legacy fields for backward compatibility
@@ -125,6 +131,7 @@ export interface InwardInvoice {
   locationId: string;
   expense: number;
   totalCost: number;
+  purchaseOrderId?: string;
   createdAt: string;
   updatedAt: string;
   vendor?: Vendor;
@@ -197,6 +204,9 @@ export interface StockBatch {
   costPerBox: number;
   costPerPack: number;
   costPerPcs: number;
+  batchCode?: string;
+  mfgDate?: string;
+  inwardInvoiceId?: number | string | null;
   createdAt: string;
   updatedAt: string;
   product?: Product;
@@ -447,6 +457,11 @@ export interface PurchaseOrderItem {
     name: string;
     code: string;
     unit: string;
+    grade?: string;
+    category?: {
+      name: string;
+      gstRate: number;
+    };
   };
   quantity: number;
   unit: string;
@@ -454,6 +469,21 @@ export interface PurchaseOrderItem {
   taxRate: number;
   amount: number;
   description?: string;
+  boxes?: number;
+  packPerBox?: number;
+  packPerPiece?: number;
+  totalPacks?: number;
+  totalPcs?: number;
+  ratePerBox?: number;
+  ratePerPack?: number;
+  ratePerPcs?: number;
+  gstAmount?: number;
+  totalCost?: number;
+  batchCode?: string;
+  mfgDate?: string;
+  color?: string;
+  brand?: string;
+  subItems?: PurchaseOrderItem[];
 }
 
 export interface PurchaseOrder {
@@ -478,4 +508,25 @@ export interface PurchaseOrder {
   createdAt: string;
   updatedAt: string;
   items?: PurchaseOrderItem[];
+}
+
+export interface BoxDetail {
+  id: number;
+  barcode: string;
+  productId: number;
+  stockBatchId?: number;
+  purchaseOrderId?: number;
+  inwardInvoiceId?: number;
+  outwardInvoiceId?: number;
+  boxIndex: number;
+  totalBoxes: number;
+  packPerBox: number;
+  packPerPiece: number;
+  totalPcs: number;
+  status: 'expected' | 'inwarded' | 'outwarded';
+  color?: string | null;
+  brand?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  product?: Product;
 }

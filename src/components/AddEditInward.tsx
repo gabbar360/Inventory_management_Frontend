@@ -2,13 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, ChevronDown, ChevronRight, Edit2 } from 'lucide-react';
+import { Plus, ChevronDown, ChevronRight, Edit2, Camera } from 'lucide-react';
 import toast from 'react-hot-toast';
+import axios from 'axios';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { createInwardInvoice, updateInwardInvoice } from '@/slices/inwardSlice';
 import { fetchVendors, createVendor } from '@/slices/vendorSlice';
 import { fetchLocations } from '@/slices/locationSlice';
 import { fetchProducts } from '@/slices/productSlice';
+import { fetchPurchaseOrders } from '@/slices/purchaseOrderSlice';
 import { InwardInvoice } from '@/types';
 import { formatCurrency, generateInvoiceNumber } from '@/utils';
 import Button from '@/components/Button';
@@ -16,6 +18,7 @@ import Input from '@/components/Input';
 import Select from '@/components/Select';
 import Modal from '@/components/Modal';
 import ProductSearch from '@/components/ProductSearch';
+import BarcodeScannerModal from '@/components/BarcodeScannerModal';
 
 interface InwardItem {
   productId: string;
@@ -25,12 +28,20 @@ interface InwardItem {
   unit: 'box' | 'pack' | 'piece';
   ratePerBox: number;
   product?: any;
+  batchCode?: string;
+  mfgDate?: string;
+  color?: string;
+  brand?: string;
   subItems?: {
     boxes: number;
     packPerBox: number;
     packPerPiece: number;
     unit: 'box' | 'pack' | 'piece';
     ratePerBox: number;
+    batchCode?: string;
+    mfgDate?: string;
+    color?: string;
+    brand?: string;
   }[];
 }
 
@@ -41,6 +52,8 @@ interface InwardInvoiceFormData {
   locationId: string;
   expense: number;
   items: InwardItem[];
+  purchaseOrderId?: string;
+  scannedBarcodes?: string[];
 }
 
 const inwardSchema = z.object({
@@ -49,6 +62,8 @@ const inwardSchema = z.object({
   vendorId: z.union([z.string(), z.number()]).pipe(z.coerce.string().min(1, 'Vendor is required')),
   locationId: z.union([z.string(), z.number()]).pipe(z.coerce.string().min(1, 'Location is required')),
   expense: z.number().min(0, 'Expense must be positive').default(0),
+  purchaseOrderId: z.string().optional(),
+  scannedBarcodes: z.array(z.string()).optional(),
   items: z
     .array(
       z.object({
@@ -58,6 +73,10 @@ const inwardSchema = z.object({
         packPerPiece: z.number().min(1, 'Pack per piece must be at least 1'),
         unit: z.enum(['box', 'pack', 'piece']).default('box'),
         ratePerBox: z.number().min(0, 'Rate must be positive'),
+        batchCode: z.string().optional(),
+        mfgDate: z.string().optional(),
+        color: z.string().optional(),
+        brand: z.string().optional(),
         subItems: z.array(
           z.object({
             boxes: z.number().min(1, 'Boxes must be at least 1'),
@@ -65,6 +84,10 @@ const inwardSchema = z.object({
             packPerPiece: z.number().min(1, 'Pack per piece must be at least 1'),
             unit: z.enum(['box', 'pack', 'piece']).default('box'),
             ratePerBox: z.number().min(0, 'Rate must be positive'),
+            batchCode: z.string().optional(),
+            mfgDate: z.string().optional(),
+            color: z.string().optional(),
+            brand: z.string().optional(),
           })
         ).optional(),
       })
@@ -83,6 +106,7 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
   const { vendors } = useAppSelector((state) => state.vendors);
   const { locations } = useAppSelector((state) => state.locations);
   const { products } = useAppSelector((state) => state.products);
+  const { orders: purchaseOrders } = useAppSelector((state) => state.purchaseOrders);
 
   const [vendorSearch, setVendorSearch] = useState('');
   const [showVendorDropdown, setShowVendorDropdown] = useState(false);
@@ -92,6 +116,7 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
 
   // Items State (like QuoteForm)
   const [items, setItems] = useState<InwardItem[]>([]);
+  const [scannedBarcodes, setScannedBarcodes] = useState<string[]>([]);
   const [newItem, setNewItem] = useState<InwardItem>({
     productId: '',
     boxes: 1,
@@ -100,8 +125,13 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
     unit: 'box',
     ratePerBox: 0,
     subItems: [],
+    batchCode: '',
+    mfgDate: '',
+    color: '',
+    brand: '',
   });
   const [showNewSubItems, setShowNewSubItems] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   // Item Editing state
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -113,6 +143,7 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
     handleSubmit,
     reset,
     setValue,
+    watch,
     control,
     formState: { errors, isSubmitting },
   } = useForm<InwardInvoiceFormData>({
@@ -127,6 +158,7 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
     dispatch(fetchProducts({ limit: 1000 }));
     dispatch(fetchVendors({ limit: 100 }));
     dispatch(fetchLocations({ limit: 100 }));
+    dispatch(fetchPurchaseOrders({ limit: 1000 }));
   }, [dispatch]);
 
   // Click outside vendor searchable select dropdown
@@ -157,6 +189,7 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
         vendorId: String(invoice.vendorId),
         locationId: String(invoice.locationId),
         expense: invoice.expense || 0,
+        purchaseOrderId: invoice.purchaseOrderId ? String(invoice.purchaseOrderId) : undefined,
       });
 
       const mappedItems = invoice.items?.map((item) => {
@@ -175,6 +208,10 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
           unit: (item.unit || 'box') as 'box' | 'pack' | 'piece',
           ratePerBox: actualRate,
           product: item.product,
+          batchCode: item.batchCode || '',
+          mfgDate: item.mfgDate ? item.mfgDate.split('T')[0] : '',
+          color: item.color || '',
+          brand: item.brand || '',
           subItems: item.subItems?.map((subItem) => {
             let subActualRate = subItem.ratePerBox;
             if (subItem.unit === 'pack') {
@@ -189,6 +226,10 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
               packPerPiece: subItem.packPerPiece,
               unit: (subItem.unit || 'box') as 'box' | 'pack' | 'piece',
               ratePerBox: subActualRate,
+              batchCode: subItem.batchCode || '',
+              mfgDate: subItem.mfgDate ? subItem.mfgDate.split('T')[0] : '',
+              color: subItem.color || '',
+              brand: subItem.brand || '',
             };
           }) || [],
         };
@@ -201,10 +242,144 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
         vendorId: '',
         locationId: '',
         expense: 0,
+        purchaseOrderId: undefined,
       });
       setItems([]);
     }
   }, [invoice, vendors, reset]);
+
+  const handlePurchaseOrderChange = (poId: string) => {
+    setValue('purchaseOrderId', poId || undefined);
+    if (!poId) {
+      setItems([]);
+      return;
+    }
+
+    const po = purchaseOrders.find((o) => String(o.id) === poId);
+    if (po) {
+      // Set vendor
+      setValue('vendorId', String(po.vendorId));
+      const vendor = vendors.find((v) => String(v.id) === String(po.vendorId));
+      if (vendor) {
+        setVendorSearch(`${vendor.code} - ${vendor.name}`);
+      }
+
+      // Map PO items to Inward items
+      const poItems = po.items?.map((item) => {
+        let actualRate = item.ratePerBox || item.rate;
+        if (item.unit === 'pack') {
+          actualRate = item.ratePerPack || item.rate;
+        } else if (item.unit === 'piece') {
+          actualRate = item.ratePerPcs || item.rate;
+        }
+
+        return {
+          productId: String(item.productId),
+          boxes: item.boxes || 1,
+          packPerBox: item.packPerBox || 1,
+          packPerPiece: item.packPerPiece || 1,
+          unit: (item.unit || 'box') as 'box' | 'pack' | 'piece',
+          ratePerBox: actualRate,
+          product: item.product,
+          batchCode: item.batchCode || '',
+          mfgDate: item.mfgDate ? item.mfgDate.split('T')[0] : '',
+          color: item.color || '',
+          brand: item.brand || '',
+          subItems: item.subItems?.map((subItem) => {
+            let subActualRate = subItem.ratePerBox || subItem.rate;
+            if (subItem.unit === 'pack') {
+              subActualRate = subItem.ratePerPack || subItem.rate;
+            } else if (subItem.unit === 'piece') {
+              subActualRate = subItem.ratePerPcs || subItem.rate;
+            }
+            return {
+              boxes: subItem.boxes || 1,
+              packPerBox: subItem.packPerBox || 1,
+              packPerPiece: subItem.packPerPiece || 1,
+              unit: (subItem.unit || 'box') as 'box' | 'pack' | 'piece',
+              ratePerBox: subActualRate,
+              batchCode: subItem.batchCode || '',
+              mfgDate: subItem.mfgDate ? subItem.mfgDate.split('T')[0] : '',
+              color: subItem.color || '',
+              brand: subItem.brand || '',
+            };
+          }) || [],
+        };
+      }) || [];
+
+      setItems(poItems);
+      toast.success(`Loaded items from Purchase Order ${po.poNo}`);
+    }
+  };
+
+  const handleScanSuccess = async (barcode: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`/api/v1/barcodes/lookup/${barcode}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.data?.success && response.data?.data) {
+        const box = response.data.data;
+        
+        // Add barcode to scanned list if not already present
+        if (!scannedBarcodes.includes(barcode)) {
+          setScannedBarcodes((prev) => [...prev, barcode]);
+        }
+
+        if (box.purchaseOrderId) {
+          setValue('purchaseOrderId', String(box.purchaseOrderId));
+          setValue('vendorId', String(box.purchaseOrder?.vendorId));
+          if (box.purchaseOrder?.vendor) {
+            setVendorSearch(`${box.purchaseOrder.vendor.code} - ${box.purchaseOrder.vendor.name}`);
+          }
+        }
+        
+        const matchingPoItem = box.purchaseOrder?.items?.find(
+          (item: any) => String(item.productId) === String(box.productId)
+        );
+        const rate = matchingPoItem?.ratePerBox || matchingPoItem?.rate || 0;
+        const batchCode = box.batchCode || box.product?.batchCode || '';
+        const mfgDate = box.mfgDate ? box.mfgDate.split('T')[0] : (box.product?.mfgDate || '');
+        const color = box.color || box.product?.color || '';
+        const brand = box.brand || box.product?.brand || '';
+
+        const existingIdx = items.findIndex((it) => 
+          String(it.productId) === String(box.productId) &&
+          (it.batchCode || '') === (batchCode || '') &&
+          (it.color || '') === (color || '') &&
+          (it.brand || '') === (brand || '')
+        );
+
+        if (existingIdx >= 0) {
+          const updated = [...items];
+          updated[existingIdx].boxes += 1;
+          setItems(updated);
+          toast.success(`Incremented quantity for product: ${box.product?.name}`);
+        } else {
+          const newItemToAdd: InwardItem = {
+            productId: String(box.productId),
+            boxes: 1,
+            packPerBox: box.packPerBox || 28,
+            packPerPiece: box.packPerPiece || 25,
+            unit: 'box',
+            ratePerBox: rate,
+            batchCode: batchCode,
+            mfgDate: mfgDate,
+            color: color,
+            brand: brand,
+            product: box.product
+          };
+          setItems([...items, newItemToAdd]);
+          toast.success(`Added product: ${box.product?.name}`);
+        }
+      } else {
+        toast.error("Scanned barcode not found or invalid.");
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.response?.data?.message || "Failed to look up barcode.");
+    }
+  };
 
   // Calculations
   const calculateItemTotal = (item: InwardItem) => {
@@ -363,6 +538,10 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
       unit: 'box',
       ratePerBox: 0,
       subItems: [],
+      batchCode: '',
+      mfgDate: '',
+      color: '',
+      brand: '',
     });
     setShowNewSubItems(false);
   };
@@ -407,11 +586,15 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
   // Submit invoice
   const onSubmit = async (data: InwardInvoiceFormData) => {
     try {
+      const payload = {
+        ...data,
+        scannedBarcodes,
+      };
       if (invoice) {
-        await dispatch(updateInwardInvoice({ id: invoice.id.toString(), data })).unwrap();
+        await dispatch(updateInwardInvoice({ id: invoice.id.toString(), data: payload })).unwrap();
         toast.success('Inward invoice updated successfully');
       } else {
-        await dispatch(createInwardInvoice(data)).unwrap();
+        await dispatch(createInwardInvoice(payload)).unwrap();
         toast.success('Inward invoice created successfully');
       }
       onSuccess();
@@ -471,7 +654,20 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           
           {/* Header Info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Select
+              label="Link Purchase Order (Optional)"
+              error={errors.purchaseOrderId?.message}
+              value={watch('purchaseOrderId') || ''}
+              onChange={(e) => handlePurchaseOrderChange(e.target.value)}
+            >
+              <option value="">-- Select PO --</option>
+              {purchaseOrders?.map((po: any) => (
+                <option key={po.id} value={po.id}>
+                  {po.poNo} ({po.vendor?.name})
+                </option>
+              ))}
+            </Select>
             <Input
               label="Invoice Number"
               error={errors.invoiceNo?.message}
@@ -568,7 +764,18 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
 
           {/* Item Lines Section Header */}
           <div className="border-t pt-4">
-            <h3 className="text-sm font-bold text-gray-800 mb-2">Inward Items & Lines</h3>
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-sm font-bold text-gray-800">Inward Items & Lines</h3>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setScannerOpen(true)}
+                className="odoo-btn-secondary h-7 text-xs flex items-center gap-1 border-primary-300 text-primary-700 hover:bg-primary-50"
+              >
+                <Camera className="h-3.5 w-3.5" /> Scan Box Barcode
+              </Button>
+            </div>
 
             {/* Quote-style Input Section for New Items */}
             <div className="bg-gray-50 border border-gray-200 p-3 rounded space-y-3 mb-4">
@@ -576,11 +783,14 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
                 <ProductSearch
                   value={newItem.productId}
                   onChange={(productId) => {
+                    const selected = products.find((p) => String(p.id) === String(productId));
                     setNewItem({
                       ...newItem,
                       productId: productId,
                       packPerBox: 1,
                       packPerPiece: 1,
+                      color: selected?.color || '',
+                      brand: selected?.brand || '',
                     });
                   }}
                 />
@@ -631,6 +841,38 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
                 />
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <Input
+                  label="Batch Code"
+                  value={newItem.batchCode || ''}
+                  onChange={(e) => setNewItem({ ...newItem, batchCode: e.target.value })}
+                  placeholder="Enter batch code"
+                />
+
+                <Input
+                  type="date"
+                  label="MFG Date"
+                  value={newItem.mfgDate || ''}
+                  onChange={(e) => setNewItem({ ...newItem, mfgDate: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <Input
+                  label="Color"
+                  value={newItem.color || ''}
+                  onChange={(e) => setNewItem({ ...newItem, color: e.target.value })}
+                  placeholder="Enter color"
+                />
+
+                <Input
+                  label="Brand"
+                  value={newItem.brand || ''}
+                  onChange={(e) => setNewItem({ ...newItem, brand: e.target.value })}
+                  placeholder="Enter brand"
+                />
+              </div>
+
               {/* Calculations Preview for New Item */}
               {newItem.productId && (
                 (() => {
@@ -674,7 +916,7 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
                             ...newItem,
                             subItems: [
                               ...currentSubItems,
-                              { boxes: 1, packPerBox: 1, packPerPiece: 1, unit: 'box', ratePerBox: 0 },
+                              { boxes: 1, packPerBox: 1, packPerPiece: 1, unit: 'box', ratePerBox: 0, color: newItem.color || '', brand: newItem.brand || '' },
                             ],
                           });
                         }}
@@ -695,6 +937,8 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
                               <th className="p-1 w-16 text-center">Pcs/Pack</th>
                               <th className="p-1 w-20">Unit</th>
                               <th className="p-1 w-20">Rate</th>
+                              <th className="p-1 w-20">Color</th>
+                              <th className="p-1 w-20">Brand</th>
                               <th className="p-1 text-center w-8">Action</th>
                             </tr>
                           </thead>
@@ -766,6 +1010,32 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
                                     onChange={(e) => {
                                       const updated = [...(newItem.subItems || [])];
                                       updated[sIdx] = { ...updated[sIdx], ratePerBox: Number(e.target.value) || 0 };
+                                      setNewItem({ ...newItem, subItems: updated });
+                                    }}
+                                  />
+                                </td>
+                                <td className="p-1">
+                                  <input
+                                    type="text"
+                                    className="w-full border border-gray-300 rounded p-0.5"
+                                    placeholder="Color"
+                                    value={sub.color || ''}
+                                    onChange={(e) => {
+                                      const updated = [...(newItem.subItems || [])];
+                                      updated[sIdx] = { ...updated[sIdx], color: e.target.value };
+                                      setNewItem({ ...newItem, subItems: updated });
+                                    }}
+                                  />
+                                </td>
+                                <td className="p-1">
+                                  <input
+                                    type="text"
+                                    className="w-full border border-gray-300 rounded p-0.5"
+                                    placeholder="Brand"
+                                    value={sub.brand || ''}
+                                    onChange={(e) => {
+                                      const updated = [...(newItem.subItems || [])];
+                                      updated[sIdx] = { ...updated[sIdx], brand: e.target.value };
                                       setNewItem({ ...newItem, subItems: updated });
                                     }}
                                   />
@@ -866,6 +1136,16 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
                               <div className="text-[9px] text-gray-400 font-semibold">
                                 {product?.category?.name || 'Select Product'} (GST: {gstRate}%)
                               </div>
+                              {item.batchCode && (
+                                <div className="text-[9px] text-blue-600 font-medium">
+                                  Batch: {item.batchCode} {item.mfgDate && `| MFG: ${item.mfgDate}`}
+                                </div>
+                              )}
+                              {(item.color || item.brand) && (
+                                <div className="text-[9px] text-purple-600 font-medium">
+                                  {item.color && `Color: ${item.color}`} {item.brand && `| Brand: ${item.brand}`}
+                                </div>
+                              )}
                             </td>
                             <td className="p-2 text-xs text-gray-800" data-label="SKU">
                               {product?.sku || products.find((p) => String(p.id) === String(item.productId))?.sku || '—'}
@@ -947,6 +1227,8 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
                                             <th className="p-1 w-16 text-center">Pcs/Pack</th>
                                             <th className="p-1 w-16">Unit</th>
                                             <th className="p-1 w-20">Rate</th>
+                                            <th className="p-1 w-20">Color</th>
+                                            <th className="p-1 w-20">Brand</th>
                                             <th className="p-1 text-right">Base Amount</th>
                                             <th className="p-1 text-right">Total (with GST)</th>
                                           </tr>
@@ -969,6 +1251,8 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
                                                 <td className="p-1 text-center">{sub.packPerPiece}</td>
                                                 <td className="p-1 uppercase">{sub.unit}</td>
                                                 <td className="p-1">{formatCurrency(sub.ratePerBox)}</td>
+                                                <td className="p-1">{sub.color || '—'}</td>
+                                                <td className="p-1">{sub.brand || '—'}</td>
                                                 <td className="p-1 text-right">{formatCurrency(subBase)}</td>
                                                 <td className="p-1 text-right font-semibold text-gray-800">{formatCurrency(subBase + subGst)}</td>
                                               </tr>
@@ -998,11 +1282,14 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
                                     <ProductSearch
                                       value={editingData.productId}
                                       onChange={(productId) => {
+                                        const selected = products.find((p) => String(p.id) === String(productId));
                                         setEditingData({
                                           ...editingData,
                                           productId: productId,
                                           packPerBox: 1,
                                           packPerPiece: 1,
+                                          color: selected?.color || '',
+                                          brand: selected?.brand || '',
                                         });
                                       }}
                                     />
@@ -1050,6 +1337,38 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
                                       onChange={(e) => setEditingData({ ...editingData, ratePerBox: Number(e.target.value) || 0 })}
                                       step="0.01"
                                       min="0"
+                                    />
+                                  </div>
+
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <Input
+                                      label="Batch Code"
+                                      value={editingData.batchCode || ''}
+                                      onChange={(e) => setEditingData({ ...editingData, batchCode: e.target.value })}
+                                      placeholder="Enter batch code"
+                                    />
+
+                                    <Input
+                                      type="date"
+                                      label="MFG Date"
+                                      value={editingData.mfgDate || ''}
+                                      onChange={(e) => setEditingData({ ...editingData, mfgDate: e.target.value })}
+                                    />
+                                  </div>
+
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <Input
+                                      label="Color"
+                                      value={editingData.color || ''}
+                                      onChange={(e) => setEditingData({ ...editingData, color: e.target.value })}
+                                      placeholder="Enter color"
+                                    />
+
+                                    <Input
+                                      label="Brand"
+                                      value={editingData.brand || ''}
+                                      onChange={(e) => setEditingData({ ...editingData, brand: e.target.value })}
+                                      placeholder="Enter brand"
                                     />
                                   </div>
 
@@ -1324,6 +1643,12 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
           </div>
         </form>
       </Modal>
+
+      <BarcodeScannerModal
+        isOpen={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScanSuccess={handleScanSuccess}
+      />
     </div>
   );
 };
