@@ -14,9 +14,7 @@ import {
   Warehouse,
   ChevronRight,
   Clock,
-  Printer,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   fetchStockSummary,
@@ -122,7 +120,6 @@ const LocationsPopover: React.FC<{ locations: any[] }> = ({ locations }) => {
 };
 
 const Inventory: React.FC = () => {
-  const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const {
     stockSummary = [],
