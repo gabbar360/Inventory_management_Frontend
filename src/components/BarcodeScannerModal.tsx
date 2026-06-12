@@ -10,18 +10,15 @@ interface ScannerProps {
   onClose: () => void;
 }
 
-// Success sound - Swiggy/Zomato style (pleasant notification)
-const SUCCESS_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3';
-
-// Error sound - Alert style (error notification)
-const ERROR_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/2804/2804-preview.mp3';
+// Local sound files from public folder
+const SUCCESS_SOUND_URL = '/sounds/success.mpeg';
+const ERROR_SOUND_URL = '/sounds/warnning.mpeg';
 
 // Play success beep sound
 const playBarcodeBeep = () => {
   try {
     const audio = new Audio(SUCCESS_SOUND_URL);
-    audio.volume = 1.0; // Full volume
-    audio.playbackRate = 1.2; // Slightly faster for more alert
+    audio.volume = 1.0;
     audio.play().catch(err => console.warn('Could not play success sound:', err));
   } catch (err) {
     console.error('Success sound error:', err);
@@ -32,8 +29,7 @@ const playBarcodeBeep = () => {
 const playErrorBeep = () => {
   try {
     const audio = new Audio(ERROR_SOUND_URL);
-    audio.volume = 1.0; // Full volume
-    audio.playbackRate = 1.0;
+    audio.volume = 1.0;
     audio.play().catch(err => console.warn('Could not play error sound:', err));
   } catch (err) {
     console.error('Error sound error:', err);
