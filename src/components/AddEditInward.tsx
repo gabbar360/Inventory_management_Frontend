@@ -543,6 +543,7 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
       setEditingIndex(null);
       setEditingData(null);
     }
+    setScannedBarcodes([]);
   };
 
   // Save Edit Item

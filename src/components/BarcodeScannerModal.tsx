@@ -9,6 +9,90 @@ interface ScannerProps {
   onClose: () => void;
 }
 
+// Play shopping mall scanner success beep sound (LOUD - pleasant beep-beep)
+const playBarcodeBeep = () => {
+  try {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    
+    // First beep - HIGH frequency
+    const osc1 = audioContext.createOscillator();
+    const gain1 = audioContext.createGain();
+    osc1.connect(gain1);
+    gain1.connect(audioContext.destination);
+    
+    osc1.frequency.value = 1000; // Higher pitch for success
+    osc1.type = 'sine';
+    gain1.gain.setValueAtTime(0.7, audioContext.currentTime); // LOUD - 0.7 volume
+    gain1.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.08);
+    
+    osc1.start(audioContext.currentTime);
+    osc1.stop(audioContext.currentTime + 0.08);
+    
+    // Second beep - EVEN HIGHER frequency after 100ms
+    setTimeout(() => {
+      try {
+        const osc2 = audioContext.createOscillator();
+        const gain2 = audioContext.createGain();
+        
+        osc2.connect(gain2);
+        gain2.connect(audioContext.destination);
+        
+        osc2.frequency.value = 1200; // Even higher for pleasant feel
+        osc2.type = 'sine';
+        
+        gain2.gain.setValueAtTime(0.7, audioContext.currentTime); // LOUD - 0.7 volume
+        gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.08);
+        
+        osc2.start(audioContext.currentTime);
+        osc2.stop(audioContext.currentTime + 0.08);
+      } catch (err) {
+        console.warn('Second beep failed:', err);
+      }
+    }, 100);
+  } catch (err) {
+    console.warn('Beep sound failed:', err);
+  }
+};
+
+// Play ALARM-style error sound (LOUD - buzz buzz buzz - annoying alarm)
+const playErrorBeep = () => {
+  try {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    
+    // Create buzzing/alarm effect with square wave
+    let buzzCount = 0;
+    const createBuzz = () => {
+      if (buzzCount >= 4) return; // 4 buzzes
+      
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      
+      osc.connect(gain);
+      gain.connect(audioContext.destination);
+      
+      osc.frequency.value = 350; // Lower frequency
+      osc.type = 'square'; // Square wave for harsh sound (not sine like success)
+      
+      gain.gain.setValueAtTime(0.7, audioContext.currentTime); // LOUD - 0.7 volume
+      gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.12);
+      
+      osc.start(audioContext.currentTime);
+      osc.stop(audioContext.currentTime + 0.12);
+      
+      buzzCount++;
+      
+      // Next buzz after 150ms
+      if (buzzCount < 4) {
+        setTimeout(createBuzz, 150);
+      }
+    };
+    
+    createBuzz();
+  } catch (err) {
+    console.warn('Error beep sound failed:', err);
+  }
+};
+
 export const BarcodeScannerModal: React.FC<ScannerProps> = ({
   onScanSuccess,
   onScanError,
@@ -17,6 +101,7 @@ export const BarcodeScannerModal: React.FC<ScannerProps> = ({
 }) => {
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const elementId = "camera-barcode-reader";
+  const lastScannedRef = useRef<string>('');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -28,6 +113,15 @@ export const BarcodeScannerModal: React.FC<ScannerProps> = ({
         scannerRef.current = html5QrCode;
 
         const qrCodeSuccessCallback = (decodedText: string) => {
+          // Prevent multiple rapid scans of same barcode
+          if (lastScannedRef.current === decodedText) {
+            return;
+          }
+          lastScannedRef.current = decodedText;
+          
+          // Play success beep sound on successful scan
+          playBarcodeBeep();
+          
           onScanSuccess(decodedText);
           onClose();
         };
@@ -49,11 +143,15 @@ export const BarcodeScannerModal: React.FC<ScannerProps> = ({
           qrCodeErrorCallback
         ).catch((err) => {
           console.error("Camera scanner initialization failed:", err);
+          // Play error sound
+          playErrorBeep();
           toast.error("Could not access camera. Make sure permissions are granted.");
           onClose();
         });
       } catch (err) {
         console.error("Scanner setup failed");
+        // Play error sound
+        playErrorBeep();
         toast.error("Failed to initialize scanner camera.");
         onClose();
       }
@@ -61,6 +159,7 @@ export const BarcodeScannerModal: React.FC<ScannerProps> = ({
 
     return () => {
       clearTimeout(timer);
+      lastScannedRef.current = '';
       if (scannerRef.current && scannerRef.current.isScanning) {
         scannerRef.current.stop().catch((err) => 
           console.warn("Failed to stop scanner camera on unmount:", err)
