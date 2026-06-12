@@ -10,17 +10,18 @@ interface ScannerProps {
   onClose: () => void;
 }
 
-// Success beep sound URL (pleasant beep)
+// Success sound - Swiggy/Zomato style (pleasant notification)
 const SUCCESS_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3';
 
-// Error beep sound URL (error buzz)
-const ERROR_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/2700/2700-preview.mp3';
+// Error sound - Alert style (error notification)
+const ERROR_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/2804/2804-preview.mp3';
 
 // Play success beep sound
 const playBarcodeBeep = () => {
   try {
     const audio = new Audio(SUCCESS_SOUND_URL);
-    audio.volume = 0.8;
+    audio.volume = 1.0; // Full volume
+    audio.playbackRate = 1.2; // Slightly faster for more alert
     audio.play().catch(err => console.warn('Could not play success sound:', err));
   } catch (err) {
     console.error('Success sound error:', err);
@@ -31,7 +32,8 @@ const playBarcodeBeep = () => {
 const playErrorBeep = () => {
   try {
     const audio = new Audio(ERROR_SOUND_URL);
-    audio.volume = 0.8;
+    audio.volume = 1.0; // Full volume
+    audio.playbackRate = 1.0;
     audio.play().catch(err => console.warn('Could not play error sound:', err));
   } catch (err) {
     console.error('Error sound error:', err);
@@ -172,14 +174,14 @@ export const BarcodeScannerModal: React.FC<ScannerProps> = ({
               onClick={playBarcodeBeep}
               className="flex-1 text-xs bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded font-semibold transition"
             >
-              Test ✓ Sound
+              Test ✓ Success
             </button>
             <button
               type="button"
               onClick={playErrorBeep}
               className="flex-1 text-xs bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded font-semibold transition"
             >
-              Test ✗ Sound
+              Test ✗ Error
             </button>
           </div>
         )}
