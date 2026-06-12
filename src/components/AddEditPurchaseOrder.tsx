@@ -23,6 +23,8 @@ interface POItem {
   packPerPiece: number;
   unit: 'box' | 'pack' | 'piece';
   ratePerBox: number;
+  packingType?: 'shrink' | 'loose';
+  description?: string;
   product?: any;
   batchCode?: string;
   mfgDate?: string;
@@ -69,6 +71,7 @@ const poSchema = z.object({
         packPerPiece: z.number().min(1, 'Pack per piece must be at least 1'),
         unit: z.enum(['box', 'pack', 'piece']).default('box'),
         ratePerBox: z.number().min(0, 'Rate must be positive'),
+        description: z.string().optional(),
         batchCode: z.string().optional(),
         mfgDate: z.string().optional(),
         color: z.string().optional(),
@@ -110,6 +113,12 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
 
   // Items State (like Inward)
   const [items, setItems] = useState<POItem[]>([]);
+  const generateDescription = (packingType: 'shrink' | 'loose', packPerBox: number, packPerPiece: number) => {
+    const label = packingType === 'shrink' ? 'Shrink' : 'Loose';
+    const totalPcsPerBox = packPerBox * packPerPiece;
+    return `${label} | Set of ${packPerPiece} Pcs | ${totalPcsPerBox} Pcs`;
+  };
+
   const [newItem, setNewItem] = useState<POItem>({
     productId: '',
     boxes: 1,
@@ -117,6 +126,8 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
     packPerPiece: 1,
     unit: 'box',
     ratePerBox: 0,
+    packingType: 'shrink',
+    description: '',
     subItems: [],
     batchCode: '',
     mfgDate: '',
@@ -204,6 +215,8 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
           unit: (item.unit || 'box') as 'box' | 'pack' | 'piece',
           ratePerBox: actualRate,
           product: item.product,
+          packingType: (item as any).packingType || 'shrink',
+          description: (item as any).description || '',
           batchCode: item.batchCode || '',
           mfgDate: item.mfgDate ? item.mfgDate.split('T')[0] : '',
           color: item.color || '',
@@ -396,7 +409,8 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
 
     const selectedProduct = products.find((p) => String(p.id) === String(newItem.productId));
 
-    setItems([...items, { ...newItem, product: selectedProduct }]);
+    const desc = generateDescription(newItem.packingType || 'shrink', newItem.packPerBox, newItem.packPerPiece);
+    setItems([...items, { ...newItem, description: desc, product: selectedProduct }]);
     setNewItem({
       productId: '',
       boxes: 1,
@@ -404,6 +418,8 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
       packPerPiece: 1,
       unit: 'box',
       ratePerBox: 0,
+      packingType: 'shrink',
+      description: '',
       subItems: [],
       batchCode: '',
       mfgDate: '',
@@ -441,9 +457,11 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
     }
 
     const selectedProduct = products.find((p) => String(p.id) === String(editingData.productId));
+    const desc = generateDescription(editingData.packingType || 'shrink', editingData.packPerBox, editingData.packPerPiece);
     const updatedItems = [...items];
     updatedItems[index] = {
       ...editingData,
+      description: desc,
       product: selectedProduct,
     };
 
@@ -639,11 +657,9 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
 
           {/* Notes */}
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">
-              Notes
-            </label>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">Terms & Conditions</label>
             <textarea
-              placeholder="Add PO notes..."
+              placeholder="Enter terms & conditions..."
               {...register('notes')}
               className={`flex w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 ${
                 errors.notes ? 'border-red-500 focus:ring-red-500' : ''
@@ -688,7 +704,14 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
                   type="number"
                   label="Pack/Box *"
                   value={newItem.packPerBox || ''}
-                  onChange={(e) => setNewItem({ ...newItem, packPerBox: Number(e.target.value) || 0 })}
+                  onChange={(e) => {
+                    const val = Number(e.target.value) || 0;
+                    setNewItem((prev) => ({
+                      ...prev,
+                      packPerBox: val,
+                      description: generateDescription(prev.packingType || 'shrink', val, prev.packPerPiece),
+                    }));
+                  }}
                   min="1"
                 />
               </div>
@@ -698,7 +721,14 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
                   type="number"
                   label="Pcs/Pack *"
                   value={newItem.packPerPiece || ''}
-                  onChange={(e) => setNewItem({ ...newItem, packPerPiece: Number(e.target.value) || 0 })}
+                  onChange={(e) => {
+                    const val = Number(e.target.value) || 0;
+                    setNewItem((prev) => ({
+                      ...prev,
+                      packPerPiece: val,
+                      description: generateDescription(prev.packingType || 'shrink', prev.packPerBox, val),
+                    }));
+                  }}
                   min="1"
                 />
 
@@ -720,6 +750,33 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
                   step="0.01"
                   min="0"
                 />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <Select
+                  label="Packing Type *"
+                  value={newItem.packingType || 'shrink'}
+                  onChange={(e) => {
+                    const val = e.target.value as 'shrink' | 'loose';
+                    setNewItem((prev) => ({
+                      ...prev,
+                      packingType: val,
+                      description: generateDescription(val, prev.packPerBox, prev.packPerPiece),
+                    }));
+                  }}
+                >
+                  <option value="shrink">Shrink</option>
+                  <option value="loose">Loose</option>
+                </Select>
+
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Description (Auto)</label>
+                  <div className="flex h-8 items-center px-3 rounded border border-gray-200 bg-gray-50 text-xs text-gray-600 font-medium">
+                    {newItem.packingType && newItem.packPerPiece > 0
+                      ? generateDescription(newItem.packingType, newItem.packPerBox, newItem.packPerPiece)
+                      : <span className="text-gray-400 italic">Select packing type and enter Pcs/Pack</span>}
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -754,23 +811,21 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
                 />
               </div>
 
-              {/* Calculations Preview for New Item */}
-              {newItem.productId && (
-                (() => {
-                  const prev = getPreviewDetails(newItem);
-                  return (
-                    <div className="bg-white border border-gray-200 rounded p-2.5 text-[10px] grid grid-cols-2 md:grid-cols-4 gap-2 text-gray-600 shadow-sm leading-tight">
-                      <div><span className="font-bold text-gray-500">Total Packs:</span> {prev.totalPacks}</div>
-                      <div><span className="font-bold text-gray-500">Total PCS:</span> {prev.totalPcs}</div>
-                      <div><span className="font-bold text-gray-500">Rate/Pack:</span> {formatCurrency(prev.ratePerPack)}</div>
-                      <div><span className="font-bold text-gray-500">Rate/PCS:</span> {formatCurrency(prev.ratePerPcs)}</div>
-                      <div><span className="font-bold text-gray-500">Base Amount:</span> {formatCurrency(prev.baseAmount)}</div>
-                      <div><span className="font-bold text-gray-500">GST ({prev.gstRate}%):</span> {formatCurrency(prev.gstAmount)}</div>
-                      <div className="col-span-2 md:col-span-1 font-bold text-primary-700"><span className="text-gray-500">Total Amount:</span> {formatCurrency(prev.totalAmount)}</div>
-                    </div>
-                  );
-                })()
-              )}
+              {/* Calculations Preview for New Item - always visible once product selected */}
+              {newItem.productId && (() => {
+                const prev = getPreviewDetails(newItem);
+                return (
+                  <div className="bg-blue-50 border border-blue-200 rounded p-2.5 text-[10px] grid grid-cols-2 md:grid-cols-4 gap-2 text-gray-700 shadow-sm leading-tight">
+                    <div><span className="font-bold text-gray-500">Total Packs:</span> <span className="font-semibold">{prev.totalPacks}</span></div>
+                    <div><span className="font-bold text-gray-500">Total PCS:</span> <span className="font-semibold">{prev.totalPcs}</span></div>
+                    <div><span className="font-bold text-gray-500">Rate/Pack:</span> <span className="font-semibold">{formatCurrency(prev.ratePerPack)}</span></div>
+                    <div><span className="font-bold text-gray-500">Rate/PCS:</span> <span className="font-semibold">{formatCurrency(prev.ratePerPcs)}</span></div>
+                    <div><span className="font-bold text-gray-500">Base Amount:</span> <span className="font-semibold">{formatCurrency(prev.baseAmount)}</span></div>
+                    <div><span className="font-bold text-gray-500">GST ({prev.gstRate}%):</span> <span className="font-semibold text-orange-600">{formatCurrency(prev.gstAmount)}</span></div>
+                    <div className="col-span-2 md:col-span-2"><span className="font-bold text-gray-500">Total Amount:</span> <span className="font-extrabold text-primary-700 text-xs">{formatCurrency(prev.totalAmount)}</span></div>
+                  </div>
+                );
+              })()}
 
               {/* Sub items layout in add section */}
               <div className="pt-2">
@@ -1195,7 +1250,14 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
                                       type="number"
                                       label="Pack/Box *"
                                       value={editingData.packPerBox || ''}
-                                      onChange={(e) => setEditingData({ ...editingData, packPerBox: Number(e.target.value) || 0 })}
+                                      onChange={(e) => {
+                                        const val = Number(e.target.value) || 0;
+                                        setEditingData((prev) => prev ? ({
+                                          ...prev,
+                                          packPerBox: val,
+                                          description: generateDescription(prev.packingType || 'shrink', val, prev.packPerPiece),
+                                        }) : prev);
+                                      }}
                                       min="1"
                                     />
                                   </div>
@@ -1205,7 +1267,14 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
                                       type="number"
                                       label="Pcs/Pack *"
                                       value={editingData.packPerPiece || ''}
-                                      onChange={(e) => setEditingData({ ...editingData, packPerPiece: Number(e.target.value) || 0 })}
+                                      onChange={(e) => {
+                                        const val = Number(e.target.value) || 0;
+                                        setEditingData((prev) => prev ? ({
+                                          ...prev,
+                                          packPerPiece: val,
+                                          description: generateDescription(prev.packingType || 'shrink', prev.packPerBox, val),
+                                        }) : prev);
+                                      }}
                                       min="1"
                                     />
 
@@ -1227,6 +1296,33 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
                                       step="0.01"
                                       min="0"
                                     />
+                                  </div>
+
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                    <Select
+                                      label="Packing Type *"
+                                      value={editingData.packingType || 'shrink'}
+                                      onChange={(e) => {
+                                        const val = e.target.value as 'shrink' | 'loose';
+                                        setEditingData((prev) => prev ? ({
+                                          ...prev,
+                                          packingType: val,
+                                          description: generateDescription(val, prev.packPerBox, prev.packPerPiece),
+                                        }) : prev);
+                                      }}
+                                    >
+                                      <option value="shrink">Shrink</option>
+                                      <option value="loose">Loose</option>
+                                    </Select>
+
+                                    <div className="md:col-span-2">
+                                      <label className="block text-xs font-semibold text-gray-700 mb-1">Description (Auto)</label>
+                                      <div className="flex h-8 items-center px-3 rounded border border-blue-200 bg-blue-50 text-xs text-blue-800 font-medium">
+                                        {editingData.packingType && editingData.packPerPiece > 0
+                                          ? generateDescription(editingData.packingType, editingData.packPerBox, editingData.packPerPiece)
+                                          : <span className="text-gray-400 italic">Select packing type and enter Pcs/Pack</span>}
+                                      </div>
+                                    </div>
                                   </div>
 
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1262,22 +1358,20 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
                                   </div>
 
                                   {/* Calculations Preview for Edit Item */}
-                                  {editingData.productId && (
-                                    (() => {
-                                      const prev = getPreviewDetails(editingData);
-                                      return (
-                                        <div className="bg-white border border-blue-150 rounded p-2.5 text-[10px] grid grid-cols-2 md:grid-cols-4 gap-2 text-blue-900 shadow-sm leading-tight">
-                                          <div><span className="font-bold text-blue-700">Total Packs:</span> {prev.totalPacks}</div>
-                                          <div><span className="font-bold text-blue-700">Total PCS:</span> {prev.totalPcs}</div>
-                                          <div><span className="font-bold text-blue-700">Rate/Pack:</span> {formatCurrency(prev.ratePerPack)}</div>
-                                          <div><span className="font-bold text-blue-700">Rate/PCS:</span> {formatCurrency(prev.ratePerPcs)}</div>
-                                          <div><span className="font-bold text-blue-700">Base Amount:</span> {formatCurrency(prev.baseAmount)}</div>
-                                          <div><span className="font-bold text-blue-700">GST ({prev.gstRate}%):</span> {formatCurrency(prev.gstAmount)}</div>
-                                          <div className="col-span-2 md:col-span-1 font-bold text-green-700"><span className="text-blue-700">Total Amount:</span> {formatCurrency(prev.totalAmount)}</div>
-                                        </div>
-                                      );
-                                    })()
-                                  )}
+                                  {editingData.productId && (() => {
+                                    const prev = getPreviewDetails(editingData);
+                                    return (
+                                      <div className="bg-blue-50 border border-blue-200 rounded p-2.5 text-[10px] grid grid-cols-2 md:grid-cols-4 gap-2 text-blue-900 shadow-sm leading-tight">
+                                        <div><span className="font-bold text-blue-700">Total Packs:</span> <span className="font-semibold">{prev.totalPacks}</span></div>
+                                        <div><span className="font-bold text-blue-700">Total PCS:</span> <span className="font-semibold">{prev.totalPcs}</span></div>
+                                        <div><span className="font-bold text-blue-700">Rate/Pack:</span> <span className="font-semibold">{formatCurrency(prev.ratePerPack)}</span></div>
+                                        <div><span className="font-bold text-blue-700">Rate/PCS:</span> <span className="font-semibold">{formatCurrency(prev.ratePerPcs)}</span></div>
+                                        <div><span className="font-bold text-blue-700">Base Amount:</span> <span className="font-semibold">{formatCurrency(prev.baseAmount)}</span></div>
+                                        <div><span className="font-bold text-blue-700">GST ({prev.gstRate}%):</span> <span className="font-semibold text-orange-600">{formatCurrency(prev.gstAmount)}</span></div>
+                                        <div className="col-span-2 md:col-span-2"><span className="font-bold text-blue-700">Total Amount:</span> <span className="font-extrabold text-green-700 text-xs">{formatCurrency(prev.totalAmount)}</span></div>
+                                      </div>
+                                    );
+                                  })()}
 
                                   {/* Sub items edit section */}
                                   <div className="border-t border-blue-150 pt-2 space-y-2">
@@ -1448,7 +1542,7 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
                 {/* Grand Total Bar */}
                 <div className="bg-gray-50 border-t border-gray-150 p-3 flex justify-end font-bold text-xs sm:text-sm text-gray-800">
                   <div className="flex gap-4">
-                    <span>Grand Total:</span>
+                    <span>Grand Total (incl. GST):</span>
                     <span className="text-primary-650">{formatCurrency(calculateGrandTotal())}</span>
                   </div>
                 </div>
