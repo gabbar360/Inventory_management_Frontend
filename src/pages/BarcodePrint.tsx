@@ -81,7 +81,7 @@ export const BarcodePrint: React.FC = () => {
       </div>
 
       {/* Labels - Fixed Width Container */}
-      <div className="space-y-2 print:space-y-0 w-full max-w-2xl print:max-w-full print:p-0">
+      <div className="space-y-2 print:space-y-0 w-full max-w-2xl print:max-w-full print:p-0" style={{ width: '100%', maxWidth: '105mm' }}>
         {boxes.map((box) => {
           const batchCode = box.batchCode || box.stockBatch?.batchCode || '—';
           const mfgDate = box.mfgDate || box.stockBatch?.mfgDate;
@@ -212,7 +212,7 @@ export const BarcodePrint: React.FC = () => {
             display: none !important;
           }
           @page {
-            size: A4;
+            size: A6;
             margin: 0;
           }
         }
