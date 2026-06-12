@@ -1,6 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import toast from 'react-hot-toast';
+import { Volume2 } from 'lucide-react';
 
 interface ScannerProps {
   onScanSuccess: (decodedText: string) => void;
@@ -9,87 +10,31 @@ interface ScannerProps {
   onClose: () => void;
 }
 
-// Play shopping mall scanner success beep sound (LOUD - pleasant beep-beep)
+// Success beep sound URL (pleasant beep)
+const SUCCESS_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3';
+
+// Error beep sound URL (error buzz)
+const ERROR_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/2700/2700-preview.mp3';
+
+// Play success beep sound
 const playBarcodeBeep = () => {
   try {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    
-    // First beep - HIGH frequency
-    const osc1 = audioContext.createOscillator();
-    const gain1 = audioContext.createGain();
-    osc1.connect(gain1);
-    gain1.connect(audioContext.destination);
-    
-    osc1.frequency.value = 1000; // Higher pitch for success
-    osc1.type = 'sine';
-    gain1.gain.setValueAtTime(0.7, audioContext.currentTime); // LOUD - 0.7 volume
-    gain1.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.08);
-    
-    osc1.start(audioContext.currentTime);
-    osc1.stop(audioContext.currentTime + 0.08);
-    
-    // Second beep - EVEN HIGHER frequency after 100ms
-    setTimeout(() => {
-      try {
-        const osc2 = audioContext.createOscillator();
-        const gain2 = audioContext.createGain();
-        
-        osc2.connect(gain2);
-        gain2.connect(audioContext.destination);
-        
-        osc2.frequency.value = 1200; // Even higher for pleasant feel
-        osc2.type = 'sine';
-        
-        gain2.gain.setValueAtTime(0.7, audioContext.currentTime); // LOUD - 0.7 volume
-        gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.08);
-        
-        osc2.start(audioContext.currentTime);
-        osc2.stop(audioContext.currentTime + 0.08);
-      } catch (err) {
-        console.warn('Second beep failed:', err);
-      }
-    }, 100);
+    const audio = new Audio(SUCCESS_SOUND_URL);
+    audio.volume = 0.8;
+    audio.play().catch(err => console.warn('Could not play success sound:', err));
   } catch (err) {
-    console.warn('Beep sound failed:', err);
+    console.error('Success sound error:', err);
   }
 };
 
-// Play ALARM-style error sound (LOUD - buzz buzz buzz - annoying alarm)
+// Play error beep sound
 const playErrorBeep = () => {
   try {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    
-    // Create buzzing/alarm effect with square wave
-    let buzzCount = 0;
-    const createBuzz = () => {
-      if (buzzCount >= 4) return; // 4 buzzes
-      
-      const osc = audioContext.createOscillator();
-      const gain = audioContext.createGain();
-      
-      osc.connect(gain);
-      gain.connect(audioContext.destination);
-      
-      osc.frequency.value = 350; // Lower frequency
-      osc.type = 'square'; // Square wave for harsh sound (not sine like success)
-      
-      gain.gain.setValueAtTime(0.7, audioContext.currentTime); // LOUD - 0.7 volume
-      gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.12);
-      
-      osc.start(audioContext.currentTime);
-      osc.stop(audioContext.currentTime + 0.12);
-      
-      buzzCount++;
-      
-      // Next buzz after 150ms
-      if (buzzCount < 4) {
-        setTimeout(createBuzz, 150);
-      }
-    };
-    
-    createBuzz();
+    const audio = new Audio(ERROR_SOUND_URL);
+    audio.volume = 0.8;
+    audio.play().catch(err => console.warn('Could not play error sound:', err));
   } catch (err) {
-    console.warn('Error beep sound failed:', err);
+    console.error('Error sound error:', err);
   }
 };
 
@@ -102,6 +47,7 @@ export const BarcodeScannerModal: React.FC<ScannerProps> = ({
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const elementId = "camera-barcode-reader";
   const lastScannedRef = useRef<string>('');
+  const [showTestButtons, setShowTestButtons] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -130,7 +76,6 @@ export const BarcodeScannerModal: React.FC<ScannerProps> = ({
           if (onScanError) onScanError(errorMessage);
         };
 
-        // Standard size and settings for barcode scanning
         const config = { 
           fps: 10, 
           qrbox: { width: 260, height: 160 } 
@@ -143,14 +88,12 @@ export const BarcodeScannerModal: React.FC<ScannerProps> = ({
           qrCodeErrorCallback
         ).catch((err) => {
           console.error("Camera scanner initialization failed:", err);
-          // Play error sound
           playErrorBeep();
           toast.error("Could not access camera. Make sure permissions are granted.");
           onClose();
         });
       } catch (err) {
         console.error("Scanner setup failed");
-        // Play error sound
         playErrorBeep();
         toast.error("Failed to initialize scanner camera.");
         onClose();
@@ -174,35 +117,20 @@ export const BarcodeScannerModal: React.FC<ScannerProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-65 p-4 animate-fadeIn">
       <style>{`
         @keyframes scanLine {
-          0% {
-            top: 0%;
-          }
-          50% {
-            top: 100%;
-          }
-          100% {
-            top: 0%;
-          }
+          0% { top: 0%; }
+          50% { top: 100%; }
+          100% { top: 0%; }
         }
         
         @keyframes scanGlow {
-          0% {
-            box-shadow: 0 0 15px rgba(34, 197, 94, 0.3);
-          }
-          50% {
-            box-shadow: 0 0 30px rgba(34, 197, 94, 0.8);
-          }
-          100% {
-            box-shadow: 0 0 15px rgba(34, 197, 94, 0.3);
-          }
+          0% { box-shadow: 0 0 15px rgba(34, 197, 94, 0.3); }
+          50% { box-shadow: 0 0 30px rgba(34, 197, 94, 0.8); }
+          100% { box-shadow: 0 0 15px rgba(34, 197, 94, 0.3); }
         }
         
         .scanner-line {
           animation: scanLine 2s ease-in-out infinite;
-          background: linear-gradient(90deg, 
-            transparent 0%, 
-            rgba(34, 197, 94, 0.8) 50%, 
-            transparent 100%);
+          background: linear-gradient(90deg, transparent 0%, rgba(34, 197, 94, 0.8) 50%, transparent 100%);
           height: 2px;
           width: 100%;
           position: absolute;
@@ -218,23 +146,49 @@ export const BarcodeScannerModal: React.FC<ScannerProps> = ({
       <div className="bg-white rounded border border-gray-300 shadow-2xl p-4 max-w-sm w-full">
         <div className="flex justify-between items-center mb-3">
           <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider">Scan Box Barcode</h3>
-          <button 
-            type="button" 
-            onClick={onClose} 
-            className="text-gray-400 hover:text-gray-600 font-bold text-lg leading-none"
-          >
-            ×
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setShowTestButtons(!showTestButtons)}
+              className="text-gray-400 hover:text-blue-600 transition-colors p-1"
+              title="Test sounds"
+            >
+              <Volume2 className="w-4 h-4" />
+            </button>
+            <button 
+              type="button" 
+              onClick={onClose} 
+              className="text-gray-400 hover:text-gray-600 font-bold text-lg leading-none"
+            >
+              ×
+            </button>
+          </div>
         </div>
+
+        {showTestButtons && (
+          <div className="bg-blue-50 border border-blue-200 rounded p-2 mb-3 flex gap-2">
+            <button
+              type="button"
+              onClick={playBarcodeBeep}
+              className="flex-1 text-xs bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded font-semibold transition"
+            >
+              Test ✓ Sound
+            </button>
+            <button
+              type="button"
+              onClick={playErrorBeep}
+              className="flex-1 text-xs bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded font-semibold transition"
+            >
+              Test ✗ Sound
+            </button>
+          </div>
+        )}
         
-        {/* Camera with Scanning Animation */}
         <div className="relative border-2 border-gray-200 rounded bg-gray-50 overflow-hidden scanner-frame" style={{ minHeight: '220px' }}>
           <div id={elementId} className="w-full h-full"></div>
           
-          {/* Green Scanning Line */}
           <div className="scanner-line"></div>
           
-          {/* Scanning Frame Corners */}
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute top-8 left-8 w-8 h-8 border-t-2 border-l-2 border-green-500"></div>
             <div className="absolute top-8 right-8 w-8 h-8 border-t-2 border-r-2 border-green-500"></div>
