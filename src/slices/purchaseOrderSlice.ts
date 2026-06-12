@@ -7,6 +7,7 @@ interface PurchaseOrderState {
   currentPurchaseOrder: PurchaseOrder | null;
   pagination: any;
   loading: boolean;
+  downloadingPDF: boolean;
   error: string | null;
 }
 
@@ -15,6 +16,7 @@ const initialState: PurchaseOrderState = {
   currentPurchaseOrder: null,
   pagination: null,
   loading: false,
+  downloadingPDF: false,
   error: null,
 };
 
@@ -55,10 +57,11 @@ export const downloadPurchaseOrderPDF = createAsyncThunk('purchaseOrders/downloa
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
+    link.download = `purchase-order-${id}.pdf`;
+    link.setAttribute('type', 'application/pdf');
+    document.body.appendChild(link);
     link.click();
-    
+    document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
     return id;
   } catch (error: any) {
@@ -98,6 +101,12 @@ const purchaseOrderSlice = createSlice({
       })
       .addCase(deletePurchaseOrder.fulfilled, (state, action) => {
         state.orders = state.orders.filter((o) => o.id !== action.payload);
+      })
+      .addCase(downloadPurchaseOrderPDF.pending, (state) => { state.downloadingPDF = true; state.error = null; })
+      .addCase(downloadPurchaseOrderPDF.fulfilled, (state) => { state.downloadingPDF = false; })
+      .addCase(downloadPurchaseOrderPDF.rejected, (state, action) => {
+        state.downloadingPDF = false;
+        state.error = typeof action.payload === 'string' ? action.payload : 'Failed to download PDF';
       });
   },
 });

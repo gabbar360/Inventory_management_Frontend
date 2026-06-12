@@ -1,18 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Download, Plus, Edit2, Trash2, Eye, Printer } from 'lucide-react';
+import { Plus, Trash2, Eye, Download, Edit, Loader2, Printer } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { fetchPurchaseOrders, fetchPurchaseOrderById, deletePurchaseOrder, downloadPurchaseOrderPDF } from '@/slices/purchaseOrderSlice';
+import {
+  fetchPurchaseOrders,
+  fetchPurchaseOrderById,
+  deletePurchaseOrder,
+  downloadPurchaseOrderPDF,
+} from '@/slices/purchaseOrderSlice';
 import { PurchaseOrder } from '@/types';
-import { debounce } from '@/utils';
+import { formatCurrency, formatDate, debounce } from '@/utils';
 import Button from '@/components/Button';
+import Modal from '@/components/Modal';
 import Table from '@/components/Table';
+import Pagination from '@/components/Pagination';
 import PageHeader from '@/components/PageHeader';
 import ConfirmModal from '@/components/ConfirmModal';
-import Modal from '@/components/Modal';
 import AddEditPurchaseOrder from '@/components/AddEditPurchaseOrder';
-import Pagination from '@/components/Pagination';
 
 const PurchaseOrders: React.FC = () => {
   const navigate = useNavigate();
@@ -20,51 +25,43 @@ const PurchaseOrders: React.FC = () => {
   const dispatch = useAppDispatch();
   const { orders, currentPurchaseOrder, pagination, loading } = useAppSelector((state) => state.purchaseOrders);
 
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null);
-  const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   useEffect(() => {
-    dispatch(fetchPurchaseOrders({ page, limit: 10, search }));
-  }, [dispatch, page, search]);
+    dispatch(fetchPurchaseOrders({ page: currentPage, limit: 10, search }));
+  }, [dispatch, search, currentPage]);
 
-  // Fetch PO data when in edit mode
   useEffect(() => {
-    if (id) {
-      dispatch(fetchPurchaseOrderById(id));
-    }
+    if (id) dispatch(fetchPurchaseOrderById(id));
   }, [id, dispatch]);
 
   const debouncedSearch = debounce((value: string) => {
     setSearch(value);
-    setPage(1);
+    setCurrentPage(1);
   });
-
-  const handleAddPO = () => {
-    navigate('/purchase-orders/add');
-  };
-
-  const handleEditPO = (order: PurchaseOrder) => {
-    navigate(`/purchase-orders/edit/${order.id}`);
-  };
 
   const handleFormSuccess = () => {
     navigate('/purchase-orders');
-    dispatch(fetchPurchaseOrders({ page, limit: 10, search }));
+    dispatch(fetchPurchaseOrders({ page: currentPage, limit: 10, search }));
   };
 
-  const handleFormCancel = () => {
-    navigate('/purchase-orders');
-  };
+  const handleFormCancel = () => navigate('/purchase-orders');
 
-  useEffect(() => {
-    if (!id) {
-      // Clear current PO when not in edit mode
+  const viewOrder = async (order: PurchaseOrder) => {
+    try {
+      const result = await dispatch(fetchPurchaseOrderById(order.id.toString())).unwrap();
+      setSelectedOrder(result);
+      setViewModalOpen(true);
+    } catch {
+      toast.error('Failed to load order details');
     }
-  }, [id]);
+  };
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -73,54 +70,104 @@ const PurchaseOrders: React.FC = () => {
       toast.success('Purchase Order deleted');
       setIsDeleteModalOpen(false);
       setDeleteId(null);
+      dispatch(fetchPurchaseOrders({ page: currentPage, limit: 10, search }));
     } catch (error: any) {
       toast.error(error?.message || 'Failed to delete');
     }
   };
 
-  const handleDownloadPDF = async (id: string) => {
+  const handleDownloadPDF = async (order: PurchaseOrder) => {
+    setDownloadingId(order.id.toString());
     try {
-      await dispatch(downloadPurchaseOrderPDF(id)).unwrap();
-      toast.success('PDF downloaded');
-    } catch (error: any) {
+      await dispatch(downloadPurchaseOrderPDF(order.id)).unwrap();
+      toast.success('PDF downloaded successfully');
+    } catch {
       toast.error('Failed to download PDF');
+    } finally {
+      setDownloadingId(null);
     }
   };
 
-  const handleViewDetails = (order: PurchaseOrder) => {
-    setSelectedOrder(order);
-    setIsDetailsModalOpen(true);
+  const statusColors: Record<string, string> = {
+    draft: 'bg-gray-100 text-gray-700',
+    sent: 'bg-blue-100 text-blue-700',
+    confirmed: 'bg-green-100 text-green-700',
+    received: 'bg-purple-100 text-purple-700',
+    cancelled: 'bg-red-100 text-red-700',
   };
 
   const columns = [
-    { key: 'poNo', title: 'PO No' },
-    { key: 'vendor.name', title: 'Vendor' },
-    { key: 'poDate', title: 'Date', render: (val: string) => new Date(val).toLocaleDateString() },
-    { key: 'status', title: 'Status', render: (val: string) => <span className={`px-2 py-1 rounded text-xs font-semibold ${val === 'confirmed' ? 'bg-green-100 text-green-800' : val === 'draft' ? 'bg-gray-100 text-gray-800' : 'bg-blue-100 text-blue-800'}`}>{val}</span> },
-    { key: 'totalAmount', title: 'Amount', render: (val: number) => `₹${val.toFixed(2)}` },
+    { key: 'poNo', title: 'PO No', sortable: true },
+    {
+      key: 'vendor.name',
+      title: 'Vendor',
+      render: (_: any, record: PurchaseOrder) => (
+        <div>
+          <div className="font-medium">{record.vendor?.name}</div>
+          <div className="text-xs text-gray-500">{(record.vendor as any)?.code}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'poDate',
+      title: 'PO Date',
+      render: (value: string) => formatDate(value),
+    },
+    {
+      key: 'expectedDeliveryDate',
+      title: 'Delivery Date',
+      render: (value: string) => value ? formatDate(value) : '—',
+    },
+    {
+      key: 'status',
+      title: 'Status',
+      render: (value: string) => (
+        <span className={`px-2 py-0.5 rounded text-xs font-semibold capitalize ${statusColors[value] || 'bg-gray-100 text-gray-700'}`}>
+          {value}
+        </span>
+      ),
+    },
+    {
+      key: 'totalAmount',
+      title: 'Amount',
+      render: (value: number) => formatCurrency(value),
+    },
     {
       key: 'actions',
       title: 'Actions',
-      render: (_: any, row: PurchaseOrder) => (
-        <div className="flex gap-2">
-          <Button size="sm" variant="ghost" onClick={() => handleViewDetails(row)} title="View Details">
+      render: (_: any, record: PurchaseOrder) => (
+        <div className="flex gap-1 sm:gap-2">
+          <Button variant="ghost" size="sm" onClick={() => viewOrder(record)} title="View">
             <Eye className="h-4 w-4" />
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => handleEditPO(row)} title="Edit">
-            <Edit2 className="h-4 w-4" />
+          <Button variant="ghost" size="sm" onClick={() => navigate(`/purchase-orders/edit/${record.id}`)} title="Edit">
+            <Edit className="h-4 w-4" />
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => handleDownloadPDF(row.id)} title="Download PDF">
-            <Download className="h-4 w-4" />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleDownloadPDF(record)}
+            title="Download PDF"
+            disabled={downloadingId === record.id.toString()}
+          >
+            {downloadingId === record.id.toString()
+              ? <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+              : <Download className="h-4 w-4" />}
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => { setDeleteId(row.id); setIsDeleteModalOpen(true); }} title="Delete">
-            <Trash2 className="h-4 w-4 text-red-500" />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => { setDeleteId(record.id.toString()); setIsDeleteModalOpen(true); }}
+            className="text-red-600 hover:text-red-700"
+            title="Delete"
+          >
+            <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       ),
     },
   ];
 
-  // Show form if in add/edit mode
   if (id || window.location.pathname.includes('/add')) {
     return (
       <AddEditPurchaseOrder
@@ -132,7 +179,7 @@ const PurchaseOrders: React.FC = () => {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title="Purchase Orders"
         searchPlaceholder="Search PO..."
@@ -141,132 +188,155 @@ const PurchaseOrders: React.FC = () => {
           {
             label: 'New PO',
             icon: <Plus className="h-4 w-4" />,
-            onClick: handleAddPO,
+            onClick: () => navigate('/purchase-orders/add'),
             variant: 'primary' as const,
           },
         ]}
       />
 
-      <div className="card overflow-hidden">
-        <Table columns={columns} data={orders} loading={loading} />
-        {pagination && pagination.totalPages > 1 && (
-          <div className="card-footer border-t border-gray-200">
-            <Pagination
-              currentPage={page}
-              totalPages={pagination.totalPages}
-              total={pagination.total}
-              limit={pagination.limit}
-              onPageChange={setPage}
-              loading={loading}
-            />
-          </div>
-        )}
+      <div className="card overflow-x-auto">
+        <Table
+          data={orders}
+          columns={columns}
+          loading={loading}
+        />
+        <Pagination
+          currentPage={pagination?.page || 1}
+          totalPages={pagination?.totalPages || 1}
+          total={pagination?.total || 0}
+          limit={pagination?.limit || 10}
+          onPageChange={setCurrentPage}
+          loading={loading}
+        />
       </div>
 
-      <ConfirmModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDelete} title="Delete Purchase Order" message="Are you sure you want to delete this purchase order?" />
-
-      <Modal isOpen={isDetailsModalOpen} onClose={() => setIsDetailsModalOpen(false)} title="Purchase Order Details" size="xl">
+      {/* View Modal */}
+      <Modal
+        isOpen={viewModalOpen}
+        onClose={() => setViewModalOpen(false)}
+        title={`Purchase Order — ${selectedOrder?.poNo}`}
+        size="xl"
+      >
         {selectedOrder && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4 pb-4 border-b">
+          <div className="space-y-5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pb-4 border-b">
               <div>
-                <p className="text-gray-600 text-sm">PO Number</p>
-                <p className="font-semibold">{selectedOrder.poNo}</p>
+                <p className="text-xs text-gray-500 font-medium">PO Number</p>
+                <p className="font-semibold text-sm">{selectedOrder.poNo}</p>
               </div>
               <div>
-                <p className="text-gray-600 text-sm">Vendor</p>
-                <p className="font-semibold">{selectedOrder.vendor?.name || 'N/A'}</p>
+                <p className="text-xs text-gray-500 font-medium">Vendor</p>
+                <p className="font-semibold text-sm">{selectedOrder.vendor?.name || '—'}</p>
               </div>
               <div>
-                <p className="text-gray-600 text-sm">PO Date</p>
-                <p className="font-semibold">{new Date(selectedOrder.poDate).toLocaleDateString()}</p>
+                <p className="text-xs text-gray-500 font-medium">PO Date</p>
+                <p className="font-semibold text-sm">{formatDate(selectedOrder.poDate)}</p>
               </div>
               <div>
-                <p className="text-gray-600 text-sm">Expected Delivery</p>
-                <p className="font-semibold">{selectedOrder.expectedDeliveryDate ? new Date(selectedOrder.expectedDeliveryDate).toLocaleDateString() : 'N/A'}</p>
+                <p className="text-xs text-gray-500 font-medium">Expected Delivery</p>
+                <p className="font-semibold text-sm">{selectedOrder.expectedDeliveryDate ? formatDate(selectedOrder.expectedDeliveryDate) : '—'}</p>
               </div>
               <div>
-                <p className="text-gray-600 text-sm">Status</p>
-                <p className={`font-semibold px-2 py-1 rounded text-xs w-fit ${selectedOrder.status === 'confirmed' ? 'bg-green-100 text-green-800' : selectedOrder.status === 'draft' ? 'bg-gray-100 text-gray-800' : 'bg-blue-100 text-blue-800'}`}>{selectedOrder.status}</p>
+                <p className="text-xs text-gray-500 font-medium">Status</p>
+                <span className={`px-2 py-0.5 rounded text-xs font-semibold capitalize ${statusColors[selectedOrder.status] || 'bg-gray-100 text-gray-700'}`}>
+                  {selectedOrder.status}
+                </span>
               </div>
               <div>
-                <p className="text-gray-600 text-sm">Reference</p>
-                <p className="font-semibold">{selectedOrder.reference || 'N/A'}</p>
+                <p className="text-xs text-gray-500 font-medium">Reference</p>
+                <p className="font-semibold text-sm">{selectedOrder.reference || '—'}</p>
               </div>
             </div>
 
             <div>
-              <h3 className="font-semibold mb-3">Items</h3>
+              <h3 className="text-sm font-semibold mb-3">Items</h3>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-100 border-b">
+                <table className="min-w-full divide-y divide-gray-200 text-sm">
+                  <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-3 py-2 text-left">Product</th>
-                      <th className="px-3 py-2 text-right">Qty</th>
-                      <th className="px-3 py-2 text-right">Rate</th>
-                      <th className="px-3 py-2 text-right">Tax %</th>
-                      <th className="px-3 py-2 text-right">Amount</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">SKU</th>
+                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Boxes</th>
+                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Pack/Box</th>
+                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Pcs/Pack</th>
+                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Total Pcs</th>
+                      <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Rate</th>
+                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">GST%</th>
+                      <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    {selectedOrder.items?.map((item, idx) => {
-                      const itemTotal = (item.amount || item.quantity * item.rate) * (1 + (item.taxRate || 0) / 100);
-                      return (
-                        <tr key={idx} className="border-b">
-                          <td className="px-3 py-2 font-medium">{item.product?.name || 'N/A'}</td>
-                          <td className="px-3 py-2 text-right">{item.quantity} {item.unit}</td>
-                          <td className="px-3 py-2 text-right">₹{item.rate.toFixed(2)}</td>
-                          <td className="px-3 py-2 text-right">{item.taxRate}%</td>
-                          <td className="px-3 py-2 text-right font-semibold">₹{itemTotal.toFixed(2)}</td>
-                        </tr>
-                      );
-                    })}
+                  <tbody className="divide-y divide-gray-200">
+                    {selectedOrder.items?.map((item, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50/50">
+                        <td className="px-3 py-2 font-medium text-gray-900">
+                          {item.product?.name || '—'}
+                          {(item as any).description && <div className="text-xs text-gray-400 font-normal">{(item as any).description}</div>}
+                        </td>
+                        <td className="px-3 py-2 text-gray-600">{(item.product as any)?.sku || '—'}</td>
+                        <td className="px-3 py-2 text-center">{(item as any).boxes ?? '—'}</td>
+                        <td className="px-3 py-2 text-center">{(item as any).packPerBox ?? '—'}</td>
+                        <td className="px-3 py-2 text-center">{(item as any).packPerPiece ?? '—'}</td>
+                        <td className="px-3 py-2 text-center">{(item as any).totalPcs ?? '—'}</td>
+                        <td className="px-3 py-2 text-right">{formatCurrency(item.rate)}</td>
+                        <td className="px-3 py-2 text-center">{item.taxRate}%</td>
+                        <td className="px-3 py-2 text-right font-semibold">{formatCurrency(item.amount)}</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
             </div>
 
-            <div className="bg-gray-50 p-4 rounded space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span>Subtotal:</span>
-                <span>₹{selectedOrder.totalAmount.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between font-semibold text-lg border-t pt-2">
-                <span>Total Amount:</span>
-                <span className="text-blue-600">₹{selectedOrder.totalAmount.toFixed(2)}</span>
+            <div className="bg-gray-50 p-3 rounded text-sm flex justify-end">
+              <div className="space-y-1 min-w-[200px]">
+                <div className="flex justify-between font-bold text-base border-t pt-2">
+                  <span>Total Amount:</span>
+                  <span className="text-primary-700">{formatCurrency(selectedOrder.totalAmount)}</span>
+                </div>
               </div>
             </div>
 
             {selectedOrder.notes && (
               <div>
-                <p className="text-gray-600 text-sm">Notes</p>
-                <p className="text-sm">{selectedOrder.notes}</p>
+                <p className="text-xs text-gray-500 font-medium mb-1">Terms & Conditions</p>
+                <p className="text-xs text-gray-700 whitespace-pre-wrap">{selectedOrder.notes}</p>
               </div>
             )}
 
             <div className="flex justify-end gap-2 pt-4 border-t">
               <Button
                 type="button"
-                onClick={() => {
-                  setIsDetailsModalOpen(false);
-                  navigate(`/print-barcodes/po/${selectedOrder.id}`);
-                }}
+                onClick={() => { setViewModalOpen(false); navigate(`/print-barcodes/po/${selectedOrder.id}`); }}
                 className="odoo-btn-primary px-4 h-8 text-xs font-semibold"
               >
                 <Printer className="h-3.5 w-3.5 mr-1" /> Print Barcode Labels
               </Button>
               <Button
                 type="button"
-                variant="outline"
-                onClick={() => setIsDetailsModalOpen(false)}
-                className="odoo-btn-secondary px-4 h-8 text-xs"
+                onClick={() => handleDownloadPDF(selectedOrder)}
+                className="odoo-btn-primary px-4 h-8 text-xs font-semibold"
+                disabled={downloadingId === selectedOrder.id.toString()}
               >
+                {downloadingId === selectedOrder.id.toString()
+                  ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                  : <Download className="h-3.5 w-3.5 mr-1" />}
+                Download PDF
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setViewModalOpen(false)} className="odoo-btn-secondary px-4 h-8 text-xs">
                 Close
               </Button>
             </div>
           </div>
         )}
       </Modal>
+
+      <ConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDelete}
+        title="Delete Purchase Order"
+        message="Are you sure you want to delete this purchase order?"
+      />
     </div>
   );
 };

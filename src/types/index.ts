@@ -61,6 +61,8 @@ export interface Vendor {
   email?: string;
   phone?: string;
   address?: string;
+  state?: string;
+  gstNumber?: string;
   createdAt: string;
   updatedAt: string;
   _count?: {
