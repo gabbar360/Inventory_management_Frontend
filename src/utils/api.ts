@@ -13,6 +13,7 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
   withCredentials: true,
+  timeout: 60000, // 60 seconds for large data requests
 });
 
 let isRefreshing = false;
@@ -91,7 +92,7 @@ api.interceptors.response.use(
     }
 
     // Extract error message from response
-    const errorMessage = error.response?.data?.error || error.response?.data?.message || 'An error occurred';
+    const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || 'An error occurred';
 
     // Return error with message for handling in components
     return Promise.reject(errorMessage);

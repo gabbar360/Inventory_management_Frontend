@@ -314,6 +314,12 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
 
   const handleScanSuccess = async (barcode: string) => {
     try {
+      // Check if barcode already scanned
+      if (scannedBarcodes.includes(barcode)) {
+        toast.error('This barcode has already been scanned in this invoice.');
+        return;
+      }
+
       const token = localStorage.getItem('token');
       const response = await axios.get(`/api/v1/barcodes/lookup/${barcode}`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -321,10 +327,8 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
       if (response.data?.success && response.data?.data) {
         const box = response.data.data;
         
-        // Add barcode to scanned list if not already present
-        if (!scannedBarcodes.includes(barcode)) {
-          setScannedBarcodes((prev) => [...prev, barcode]);
-        }
+        // Track individual barcode scan
+        setScannedBarcodes((prev) => [...prev, barcode]);
 
         if (box.purchaseOrderId) {
           setValue('purchaseOrderId', String(box.purchaseOrderId));
@@ -343,35 +347,21 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
         const color = box.color || box.product?.color || '';
         const brand = box.brand || box.product?.brand || '';
 
-        const existingIdx = items.findIndex((it) => 
-          String(it.productId) === String(box.productId) &&
-          (it.batchCode || '') === (batchCode || '') &&
-          (it.color || '') === (color || '') &&
-          (it.brand || '') === (brand || '')
-        );
-
-        if (existingIdx >= 0) {
-          const updated = [...items];
-          updated[existingIdx].boxes += 1;
-          setItems(updated);
-          toast.success(`Incremented quantity for product: ${box.product?.name}`);
-        } else {
-          const newItemToAdd: InwardItem = {
-            productId: String(box.productId),
-            boxes: 1,
-            packPerBox: box.packPerBox || 28,
-            packPerPiece: box.packPerPiece || 25,
-            unit: 'box',
-            ratePerBox: rate,
-            batchCode: batchCode,
-            mfgDate: mfgDate,
-            color: color,
-            brand: brand,
-            product: box.product
-          };
-          setItems([...items, newItemToAdd]);
-          toast.success(`Added product: ${box.product?.name}`);
-        }
+        const newItemToAdd: InwardItem = {
+          productId: String(box.productId),
+          boxes: 1,
+          packPerBox: box.packPerBox || 28,
+          packPerPiece: box.packPerPiece || 25,
+          unit: 'box',
+          ratePerBox: rate,
+          batchCode: batchCode,
+          mfgDate: mfgDate,
+          color: color,
+          brand: brand,
+          product: box.product
+        };
+        setItems([...items, newItemToAdd]);
+        toast.success(`Added product: ${box.product?.name}`);
       } else {
         toast.error("Scanned barcode not found or invalid.");
       }

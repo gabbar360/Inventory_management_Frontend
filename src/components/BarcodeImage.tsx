@@ -23,11 +23,11 @@ export const BarcodeImage: React.FC<BarcodeImageProps> = ({
   const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
-    if (svgRef.current) {
+    if (svgRef.current && barcode) {
       try {
-        const format = /^\d{13}$/.test(barcode) ? 'EAN13' : 'CODE128';
+        // Always use CODE128 format for maximum compatibility
         JsBarcode(svgRef.current, barcode, {
-          format,
+          format: 'CODE128',
           displayValue: true,
           fontSize: 14,
           fontOptions: 'bold',
