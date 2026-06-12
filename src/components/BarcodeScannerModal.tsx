@@ -63,9 +63,6 @@ export const BarcodeScannerModal: React.FC<ScannerProps> = ({
           }
           lastScannedRef.current = decodedText;
           
-          // Play success beep sound on successful scan
-          playBarcodeBeep();
-          
           onScanSuccess(decodedText);
           onClose();
         };
@@ -86,13 +83,11 @@ export const BarcodeScannerModal: React.FC<ScannerProps> = ({
           qrCodeErrorCallback
         ).catch((err) => {
           console.error("Camera scanner initialization failed:", err);
-          playErrorBeep();
           toast.error("Could not access camera. Make sure permissions are granted.");
           onClose();
         });
       } catch (err) {
         console.error("Scanner setup failed");
-        playErrorBeep();
         toast.error("Failed to initialize scanner camera.");
         onClose();
       }
