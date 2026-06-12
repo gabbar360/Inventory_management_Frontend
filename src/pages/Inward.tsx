@@ -8,7 +8,7 @@ import {
   Download,
   Edit,
   Printer,
-  Camera,
+  
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
@@ -245,15 +245,6 @@ const Inward: React.FC = () => {
         searchPlaceholder="Search invoices..."
         onSearch={(value) => debouncedSearch(value)}
         actions={[
-          {
-            label: 'Scan Inward',
-            icon: <Camera className="h-4 w-4" />,
-            onClick: () => {
-              setSelectedScanLocation('');
-              setShowScanLocationModal(true);
-            },
-            variant: 'outline' as const,
-          },
           {
             label: 'Bulk Upload',
             icon: <Upload className="h-4 w-4" />,

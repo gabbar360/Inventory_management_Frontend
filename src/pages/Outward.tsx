@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Plus, Eye, Upload, Download, Edit, Trash2, Loader2, Camera } from 'lucide-react';
+import { Plus, Eye, Upload, Download, Edit, Trash2, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import BarcodeScannerModal from '@/components/BarcodeScannerModal';
@@ -350,16 +350,6 @@ const Outward: React.FC = () => {
         searchPlaceholder="Search invoices..."
         onSearch={(value) => debouncedSearch(value)}
         actions={[
-          {
-            label: 'Scan Outward',
-            icon: <Camera className="h-4 w-4" />,
-            onClick: () => {
-              setSelectedScanCustomer('');
-              setSelectedScanLocation('');
-              setShowScanOutwardModal(true);
-            },
-            variant: 'outline' as const,
-          },
           { label: 'Bulk Upload', icon: <Upload className="h-4 w-4" />, onClick: () => setBulkUploadOpen(true) },
           { label: 'Export', icon: <Download className="h-4 w-4" />, onClick: handleExport },
           { label: 'Create Invoice', icon: <Plus className="h-4 w-4" />, onClick: handleAddInvoice, variant: 'primary' as const },

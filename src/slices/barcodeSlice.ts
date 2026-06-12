@@ -43,7 +43,8 @@ export const fetchBarcodesForPrint = createAsyncThunk(
     try {
       return await barcodeService.getBarcodesForPrint(source, id);
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to fetch barcodes');
+      const message = error.response?.data?.message || error.message || 'Failed to fetch barcodes';
+      return rejectWithValue(message);
     }
   }
 );
@@ -54,7 +55,8 @@ export const lookupBarcode = createAsyncThunk(
     try {
       return await barcodeService.lookupBarcode(barcode);
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Barcode not found');
+      const message = error.response?.data?.message || error.message || 'Barcode not found';
+      return rejectWithValue(message);
     }
   }
 );
@@ -68,7 +70,8 @@ export const scanBarcode = createAsyncThunk(
     try {
       return await barcodeService.scanBarcode(barcode, flow, locationId, customerId);
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to scan barcode');
+      const message = error.response?.data?.message || error.message || 'Failed to scan barcode';
+      return rejectWithValue(message);
     }
   }
 );

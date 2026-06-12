@@ -73,6 +73,49 @@ export const BarcodeScannerModal: React.FC<ScannerProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-65 p-4 animate-fadeIn">
+      <style>{`
+        @keyframes scanLine {
+          0% {
+            top: 0%;
+          }
+          50% {
+            top: 100%;
+          }
+          100% {
+            top: 0%;
+          }
+        }
+        
+        @keyframes scanGlow {
+          0% {
+            box-shadow: 0 0 15px rgba(34, 197, 94, 0.3);
+          }
+          50% {
+            box-shadow: 0 0 30px rgba(34, 197, 94, 0.8);
+          }
+          100% {
+            box-shadow: 0 0 15px rgba(34, 197, 94, 0.3);
+          }
+        }
+        
+        .scanner-line {
+          animation: scanLine 2s ease-in-out infinite;
+          background: linear-gradient(90deg, 
+            transparent 0%, 
+            rgba(34, 197, 94, 0.8) 50%, 
+            transparent 100%);
+          height: 2px;
+          width: 100%;
+          position: absolute;
+          left: 0;
+          box-shadow: 0 0 10px rgba(34, 197, 94, 0.6);
+        }
+        
+        .scanner-frame {
+          animation: scanGlow 2s ease-in-out infinite;
+        }
+      `}</style>
+      
       <div className="bg-white rounded border border-gray-300 shadow-2xl p-4 max-w-sm w-full">
         <div className="flex justify-between items-center mb-3">
           <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider">Scan Box Barcode</h3>
@@ -84,12 +127,26 @@ export const BarcodeScannerModal: React.FC<ScannerProps> = ({
             ×
           </button>
         </div>
-        <div className="relative border border-gray-200 rounded bg-gray-50 overflow-hidden" style={{ minHeight: '220px' }}>
-          <div id={elementId} className="w-full"></div>
+        
+        {/* Camera with Scanning Animation */}
+        <div className="relative border-2 border-gray-200 rounded bg-gray-50 overflow-hidden scanner-frame" style={{ minHeight: '220px' }}>
+          <div id={elementId} className="w-full h-full"></div>
+          
+          {/* Green Scanning Line */}
+          <div className="scanner-line"></div>
+          
+          {/* Scanning Frame Corners */}
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute top-8 left-8 w-8 h-8 border-t-2 border-l-2 border-green-500"></div>
+            <div className="absolute top-8 right-8 w-8 h-8 border-t-2 border-r-2 border-green-500"></div>
+            <div className="absolute bottom-8 left-8 w-8 h-8 border-b-2 border-l-2 border-green-500"></div>
+            <div className="absolute bottom-8 right-8 w-8 h-8 border-b-2 border-r-2 border-green-500"></div>
+          </div>
         </div>
+        
         <div className="text-center mt-3">
           <p className="text-[10px] text-gray-400 leading-tight">
-            Point the camera at the EAN-13 barcode on the box label.<br/>
+            Point the camera at the barcode on the box label.<br/>
             Hold steady to scan.
           </p>
         </div>
