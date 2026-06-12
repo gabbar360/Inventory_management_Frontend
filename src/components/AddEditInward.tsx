@@ -20,6 +20,32 @@ import Modal from '@/components/Modal';
 import ProductSearch from '@/components/ProductSearch';
 import BarcodeScannerModal from '@/components/BarcodeScannerModal';
 
+const playSuccessSound = () => {
+  try {
+    console.log('🔊 Attempting to play SUCCESS sound from /sounds/success.mpeg');
+    const audio = new Audio('/sounds/success.mpeg');
+    audio.volume = 1.0;
+    audio.play()
+      .then(() => console.log('✅ SUCCESS sound played successfully'))
+      .catch(err => console.warn('❌ Could not play success sound:', err));
+  } catch (err) {
+    console.error('💥 SUCCESS sound error:', err);
+  }
+};
+
+const playErrorSound = () => {
+  try {
+    console.log('🔊 Attempting to play ERROR sound from /sounds/warnning.mpeg');
+    const audio = new Audio('/sounds/warnning.mpeg');
+    audio.volume = 1.0;
+    audio.play()
+      .then(() => console.log('✅ ERROR sound played successfully'))
+      .catch(err => console.warn('❌ Could not play error sound:', err));
+  } catch (err) {
+    console.error('💥 ERROR sound error:', err);
+  }
+};
+
 interface InwardItem {
   productId: string;
   boxes: number;
@@ -316,6 +342,7 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
     try {
       // Check if barcode already scanned
       if (scannedBarcodes.includes(barcode)) {
+        playErrorSound();
         toast.error('This barcode has already been scanned in this invoice.');
         return;
       }
@@ -361,12 +388,15 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
           product: box.product
         };
         setItems([...items, newItemToAdd]);
+        playSuccessSound();
         toast.success(`Added product: ${box.product?.name}`);
       } else {
+        playErrorSound();
         toast.error("Scanned barcode not found or invalid.");
       }
     } catch (err: any) {
       console.error(err);
+      playErrorSound();
       toast.error(err?.response?.data?.message || "Failed to look up barcode.");
     }
   };
