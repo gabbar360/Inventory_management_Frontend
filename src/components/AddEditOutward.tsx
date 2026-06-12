@@ -566,6 +566,8 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
       setEditingIndex(null);
       setEditingData(null);
     }
+    // Clear stock batch cache when item removed to ensure fresh data on rescan
+    setAvailableStockCache({});
   };
 
   const handleSaveEdit = (index: number) => {
