@@ -18,6 +18,32 @@ import Modal from '@/components/Modal';
 import ProductSearch from '@/components/ProductSearch';
 import BarcodeScannerModal from '@/components/BarcodeScannerModal';
 
+const playSuccessSound = () => {
+  try {
+    console.log('🔊 Attempting to play SUCCESS sound from /sounds/success.mpeg');
+    const audio = new Audio('/sounds/success.mpeg');
+    audio.volume = 1.0;
+    audio.play()
+      .then(() => console.log('✅ SUCCESS sound played successfully'))
+      .catch(err => console.warn('❌ Could not play success sound:', err));
+  } catch (err) {
+    console.error('💥 SUCCESS sound error:', err);
+  }
+};
+
+const playErrorSound = () => {
+  try {
+    console.log('🔊 Attempting to play ERROR sound from /sounds/warnning.mpeg');
+    const audio = new Audio('/sounds/warnning.mpeg');
+    audio.volume = 1.0;
+    audio.play()
+      .then(() => console.log('✅ ERROR sound played successfully'))
+      .catch(err => console.warn('❌ Could not play error sound:', err));
+  } catch (err) {
+    console.error('💥 ERROR sound error:', err);
+  }
+};
+
 // ─── Types & Schemas ────────────────────────────────────────────────────────
 
 interface OutwardItem {
@@ -219,14 +245,17 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
         
         // 1. Verify box status
         if (box.status === 'expected') {
+          playErrorSound();
           toast.error("This box has not been inwarded yet.");
           return;
         }
         if (box.status === 'outwarded') {
+          playErrorSound();
           toast.error("This box has already been outwarded.");
           return;
         }
         if (!box.stockBatchId) {
+          playErrorSound();
           toast.error("Box is not linked to any stock batch.");
           return;
         }
@@ -235,6 +264,7 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
         const batches = await loadAvailableStock(box.productId.toString());
         const selectedBatch = batches.find((b: any) => b.id.toString() === box.stockBatchId.toString());
         if (!selectedBatch) {
+          playErrorSound();
           toast.error("Stock batch associated with this box was not found or is empty.");
           return;
         }
@@ -253,6 +283,7 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
         const maxQty = selectedBatch.remainingBoxes + (invoice ? (invoice.items?.find((oi: any) => oi.stockBatchId.toString() === box.stockBatchId.toString() && oi.saleUnit === 'box')?.quantity || 0) : 0);
 
         if (currentQty + 1 > maxQty) {
+          playErrorSound();
           toast.error(`Cannot add box. Available stock in batch is only ${maxQty} boxes.`);
           return;
         }
@@ -261,6 +292,7 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
           const updated = [...items];
           updated[existingIdx].quantity += 1;
           setItems(updated);
+          playSuccessSound();
           toast.success(`Incremented quantity for product: ${box.product?.name} in stock batch.`);
         } else {
           const suggestedRate = Math.round(selectedBatch.costPerBox * 1.2 * 100) / 100;
@@ -276,13 +308,16 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
             stockBatch: selectedBatch
           };
           setItems([...items, itemToAdd]);
+          playSuccessSound();
           toast.success(`Added box for product: ${box.product?.name}`);
         }
       } else {
+        playErrorSound();
         toast.error("Scanned barcode not found or invalid.");
       }
     } catch (err: any) {
       console.error(err);
+      playErrorSound();
       toast.error(err?.response?.data?.message || "Failed to look up barcode.");
     }
   };
