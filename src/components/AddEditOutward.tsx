@@ -318,7 +318,8 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
     } catch (err: any) {
       console.error(err);
       playErrorSound();
-      toast.error(err?.response?.data?.message || "Failed to look up barcode.");
+      const errorMsg = err?.response?.data?.error || err?.response?.data?.message || err?.message || "Failed to look up barcode.";
+      toast.error(errorMsg, { duration: 4000 });
     }
   };
 
@@ -577,13 +578,26 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
     }
 
     const { selectedBatch, product } = getPreviewDetails(newItem);
-    const itemToAdd: OutwardItem = {
-      ...newItem,
-      product,
-      stockBatch: selectedBatch,
-    };
+    
+    const existingIdx = items.findIndex(
+      (it) => it.stockBatchId.toString() === newItem.stockBatchId.toString() && it.saleUnit === newItem.saleUnit
+    );
 
-    setItems([...items, itemToAdd]);
+    if (existingIdx >= 0) {
+      const updated = [...items];
+      updated[existingIdx].quantity += newItem.quantity;
+      setItems(updated);
+      toast.success(`Updated quantity for product: ${product?.name}`);
+    } else {
+      const itemToAdd: OutwardItem = {
+        ...newItem,
+        product,
+        stockBatch: selectedBatch,
+      };
+      setItems([...items, itemToAdd]);
+      toast.success(`Added product: ${product?.name}`);
+    }
+
     setNewItem({
       productId: '',
       stockBatchId: '',
