@@ -132,7 +132,7 @@ export const BarcodePrint: React.FC = () => {
               <div style={{ display: 'flex', borderBottom: '1px solid black', flexShrink: 0 }}>
                 <div style={{ width: '50%', borderRight: '1px solid black', padding: '4px 6px', textAlign: 'center' }}>
                   <div style={{ fontSize: '11px', fontWeight: 'bold' }}>PACK OF</div>
-                  <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{box.packSize || '—'}</div>
+                  <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{box.packPerBox || '—'}</div>
                 </div>
                 <div style={{ width: '50%', padding: '4px 6px', textAlign: 'center' }}>
                   <div style={{ fontSize: '11px', fontWeight: 'bold' }}>TOTAL PCS</div>
