@@ -374,22 +374,40 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
         const color = box.color || box.product?.color || '';
         const brand = box.brand || box.product?.brand || '';
 
-        const newItemToAdd: InwardItem = {
-          productId: String(box.productId),
-          boxes: 1,
-          packPerBox: box.packPerBox || 28,
-          packPerPiece: box.packPerPiece || 25,
-          unit: 'box',
-          ratePerBox: rate,
-          batchCode: batchCode,
-          mfgDate: mfgDate,
-          color: color,
-          brand: brand,
-          product: box.product
-        };
-        setItems([...items, newItemToAdd]);
-        playSuccessSound();
-        toast.success(`Added product: ${box.product?.name}`);
+        // Check if same product already exists in items
+        const existingItemIndex = items.findIndex(
+          (item) => String(item.productId) === String(box.productId)
+        );
+
+        if (existingItemIndex !== -1) {
+          // Update existing item - increment boxes
+          const updatedItems = [...items];
+          updatedItems[existingItemIndex] = {
+            ...updatedItems[existingItemIndex],
+            boxes: (updatedItems[existingItemIndex].boxes || 0) + 1,
+          };
+          setItems(updatedItems);
+          playSuccessSound();
+          toast.success(`Updated ${box.product?.name} - Total boxes: ${updatedItems[existingItemIndex].boxes}`);
+        } else {
+          // Add new item
+          const newItemToAdd: InwardItem = {
+            productId: String(box.productId),
+            boxes: 1,
+            packPerBox: box.packPerBox || 28,
+            packPerPiece: box.packPerPiece || 25,
+            unit: 'box',
+            ratePerBox: rate,
+            batchCode: batchCode,
+            mfgDate: mfgDate,
+            color: color,
+            brand: brand,
+            product: box.product
+          };
+          setItems([...items, newItemToAdd]);
+          playSuccessSound();
+          toast.success(`Added product: ${box.product?.name}`);
+        }
       } else {
         playErrorSound();
         toast.error("Scanned barcode not found or invalid.");
@@ -397,7 +415,8 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
     } catch (err: any) {
       console.error(err);
       playErrorSound();
-      toast.error(err?.response?.data?.message || "Failed to look up barcode.");
+      const errorMsg = err?.response?.data?.error || err?.response?.data?.message || err?.message || "Failed to look up barcode.";
+      toast.error(errorMsg, { duration: 4000 });
     }
   };
 
@@ -544,12 +563,32 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
     }
 
     const selectedProduct = products.find((p) => String(p.id) === String(newItem.productId));
-    const itemToAdd = {
-      ...newItem,
-      product: selectedProduct,
-    };
+    
+    // Check if product already exists in items
+    const existingItemIndex = items.findIndex(
+      (item) => String(item.productId) === String(newItem.productId)
+    );
 
-    setItems([...items, itemToAdd]);
+    if (existingItemIndex !== -1) {
+      // Update existing item - increment boxes
+      const updatedItems = [...items];
+      updatedItems[existingItemIndex] = {
+        ...updatedItems[existingItemIndex],
+        boxes: (updatedItems[existingItemIndex].boxes || 0) + (newItem.boxes || 0),
+      };
+      setItems(updatedItems);
+      toast.success(`Updated ${selectedProduct?.name} quantity to ${updatedItems[existingItemIndex].boxes} boxes`);
+    } else {
+      // Add new item
+      const itemToAdd = {
+        ...newItem,
+        product: selectedProduct,
+      };
+      setItems([...items, itemToAdd]);
+      toast.success(`Added ${selectedProduct?.name} to invoice`);
+    }
+
+    // Reset form
     setNewItem({
       productId: '',
       boxes: 1,
