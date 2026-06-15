@@ -98,21 +98,5 @@ export const outwardService = {
     return response.data.data!;
   },
 
-  async recordPayment(invoiceId: string, data: {
-    amount: number;
-    paymentDate?: string;
-    paymentMethod?: string;
-    transactionId?: string;
-    notes?: string;
-  }): Promise<any> {
-    const response = await api.post<ApiResponse<any>>(`/outward/${invoiceId}/payments`, data);
-    return response.data.data!;
-  },
 
-  async downloadReceiptPDF(receiptId: string): Promise<Blob> {
-    const response = await api.get(`/payments/receipt/${receiptId}/pdf`, {
-      responseType: 'blob',
-    });
-    return response.data;
-  },
 };
