@@ -27,6 +27,7 @@ import {
   formatDate,
   formatCurrency,
   debounce,
+  cn,
 } from '@/utils';
 import Button from '@/components/Button';
 import Modal from '@/components/Modal';
@@ -189,14 +190,40 @@ const Inward: React.FC = () => {
       render: (_: any, record: InwardInvoice) => record.location?.name,
     },
     {
-      key: 'expense',
-      title: 'Expense',
-      render: (value: number) => formatCurrency(value || 0),
-    },
-    {
       key: 'totalCost',
       title: 'Total Cost',
-      render: (value: number) => formatCurrency(value),
+      render: (value: number) => <span className="font-semibold">{formatCurrency(value)}</span>,
+    },
+    {
+      key: 'amountPaid',
+      title: 'Amount Paid',
+      render: (_: any, record: InwardInvoice) => formatCurrency(record.amountPaid || 0),
+    },
+    {
+      key: 'balanceDue',
+      title: 'Balance Due',
+      render: (_: any, record: InwardInvoice) => {
+        const balance = record.totalCost - (record.amountPaid || 0);
+        return <span className={cn('font-semibold', balance > 0 ? 'text-red-600' : 'text-gray-900')}>{formatCurrency(balance)}</span>;
+      },
+    },
+    {
+      key: 'paymentStatus',
+      title: 'Payment Status',
+      render: (_: any, record: InwardInvoice) => {
+        const balance = record.totalCost - (record.amountPaid || 0);
+        const paid = record.amountPaid || 0;
+        let status = 'Unpaid';
+        let bgClass = 'bg-red-100 text-red-800 border-red-200';
+        if (balance <= 0.01) {
+          status = 'Paid';
+          bgClass = 'bg-green-100 text-green-800 border-green-200';
+        } else if (paid > 0) {
+          status = 'Partially Paid';
+          bgClass = 'bg-amber-100 text-amber-800 border-amber-200';
+        }
+        return <span className={cn('inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border', bgClass)}>{status}</span>;
+      },
     },
     {
       key: 'items',
@@ -313,6 +340,22 @@ const Inward: React.FC = () => {
                 </label>
                 <div className="text-gray-900 font-semibold">
                   {formatCurrency(selectedInvoice.totalCost)}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Amount Paid
+                </label>
+                <div className="text-emerald-600 font-semibold">
+                  {formatCurrency(selectedInvoice.amountPaid || 0)}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Balance Due
+                </label>
+                <div className={cn('font-bold', (selectedInvoice.totalCost - (selectedInvoice.amountPaid || 0)) > 0 ? 'text-red-600' : 'text-gray-900')}>
+                  {formatCurrency(selectedInvoice.totalCost - (selectedInvoice.amountPaid || 0))}
                 </div>
               </div>
               <div>

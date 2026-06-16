@@ -19,6 +19,8 @@ import userSlice from '../slices/userSlice';
 import roleSlice from '../slices/roleSlice';
 import purchaseOrderSlice from '../slices/purchaseOrderSlice';
 import barcodeSlice from '../slices/barcodeSlice';
+import paymentsReceivedSlice from '../slices/paymentsReceivedSlice';
+import paymentsMadeSlice from '../slices/paymentsMadeSlice';
 
 export const store = configureStore({
   reducer: {
@@ -42,6 +44,8 @@ export const store = configureStore({
     roles: roleSlice,
     purchaseOrders: purchaseOrderSlice,
     barcodes: barcodeSlice,
+    paymentsReceived: paymentsReceivedSlice,
+    paymentsMade: paymentsMadeSlice,
   },
 });
 

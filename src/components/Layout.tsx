@@ -44,10 +44,12 @@ const Layout: React.FC = () => {
     if (path.startsWith('/products')) return 'Products';
     if (path.startsWith('/vendors')) return 'Vendors';
     if (path.startsWith('/purchase-orders')) return 'Purchase Orders';
+    if (path.startsWith('/paymentsmade')) return 'Payments Made';
     if (path.startsWith('/inward')) return 'Inward / Stock Receiving';
     if (path.startsWith('/customers')) return 'Customers';
     if (path.startsWith('/quotes')) return 'Quotes';
     if (path.startsWith('/sales-orders')) return 'Sales Orders';
+    if (path.startsWith('/paymentsreceived')) return 'Payments Received';
     if (path.startsWith('/order-dispatch')) return 'Order Dispatch';
     if (path.startsWith('/outward')) return 'Outward / Stock Delivery';
     if (path.startsWith('/locations')) return 'Warehouse Locations';
