@@ -19,6 +19,7 @@ import Modal from '@/components/Modal';
 import Pagination from '@/components/Pagination';
 import PageHeader from '@/components/PageHeader';
 import AddEditPaymentsReceived from '@/components/AddEditPaymentsReceived';
+import ApplyCreditsReceivedModal from '@/components/ApplyCreditsReceivedModal';
 
 const PaymentsReceived: React.FC = () => {
   const navigate = useNavigate();
@@ -32,6 +33,7 @@ const PaymentsReceived: React.FC = () => {
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [downloadingId, setDownloadingId] = useState<string | number | null>(null);
+  const [applyCreditsPayment, setApplyCreditsPayment] = useState<PaymentReceived | null>(null);
 
   // Filters matching Zoho
   const filterByParam = searchParams.get('filter_by') || 'PaymentMode.All';
@@ -163,6 +165,11 @@ const PaymentsReceived: React.FC = () => {
               Customer Advance
             </span>
           )}
+          {record.transactionType === 'credit_application' && (
+            <span className="inline-flex items-center w-max px-1.5 py-0.5 text-[9px] font-bold rounded bg-purple-100 text-purple-800 border border-purple-200 mt-1 uppercase tracking-wider">
+              Credit Applied
+            </span>
+          )}
         </div>
       ),
     },
@@ -222,6 +229,17 @@ const PaymentsReceived: React.FC = () => {
           <Button variant="ghost" size="sm" onClick={() => handleDownloadPDF(record)} title="Download Receipt" disabled={downloadingId === record.id}>
             {downloadingId === record.id ? <Loader2 className="h-4 w-4 animate-spin text-blue-500" /> : <Download className="h-4 w-4" />}
           </Button>
+          {record.transactionType === 'customer_advance' && record.unusedAmount > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setApplyCreditsPayment(record)}
+              title="Apply Credits to Invoices"
+              className="text-amber-600 hover:text-amber-700 text-[10px] font-bold px-1.5"
+            >
+              Apply Credits
+            </Button>
+          )}
           <Button variant="ghost" size="sm" onClick={() => handleEditPayment(record)} title="Edit">
             <Edit className="h-4 w-4" />
           </Button>
@@ -270,18 +288,21 @@ const PaymentsReceived: React.FC = () => {
             <span className="text-lg font-bold text-gray-900 mt-1">
               {formatCurrency(pagination.summary.totalAmount || 0)}
             </span>
+            <span className="text-[10px] text-gray-400 mt-0.5">Excludes credit adjustments</span>
           </div>
           <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex flex-col justify-between">
             <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Total Allocated</span>
             <span className="text-lg font-bold text-emerald-600 mt-1">
               {formatCurrency((pagination.summary.totalAmount || 0) - (pagination.summary.totalUnusedAmount || 0))}
             </span>
+            <span className="text-[10px] text-gray-400 mt-0.5">Cash payments allocated to invoices</span>
           </div>
           <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex flex-col justify-between bg-amber-50/10 border-amber-100">
             <span className="text-xs font-bold text-amber-800 uppercase tracking-wider">Total Unused Advances</span>
             <span className="text-lg font-bold text-amber-600 mt-1">
               {formatCurrency(pagination.summary.totalUnusedAmount || 0)}
             </span>
+            <span className="text-[10px] text-amber-500 mt-0.5">Available to apply against invoices</span>
           </div>
         </div>
       )}
@@ -368,6 +389,10 @@ const PaymentsReceived: React.FC = () => {
                   {selectedPayment.transactionType === 'customer_advance' ? (
                     <span className="inline-flex px-2.5 py-0.5 text-xs font-bold rounded bg-amber-100 text-amber-800 border border-amber-250 uppercase tracking-wider">
                       Customer Advance
+                    </span>
+                  ) : selectedPayment.transactionType === 'credit_application' ? (
+                    <span className="inline-flex px-2.5 py-0.5 text-xs font-bold rounded bg-purple-100 text-purple-800 border border-purple-200 uppercase tracking-wider">
+                      Credit Applied
                     </span>
                   ) : (
                     <span className="inline-flex px-2.5 py-0.5 text-xs font-bold rounded bg-emerald-100 text-emerald-800 border border-emerald-250 uppercase tracking-wider">
@@ -463,6 +488,17 @@ const PaymentsReceived: React.FC = () => {
           </div>
         )}
       </Modal>
+      {/* Apply Credits Modal */}
+      {applyCreditsPayment && (
+        <ApplyCreditsReceivedModal
+          payment={applyCreditsPayment}
+          isOpen={!!applyCreditsPayment}
+          onClose={() => setApplyCreditsPayment(null)}
+          onSuccess={() => {
+            dispatch(fetchPaymentsReceived({ page: currentPage, limit: 10, search, sortBy: sortColumnParam, sortOrder: sortOrderParam === 'D' ? 'desc' : 'asc' }));
+          }}
+        />
+      )}
     </div>
   );
 };

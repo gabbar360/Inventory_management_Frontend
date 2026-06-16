@@ -549,7 +549,7 @@ export interface PaymentReceived {
   bankCharges?: number;
   taxRate?: number;
   notes?: string;
-  transactionType: 'invoice_payment' | 'customer_advance';
+  transactionType: 'invoice_payment' | 'customer_advance' | 'credit_application';
   unusedAmount: number;
   createdAt: string;
   updatedAt: string;
@@ -576,7 +576,7 @@ export interface PaymentMade {
   paidThrough: string;
   bankCharges?: number;
   notes?: string;
-  transactionType: 'bill_payment' | 'vendor_advance';
+  transactionType: 'bill_payment' | 'vendor_advance' | 'credit_application';
   unusedAmount: number;
   createdAt: string;
   updatedAt: string;

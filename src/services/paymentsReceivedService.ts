@@ -64,6 +64,11 @@ export const paymentsReceivedService = {
     await api.delete(`/delete-paymentsreceived/${id}`);
   },
 
+  async applyCredits(data: { customerId: number; allocations: { paymentReceivedId: number; invoiceId: number; amountToApply: number }[]; date: string }): Promise<PaymentReceived> {
+    const response = await api.post<ApiResponse<PaymentReceived>>('/paymentsreceived/apply-credits', data);
+    return response.data.data!;
+  },
+
   async generatePDF(id: string | number): Promise<Blob> {
     const response = await api.get(`/paymentsreceived/${id}/pdf`, {
       responseType: 'blob',

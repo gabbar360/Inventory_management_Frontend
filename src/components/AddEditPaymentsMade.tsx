@@ -44,6 +44,8 @@ const AddEditPaymentsMade: React.FC<AddEditPaymentsMadeProps> = ({
   const [loadingInvoices, setLoadingInvoices] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+
+
   // Auto-generate payment number on mount if in add mode
   useEffect(() => {
     if (isEdit && payment) {
@@ -119,7 +121,7 @@ const AddEditPaymentsMade: React.FC<AddEditPaymentsMadeProps> = ({
         });
 
         if (paymentsRes.data?.success) {
-          const paymentsList = paymentsRes.data.data || [];
+          const paymentsList: any[] = paymentsRes.data.data || [];
           const totalUnused = paymentsList.reduce((sum: number, p: any) => sum + (p.unusedAmount || 0), 0);
           setVendorAdvanceBalance(totalUnused);
         }
@@ -216,6 +218,8 @@ const AddEditPaymentsMade: React.FC<AddEditPaymentsMadeProps> = ({
   const handleClearAllocations = () => {
     setInvoices(invoices.map((inv) => ({ ...inv, amountApplied: 0 })));
   };
+
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

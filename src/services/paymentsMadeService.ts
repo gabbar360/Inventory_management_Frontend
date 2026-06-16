@@ -16,7 +16,7 @@ export interface PaymentMadeFormData {
   paidThrough: string;
   bankCharges?: number;
   notes?: string | null;
-  transactionType: 'bill_payment' | 'vendor_advance';
+  transactionType: 'bill_payment' | 'vendor_advance' | 'credit_application';
   invoices: PaymentMadeInvoiceInput[];
 }
 
