@@ -60,6 +60,8 @@ const Layout: React.FC = () => {
     return 'Inventory';
   };
 
+  const roleName = user?.role?.name?.replace('_', ' ') || 'N/A';
+
   return (
     <>
       <TokenVerifier />
@@ -108,7 +110,7 @@ const Layout: React.FC = () => {
                   </div>
                   <div className="hidden sm:block text-left">
                     <p className="text-xs font-semibold leading-none">{user?.name}</p>
-                    <p className="text-[10px] text-white/70 mt-0.5 leading-none">{user?.email}</p>
+                    <p className="text-[10px] text-white/70 mt-0.5 leading-none capitalize">{roleName}</p>
                   </div>
                   <ChevronDown className="h-3.5 w-3.5 text-white/60" />
                 </button>
