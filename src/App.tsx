@@ -27,6 +27,10 @@ import Users from '@/pages/Users';
 import Roles from '@/pages/Roles';
 import PurchaseOrders from '@/pages/PurchaseOrders';
 import BarcodePrint from '@/pages/BarcodePrint';
+import PaymentsReceived from '@/pages/PaymentsReceived';
+import PaymentsMade from '@/pages/PaymentsMade';
+import VendorLedger from '@/pages/VendorLedger';
+import CustomerLedger from '@/pages/CustomerLedger';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -135,9 +139,17 @@ function App() {
         <Route path="sales-orders" element={<SalesOrders />} />
         <Route path="sales-orders/add" element={<SalesOrders />} />
         <Route path="sales-orders/edit/:id" element={<SalesOrders />} />
+        <Route path="paymentsreceived" element={<PaymentsReceived />} />
+        <Route path="paymentsreceived/add" element={<PaymentsReceived />} />
+        <Route path="paymentsreceived/edit/:id" element={<PaymentsReceived />} />
+        <Route path="customer-ledger" element={<CustomerLedger />} />
         <Route path="purchase-orders" element={<PurchaseOrders />} />
         <Route path="purchase-orders/add" element={<PurchaseOrders />} />
         <Route path="purchase-orders/edit/:id" element={<PurchaseOrders />} />
+        <Route path="paymentsmade" element={<PaymentsMade />} />
+        <Route path="paymentsmade/add" element={<PaymentsMade />} />
+        <Route path="paymentsmade/edit/:id" element={<PaymentsMade />} />
+        <Route path="vendor-ledger" element={<VendorLedger />} />
         <Route path="order-dispatch" element={<OrderDispatchPage />} />
         <Route path="order-dispatch/add" element={<OrderDispatchPage />} />
         <Route path="order-dispatch/edit/:id" element={<OrderDispatchPage />} />

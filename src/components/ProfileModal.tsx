@@ -37,7 +37,6 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose }) => {
       setMessage({ type: 'error', text: error.message || 'Failed to update profile' });
     }
   };
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -84,6 +83,21 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose }) => {
                 />
               </div>
             </div>
+
+            {/* <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Role Information</h3>
+              <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Current Role
+                </label>
+                <div className="flex items-center gap-2">
+                  <span className="capitalize px-3 py-1.5 bg-blue-100 text-blue-800 rounded text-sm font-medium">
+                    {roleName.replace('_', ' ')}
+                  </span>
+                  <span className="text-xs text-gray-500">(Read-only)</span>
+                </div>
+              </div>
+            </div> */}
 
             <div className="flex justify-end gap-3 pt-4 border-t">
               <Button

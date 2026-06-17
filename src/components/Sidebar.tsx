@@ -22,6 +22,7 @@ import {
   ChevronRight,
   Globe,
   Truck,
+  CreditCard,
 } from 'lucide-react';
 import { useAppDispatch } from '@/store/hooks';
 import { logoutUser } from '@/slices/authSlice';
@@ -41,6 +42,8 @@ const purchaseItems = [
   { name: 'Vendors', href: '/vendors', icon: Users },
   { name: 'Purchase Orders', href: '/purchase-orders', icon: ShoppingCart },
   { name: 'Inward', href: '/inward', icon: ArrowDownToLine },
+  { name: 'Payments Made', href: '/paymentsmade', icon: CreditCard },
+  { name: 'Vendor Ledger', href: '/vendor-ledger', icon: FileText },
 ];
 
 const salesItems = [
@@ -49,6 +52,8 @@ const salesItems = [
   { name: 'Sales Orders', href: '/sales-orders', icon: ClipboardList },
   { name: 'Order Dispatch', href: '/order-dispatch', icon: Truck },
   { name: 'Outward', href: '/outward', icon: ArrowUpFromLine },
+  { name: 'Payments Received', href: '/paymentsreceived', icon: CreditCard },
+  { name: 'Customer Ledger', href: '/customer-ledger', icon: FileText },
 ];
 
 const userManagementItems = [

@@ -44,10 +44,14 @@ const Layout: React.FC = () => {
     if (path.startsWith('/products')) return 'Products';
     if (path.startsWith('/vendors')) return 'Vendors';
     if (path.startsWith('/purchase-orders')) return 'Purchase Orders';
+    if (path.startsWith('/paymentsmade')) return 'Payments Made';
+    if (path.startsWith('/vendor-ledger')) return 'Vendor Ledger';
     if (path.startsWith('/inward')) return 'Inward / Stock Receiving';
     if (path.startsWith('/customers')) return 'Customers';
     if (path.startsWith('/quotes')) return 'Quotes';
     if (path.startsWith('/sales-orders')) return 'Sales Orders';
+    if (path.startsWith('/paymentsreceived')) return 'Payments Received';
+    if (path.startsWith('/customer-ledger')) return 'Customer Ledger';
     if (path.startsWith('/order-dispatch')) return 'Order Dispatch';
     if (path.startsWith('/outward')) return 'Outward / Stock Delivery';
     if (path.startsWith('/locations')) return 'Warehouse Locations';
@@ -59,6 +63,8 @@ const Layout: React.FC = () => {
     if (path.startsWith('/settings')) return 'Settings';
     return 'Inventory';
   };
+
+  const roleName = user?.role?.name?.replace('_', ' ') || 'N/A';
 
   return (
     <>
@@ -108,7 +114,7 @@ const Layout: React.FC = () => {
                   </div>
                   <div className="hidden sm:block text-left">
                     <p className="text-xs font-semibold leading-none">{user?.name}</p>
-                    <p className="text-[10px] text-white/70 mt-0.5 leading-none">{user?.email}</p>
+                    <p className="text-[10px] text-white/70 mt-0.5 leading-none capitalize">{roleName}</p>
                   </div>
                   <ChevronDown className="h-3.5 w-3.5 text-white/60" />
                 </button>

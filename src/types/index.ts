@@ -2,6 +2,11 @@ export interface User {
   id: string;
   email: string;
   name: string;
+  roleId?: number;
+  role?: {
+    id: number;
+    name: string;
+  };
   createdAt: string;
 }
 
@@ -134,11 +139,13 @@ export interface InwardInvoice {
   expense: number;
   totalCost: number;
   purchaseOrderId?: string;
+  amountPaid?: number;
   createdAt: string;
   updatedAt: string;
   vendor?: Vendor;
   location?: Location;
   items?: InwardItem[];
+  paymentsApplied?: PaymentMadeInvoice[];
 }
 
 export interface OutwardItem {
@@ -187,6 +194,7 @@ export interface OutwardInvoice {
   customer?: Customer;
   items?: OutwardItem[];
   paymentReceipts?: PaymentReceipt[];
+  paymentsApplied?: PaymentReceivedInvoice[];
 }
 
 export interface StockBatch {
@@ -531,4 +539,59 @@ export interface BoxDetail {
   createdAt: string;
   updatedAt: string;
   product?: Product;
+}
+
+export interface PaymentReceived {
+  id: number;
+  paymentNumber: string;
+  customerId: number;
+  customer?: Customer;
+  amount: number;
+  date: string;
+  paymentMode: string;
+  referenceNumber?: string;
+  depositTo: string;
+  bankCharges?: number;
+  taxRate?: number;
+  notes?: string;
+  transactionType: 'invoice_payment' | 'customer_advance' | 'credit_application';
+  unusedAmount: number;
+  createdAt: string;
+  updatedAt: string;
+  invoices?: PaymentReceivedInvoice[];
+}
+
+export interface PaymentReceivedInvoice {
+  id: number;
+  paymentReceivedId: number;
+  invoiceId: number;
+  amountApplied: number;
+  invoice?: OutwardInvoice;
+}
+
+export interface PaymentMade {
+  id: number;
+  paymentNumber: string;
+  vendorId: number;
+  vendor?: Vendor;
+  amount: number;
+  date: string;
+  paymentMode: string;
+  referenceNumber?: string;
+  paidThrough: string;
+  bankCharges?: number;
+  notes?: string;
+  transactionType: 'bill_payment' | 'vendor_advance' | 'credit_application';
+  unusedAmount: number;
+  createdAt: string;
+  updatedAt: string;
+  invoices?: PaymentMadeInvoice[];
+}
+
+export interface PaymentMadeInvoice {
+  id: number;
+  paymentMadeId: number;
+  invoiceId: number;
+  amountApplied: number;
+  invoice?: InwardInvoice;
 }
