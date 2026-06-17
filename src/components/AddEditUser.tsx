@@ -22,7 +22,7 @@ interface UserFormData {
   name: string;
   email: string;
   password?: string;
-  role: string;
+  roleId: number;
   isActive?: boolean;
 }
 
@@ -30,7 +30,7 @@ const userSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   email: z.string().email('Invalid email address'),
   password: z.string().optional(),
-  role: z.string().min(1, 'Role is required'),
+  roleId: z.number().min(1, 'Role is required'),
   isActive: z.boolean().optional(),
 });
 
@@ -80,7 +80,7 @@ const AddEditUser: React.FC<AddEditUserProps> = ({ user, onSuccess, onCancel }) 
     if (user) {
       setValue('name', user.name);
       setValue('email', user.email);
-      setValue('role', user.role);
+      setValue('roleId', user.roleId || user.role?.id);
       setValue('isActive', user.isActive !== false);
     }
   }, [user, setValue]);
@@ -180,15 +180,15 @@ const AddEditUser: React.FC<AddEditUserProps> = ({ user, onSuccess, onCancel }) 
               Role
             </label>
             <select
-              {...register('role')}
+              {...register('roleId', { valueAsNumber: true })}
               className={`flex h-8.5 w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 ${
-                errors.role ? 'border-red-500 focus:ring-red-500' : ''
+                errors.roleId ? 'border-red-500 focus:ring-red-500' : ''
               }`}
             >
               <option value="">Select a role</option>
               {roles && roles.length > 0 ? (
                 roles.map((role) => (
-                  <option key={role.id} value={role.name}>
+                  <option key={role.id} value={role.id}>
                     {role.name.replace('_', ' ')}
                   </option>
                 ))
@@ -196,8 +196,8 @@ const AddEditUser: React.FC<AddEditUserProps> = ({ user, onSuccess, onCancel }) 
                 <option disabled>No roles available</option>
               )}
             </select>
-            {errors.role && (
-              <p className="text-xs text-red-650 mt-1">{errors.role.message}</p>
+            {errors.roleId && (
+              <p className="text-xs text-red-650 mt-1">{errors.roleId.message}</p>
             )}
           </div>
 

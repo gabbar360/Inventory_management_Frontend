@@ -152,11 +152,14 @@ const Users: React.FC = () => {
     {
       key: 'role',
       title: 'Role',
-      render: (value: string) => (
-        <span className="capitalize px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm">
-          {value.replace('_', ' ')}
-        </span>
-      ),
+      render: (_: any, record: any) => {
+        const roleName = record.role?.name || 'N/A';
+        return (
+          <span className="capitalize px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm">
+            {roleName.replace('_', ' ')}
+          </span>
+        );
+      },
     },
     {
       key: 'createdAt',
