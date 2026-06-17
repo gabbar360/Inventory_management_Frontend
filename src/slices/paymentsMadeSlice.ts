@@ -23,7 +23,7 @@ const initialState: PaymentsMadeState = {
 
 export const fetchPaymentsMade = createAsyncThunk(
   'paymentsMade/fetchAll',
-  async (params?: PaginationQuery & { vendorId?: string; paymentMode?: string }) => {
+  async (params?: PaginationQuery & { vendorId?: string; paymentMode?: string; unusedCreditsOnly?: boolean | string }) => {
     return await paymentsMadeService.getAll(params);
   }
 );

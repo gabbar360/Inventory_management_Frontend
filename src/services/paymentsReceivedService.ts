@@ -23,7 +23,7 @@ export interface PaymentReceivedFormData {
 
 export const paymentsReceivedService = {
   async getAll(
-    params?: PaginationQuery & { customerId?: string; paymentMode?: string }
+    params?: PaginationQuery & { customerId?: string; paymentMode?: string; unusedCreditsOnly?: boolean | string }
   ): Promise<{ data: PaymentReceived[]; pagination: any }> {
     const response = await api.get<ApiResponse<PaymentReceived[]>>('/getall-paymentsreceived', {
       params,

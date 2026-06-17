@@ -22,7 +22,7 @@ export interface PaymentMadeFormData {
 
 export const paymentsMadeService = {
   async getAll(
-    params?: PaginationQuery & { vendorId?: string; paymentMode?: string }
+    params?: PaginationQuery & { vendorId?: string; paymentMode?: string; unusedCreditsOnly?: boolean | string }
   ): Promise<{ data: PaymentMade[]; pagination: any }> {
     const response = await api.get<ApiResponse<PaymentMade[]>>('/getall-paymentsmade', {
       params,

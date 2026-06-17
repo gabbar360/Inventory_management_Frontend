@@ -43,6 +43,7 @@ const purchaseItems = [
   { name: 'Purchase Orders', href: '/purchase-orders', icon: ShoppingCart },
   { name: 'Inward', href: '/inward', icon: ArrowDownToLine },
   { name: 'Payments Made', href: '/paymentsmade', icon: CreditCard },
+  { name: 'Vendor Ledger', href: '/vendor-ledger', icon: FileText },
 ];
 
 const salesItems = [
@@ -52,6 +53,7 @@ const salesItems = [
   { name: 'Order Dispatch', href: '/order-dispatch', icon: Truck },
   { name: 'Outward', href: '/outward', icon: ArrowUpFromLine },
   { name: 'Payments Received', href: '/paymentsreceived', icon: CreditCard },
+  { name: 'Customer Ledger', href: '/customer-ledger', icon: FileText },
 ];
 
 const userManagementItems = [

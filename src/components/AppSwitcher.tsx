@@ -20,7 +20,8 @@ import {
   Settings,
   ShieldAlert,
   Grid,
-  X
+  X,
+  CreditCard
 } from 'lucide-react';
 
 interface AppItem {
@@ -40,15 +41,19 @@ const apps: AppItem[] = [
   { name: 'Vendors', href: '/vendors', icon: Users, color: 'from-[#8b5cf6] to-[#6d28d9]', category: 'Purchase' },
   { name: 'Purchase Orders', href: '/purchase-orders', icon: ShoppingCart, color: 'from-[#6366f1] to-[#4338ca]', category: 'Purchase' },
   { name: 'Inward', href: '/inward', icon: ArrowDownToLine, color: 'from-[#14b8a6] to-[#0f766e]', category: 'Purchase' },
+  { name: 'Payments Made', href: '/paymentsmade', icon: CreditCard, color: 'from-[#d97706] to-[#b45309]', category: 'Purchase' },
   { name: 'Customers', href: '/customers', icon: Users, color: 'from-[#f43f5e] to-[#be123c]', category: 'Sales' },
   { name: 'Quotes', href: '/quotes', icon: FileText, color: 'from-[#eab308] to-[#a16207]', category: 'Sales' },
   { name: 'Sales Orders', href: '/sales-orders', icon: ClipboardList, color: 'from-[#3b82f6] to-[#1d4ed8]', category: 'Sales' },
   { name: 'Order Dispatch', href: '/order-dispatch', icon: Truck, color: 'from-[#f97316] to-[#c2410c]', category: 'Sales' },
   { name: 'Outward', href: '/outward', icon: ArrowUpFromLine, color: 'from-[#ef4444] to-[#b91c1c]', category: 'Sales' },
+  { name: 'Payments Received', href: '/paymentsreceived', icon: CreditCard, color: 'from-[#059669] to-[#047857]', category: 'Sales' },
   { name: 'Warehouse', href: '/locations', icon: MapPin, color: 'from-[#64748b] to-[#334155]', category: 'Inventory' },
   { name: 'Inventory', href: '/inventory', icon: Warehouse, color: 'from-[#22c55e] to-[#15803d]', category: 'Inventory' },
   { name: 'Samples', href: '/samples', icon: FlaskConical, color: 'from-[#d946ef] to-[#a21caf]', category: 'Core' },
   { name: 'Profit & Loss', href: '/profit-loss', icon: TrendingUp, color: 'from-[#84cc16] to-[#4d7c0f]', category: 'Reporting' },
+  { name: 'Vendor Ledger', href: '/vendor-ledger', icon: FileText, color: 'from-[#8b5cf6] to-[#5b21b6]', category: 'Reporting' },
+  { name: 'Customer Ledger', href: '/customer-ledger', icon: FileText, color: 'from-[#2563eb] to-[#1d4ed8]', category: 'Reporting' },
   { name: 'Roles', href: '/roles', icon: ShieldAlert, color: 'from-[#6b7280] to-[#374151]', category: 'System' },
   { name: 'Users', href: '/users', icon: Users, color: 'from-[#4f46e5] to-[#3730a3]', category: 'System' },
   { name: 'Settings', href: '/settings', icon: Settings, color: 'from-[#475569] to-[#1e293b]', category: 'System' },

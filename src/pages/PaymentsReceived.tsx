@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Plus, Eye, Download, Edit, Trash2, Loader2 } from 'lucide-react';
+import { Plus, Eye, Download, Edit, Trash2, Loader2, X, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
@@ -17,7 +17,6 @@ import Button from '@/components/Button';
 import Table from '@/components/Table';
 import Modal from '@/components/Modal';
 import Pagination from '@/components/Pagination';
-import PageHeader from '@/components/PageHeader';
 import AddEditPaymentsReceived from '@/components/AddEditPaymentsReceived';
 import ApplyCreditsReceivedModal from '@/components/ApplyCreditsReceivedModal';
 
@@ -27,6 +26,7 @@ const PaymentsReceived: React.FC = () => {
   const [searchParams] = useSearchParams();
   const dispatch = useAppDispatch();
   const { payments, currentPayment, pagination, loading, error } = useAppSelector((state) => state.paymentsReceived);
+  const { customers } = useAppSelector((state) => state.customers);
 
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<PaymentReceived | null>(null);
@@ -34,6 +34,11 @@ const PaymentsReceived: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [downloadingId, setDownloadingId] = useState<string | number | null>(null);
   const [applyCreditsPayment, setApplyCreditsPayment] = useState<PaymentReceived | null>(null);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
+  const [searchVal, setSearchVal] = useState('');
+  const [showKPIs, setShowKPIs] = useState<boolean>(() => {
+    return localStorage.getItem('vegnar_show_kpis_paymentsreceived') !== 'false';
+  });
 
   // Filters matching Zoho
   const filterByParam = searchParams.get('filter_by') || 'PaymentMode.All';
@@ -54,10 +59,12 @@ const PaymentsReceived: React.FC = () => {
         search,
         sortBy: sortColumnParam,
         sortOrder: sortOrderParam === 'D' ? 'desc' : 'asc',
-        paymentMode: paymentModeFilter === 'All' ? undefined : paymentModeFilter,
+        paymentMode: paymentModeFilter === 'All' ? undefined : (paymentModeFilter === 'UnusedCredits' ? undefined : paymentModeFilter),
+        customerId: selectedCustomerId || undefined,
+        unusedCreditsOnly: filterByParam === 'UnusedCredits' ? true : undefined,
       })
     );
-  }, [dispatch, search, currentPage, filterByParam, sortColumnParam, sortOrderParam]);
+  }, [dispatch, search, currentPage, filterByParam, sortColumnParam, sortOrderParam, selectedCustomerId]);
 
   useEffect(() => {
     if (error) {
@@ -71,6 +78,22 @@ const PaymentsReceived: React.FC = () => {
       dispatch(fetchPaymentReceivedById(id));
     }
   }, [id, dispatch]);
+
+  useEffect(() => {
+    const mainEl = document.querySelector('main');
+    if (mainEl) {
+      if (selectedPayment) {
+        mainEl.style.overflowY = 'hidden';
+      } else {
+        mainEl.style.overflowY = 'auto';
+      }
+    }
+    return () => {
+      if (mainEl) {
+        mainEl.style.overflowY = 'auto';
+      }
+    };
+  }, [selectedPayment]);
 
   const debouncedSearch = debounce((value: string) => {
     setSearch(value);
@@ -182,6 +205,7 @@ const PaymentsReceived: React.FC = () => {
     {
       key: 'customer.name',
       title: 'Customer',
+      sortable: true,
       render: (_: any, record: PaymentReceived) => (
         <div>
           <div className="font-medium text-gray-900">{record.customer?.name}</div>
@@ -212,6 +236,7 @@ const PaymentsReceived: React.FC = () => {
     {
       key: 'unusedAmount',
       title: 'Unused (Advance)',
+      sortable: true,
       render: (value: number) => (
         <span className={cn('font-semibold', value > 0 ? 'text-amber-600' : 'text-gray-500')}>
           {formatCurrency(value)}
@@ -261,27 +286,142 @@ const PaymentsReceived: React.FC = () => {
       />
     );
   }
-
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <PageHeader
-          title="Payments Received"
-          searchPlaceholder="Search payments..."
-          onSearch={(value) => debouncedSearch(value)}
-          actions={[
-            {
-              label: 'Record Payment',
-              icon: <Plus className="h-4 w-4" />,
-              onClick: handleAddPayment,
-              variant: 'primary' as const,
-            },
-          ]}
-        />
+      {/* Breadcrumbs */}
+      <div className="flex items-center gap-1.5 text-[11px] text-gray-400 font-medium">
+        <span>Sales</span>
+        <span>/</span>
+        <span className="text-primary-605 font-bold hover:underline cursor-pointer" onClick={() => setSelectedPayment(null)}>Payments Received</span>
       </div>
 
-      {/* Summary KPI Cards */}
-      {pagination?.summary && (
+      {/* Main Zoho Toolbar */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between pb-3 border-b border-gray-200 gap-3">
+        {/* Left: View Dropdown Selector */}
+        <div className="flex items-center gap-2">
+          <div className="relative inline-block">
+            <select
+              value={filterByParam}
+              onChange={(e) => handleFilterChange(e.target.value)}
+              className="appearance-none pr-8 pl-1 py-1 font-bold text-xl text-gray-805 bg-transparent hover:bg-gray-100/60 rounded cursor-pointer outline-none border-none focus:ring-0 flex items-center transition-colors"
+              style={{
+                backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%234b5563' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>")`,
+                backgroundPosition: 'right 4px center',
+                backgroundSize: '16px',
+                backgroundRepeat: 'no-repeat',
+              }}
+            >
+              <option value="PaymentMode.All">All Payments Received</option>
+              <option value="UnusedCredits">Available Credits to Apply</option>
+              <option value="PaymentMode.Cash">Cash Payments</option>
+              <option value="PaymentMode.Bank Transfer">Bank Transfers</option>
+              <option value="PaymentMode.Check">Check Payments</option>
+              <option value="PaymentMode.Credit Card">Credit Card Payments</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Right: Actions, Search, Filters, Stats Toggle, New Button */}
+        <div className="flex flex-wrap items-center gap-2 md:justify-end">
+          {/* Search Input */}
+          <div className="relative flex-1 min-w-[150px] md:max-w-[200px]">
+            <input
+              type="text"
+              placeholder="Search payments..."
+              value={searchVal}
+              onChange={(e) => {
+                setSearchVal(e.target.value);
+                debouncedSearch(e.target.value);
+              }}
+              className="pl-8 pr-3 py-1.5 w-full border border-gray-300 rounded focus:ring-1 focus:ring-primary-500 focus:border-primary-500 outline-none text-xs bg-white shadow-2xs font-medium"
+            />
+            <span className="absolute left-2.5 top-2.5 text-gray-400">
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                <circle cx="11" cy="11" r="8" />
+                <path d="M21 21l-4.35-4.35" />
+              </svg>
+            </span>
+            {searchVal && (
+              <button
+                onClick={() => {
+                  setSearchVal('');
+                  debouncedSearch('');
+                }}
+                className="absolute right-2 top-2 text-gray-400 hover:text-gray-655"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Customer Select Dropdown */}
+          <select
+            value={selectedCustomerId}
+            onChange={(e) => {
+              setSelectedCustomerId(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="h-8 text-xs font-semibold bg-white border border-gray-300 rounded-md px-2.5 text-gray-707 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 max-w-[150px] truncate shadow-2xs"
+          >
+            <option value="">All Customers</option>
+            {customers && customers.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+
+          {/* Sort Dropdown */}
+          <select
+            value={`${sortColumnParam}:${sortOrderParam}`}
+            onChange={(e) => {
+              const [col, order] = e.target.value.split(':');
+              navigate(`/paymentsreceived?filter_by=${filterByParam}&per_page=25&sort_column=${col}&sort_order=${order}`);
+              setCurrentPage(1);
+            }}
+            className="h-8 text-xs font-semibold bg-white border border-gray-300 rounded-md px-2.5 text-gray-707 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 shadow-2xs"
+          >
+            <option value="date:D">Date: Newest First</option>
+            <option value="date:A">Date: Oldest First</option>
+            <option value="amount:D">Amount: High to Low</option>
+            <option value="amount:A">Amount: Low to High</option>
+            <option value="unusedAmount:D">Available Credit: High to Low</option>
+            <option value="unusedAmount:A">Available Credit: Low to High</option>
+            <option value="paymentNumber:D">Payment #: Z-A</option>
+            <option value="paymentNumber:A">Payment #: A-Z</option>
+          </select>
+
+          {/* Toggle KPIs Stats Button */}
+          <button
+            onClick={() => {
+              const nextVal = !showKPIs;
+              setShowKPIs(nextVal);
+              localStorage.setItem('vegnar_show_kpis_paymentsreceived', String(nextVal));
+            }}
+            className={cn(
+              "h-8 w-8 flex items-center justify-center rounded-md border border-gray-300 bg-white hover:bg-gray-50 text-gray-655 transition-colors shadow-2xs",
+              showKPIs && "text-primary-605 bg-primary-50/20 border-primary-200"
+            )}
+            title="Toggle Summary Cards"
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="20" x2="18" y2="10" />
+              <line x1="12" y1="20" x2="12" y2="4" />
+              <line x1="6" y1="20" x2="6" y2="14" />
+            </svg>
+          </button>
+
+          {/* Record Payment Button (Zoho Signature Orange) */}
+          <button
+            onClick={handleAddPayment}
+            className="h-8 bg-[#e25822] hover:bg-[#c84d1e] active:bg-[#b04319] text-white font-bold px-3.5 rounded-md text-xs flex items-center gap-1.5 transition-colors shadow-sm"
+          >
+            <Plus className="h-4 w-4" />
+            <span>New</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Summary KPI Cards — only show when showKPIs is enabled and not in split pane */}
+      {showKPIs && !selectedPayment && pagination?.summary && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex flex-col justify-between">
             <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Total Received</span>
@@ -292,7 +432,7 @@ const PaymentsReceived: React.FC = () => {
           </div>
           <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex flex-col justify-between">
             <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Total Allocated</span>
-            <span className="text-lg font-bold text-emerald-600 mt-1">
+            <span className="text-lg font-bold text-emerald-605 mt-1">
               {formatCurrency((pagination.summary.totalAmount || 0) - (pagination.summary.totalUnusedAmount || 0))}
             </span>
             <span className="text-[10px] text-gray-400 mt-0.5">Cash payments allocated to invoices</span>
@@ -307,55 +447,341 @@ const PaymentsReceived: React.FC = () => {
         </div>
       )}
 
-      {/* Zoho-style Sub Header Filters */}
-      <div className="flex flex-wrap items-center justify-between border-b pb-2 gap-2">
-        <div className="flex space-x-1">
-          {['PaymentMode.All', 'PaymentMode.Cash', 'PaymentMode.Bank Transfer', 'PaymentMode.Check', 'PaymentMode.Credit Card'].map((mode) => {
-            const label = mode.split('.')[1];
-            const isActive = filterByParam === mode;
-            return (
-              <button
-                key={mode}
-                onClick={() => handleFilterChange(mode)}
-                className={cn(
-                  'px-3 py-1 text-xs font-semibold rounded-md border transition-colors',
-                  isActive
-                    ? 'bg-primary-550 border-primary-600 text-white'
-                    : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                )}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
-        <div className="text-xs text-gray-500 font-medium">
-          Sort by Date: <button
-            onClick={() => {
-              const nextOrder = sortOrderParam === 'D' ? 'A' : 'D';
-              navigate(`/paymentsreceived?filter_by=${filterByParam}&per_page=25&sort_column=date&sort_order=${nextOrder}`);
+      {/* Main Content Area */}
+      {!selectedPayment ? (
+        /* Full-width Table View */
+        <div className="card overflow-x-auto bg-white rounded-lg shadow-sm border">
+          <Table
+            data={payments}
+            columns={columns}
+            loading={loading}
+            sortBy={sortColumnParam}
+            sortOrder={sortOrderParam === 'D' ? 'desc' : 'asc'}
+            onSort={(key) => {
+              const nextOrder = sortColumnParam === key && sortOrderParam === 'D' ? 'A' : 'D';
+              navigate(`/paymentsreceived?filter_by=${filterByParam}&per_page=25&sort_column=${key}&sort_order=${nextOrder}`);
+              setCurrentPage(1);
             }}
-            className="text-primary-600 hover:underline font-bold"
-          >
-            {sortOrderParam === 'D' ? 'Newest First' : 'Oldest First'}
-          </button>
+          />
+          <Pagination
+            currentPage={pagination?.page || 1}
+            totalPages={pagination?.totalPages || 1}
+            total={pagination?.total || 0}
+            limit={pagination?.limit || 10}
+            onPageChange={setCurrentPage}
+            loading={loading}
+          />
         </div>
-      </div>
+      ) : (
+        /* Zoho Split-Pane View */
+        <div className="flex flex-col md:flex-row gap-4 h-[calc(100vh-150px)] md:h-[calc(100vh-160px)] lg:h-[calc(100vh-170px)] overflow-hidden">
+          {/* Left Column: Compact list of payments */}
+          <div className={cn("w-full md:w-[350px] lg:w-[400px] flex-shrink-0 flex flex-col bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden h-full", selectedPayment ? "hidden md:flex" : "flex")}>
+            <div className="p-3 border-b bg-gray-50 flex items-center justify-between">
+              <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                {filterByParam === 'PaymentMode.All' ? 'All Payments' : filterByParam.replace('PaymentMode.', '') + ' Payments'}
+              </span>
+              <span className="text-xs text-gray-555 font-semibold">{pagination?.total || 0} records</span>
+            </div>
+            
+            {/* Scrollable list */}
+            <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
+              {loading && payments.length === 0 ? (
+                <div className="p-4 text-center text-xs text-gray-500 animate-pulse">Loading list...</div>
+              ) : payments.length === 0 ? (
+                <div className="p-4 text-center text-xs text-gray-500">No payments found</div>
+              ) : (
+                payments.map((p) => {
+                  const isActive = selectedPayment.id === p.id;
+                  return (
+                    <div
+                      key={p.id}
+                      onClick={() => viewPaymentDetails(p)}
+                      className={cn(
+                        "p-3 cursor-pointer transition-colors relative border-l-4 hover:bg-gray-50",
+                        isActive ? "bg-primary-50/40 border-primary-600" : "border-transparent"
+                      )}
+                    >
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="font-bold text-gray-800 text-xs truncate max-w-[180px]">
+                          {p.customer?.name || 'Unknown Customer'}
+                        </span>
+                        <span className="font-bold text-gray-900 text-xs">
+                          {formatCurrency(p.amount)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-[11px] text-gray-500">
+                        <span className="font-semibold text-primary-600">{p.paymentNumber}</span>
+                        <span>{formatDate(p.date)}</span>
+                      </div>
+                      <div className="mt-1 flex gap-1 items-center flex-wrap">
+                        <span className="inline-flex px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-gray-100 text-gray-700 border border-gray-200">
+                          {p.paymentMode}
+                        </span>
+                        {p.transactionType === 'customer_advance' && (
+                          <span className="inline-flex px-1.5 py-0.5 text-[9px] font-bold rounded bg-amber-100 text-amber-800 border border-amber-250 uppercase tracking-wide">
+                            Advance
+                          </span>
+                        )}
+                        {p.transactionType === 'credit_application' && (
+                          <span className="inline-flex px-1.5 py-0.5 text-[9px] font-bold rounded bg-purple-100 text-purple-800 border border-purple-200 uppercase tracking-wide">
+                            Credit
+                          </span>
+                        )}
+                        {p.unusedAmount > 0 && (
+                          <span className="inline-flex px-1.5 py-0.5 text-[9px] font-bold rounded bg-green-50 text-green-700 border border-green-200">
+                            Unused: {formatCurrency(p.unusedAmount)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
 
-      {/* Table */}
-      <div className="card overflow-x-auto bg-white rounded-lg shadow-sm border">
-        <Table data={payments} columns={columns} loading={loading} />
-        <Pagination
-          currentPage={pagination?.page || 1}
-          totalPages={pagination?.totalPages || 1}
-          total={pagination?.total || 0}
-          limit={pagination?.limit || 10}
-          onPageChange={setCurrentPage}
-          loading={loading}
-        />
-      </div>
+            {/* Compact Pagination */}
+            <div className="p-2 bg-gray-50 border-t border-gray-150 flex items-center justify-between text-[11px]">
+              <button
+                disabled={currentPage === 1 || loading}
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                className="px-2 py-1 bg-white border rounded text-gray-600 disabled:opacity-50 hover:bg-gray-50 font-medium"
+              >
+                Prev
+              </button>
+              <span className="text-gray-500">
+                Page {pagination?.page || 1} of {pagination?.totalPages || 1}
+              </span>
+              <button
+                disabled={currentPage === pagination?.totalPages || loading}
+                onClick={() => setCurrentPage(p => Math.min(pagination?.totalPages || 1, p + 1))}
+                className="px-2 py-1 bg-white border rounded text-gray-600 disabled:opacity-50 hover:bg-gray-50 font-medium"
+              >
+                Next
+              </button>
+            </div>
+          </div>
 
-      {/* Detail Modal */}
+          {/* Right Column: Beautiful Payment Receipt Detail Pane */}
+          <div className="flex-1 bg-[#f8f9fa] border border-gray-200 rounded-lg shadow-sm flex flex-col overflow-hidden h-full">
+            {/* Details Action Header */}
+            <div className="px-4 py-2 border-b border-gray-200 bg-white flex items-center justify-between shadow-xs">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setSelectedPayment(null)}
+                  className="md:hidden p-1 rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700 mr-1"
+                  title="Back to List"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </button>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Payment Receipt</span>
+                  <h3 className="text-xs font-extrabold text-gray-900 leading-tight">
+                    {selectedPayment.paymentNumber}
+                  </h3>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleEditPayment(selectedPayment)}
+                  className="h-8 text-xs font-bold hover:bg-gray-100 text-gray-700 flex items-center gap-1 px-2.5"
+                  title="Edit Payment"
+                >
+                  <Edit className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Edit</span>
+                </Button>
+                
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleDeletePayment(selectedPayment)}
+                  className="h-8 text-xs font-bold text-red-600 hover:bg-red-55 flex items-center gap-1 px-2.5"
+                  title="Delete Payment"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Delete</span>
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleDownloadPDF(selectedPayment)}
+                  className="h-8 text-xs font-bold text-primary-600 hover:bg-primary-50 flex items-center gap-1 px-2.5"
+                  disabled={downloadingId === selectedPayment.id}
+                  title="Download PDF"
+                >
+                  {downloadingId === selectedPayment.id ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Download className="h-3.5 w-3.5" />
+                  )}
+                  <span className="hidden sm:inline">PDF</span>
+                </Button>
+
+                {selectedPayment.transactionType === 'customer_advance' && selectedPayment.unusedAmount > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setApplyCreditsPayment(selectedPayment)}
+                    className="h-8 text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1 px-2.5"
+                    title="Apply Credits"
+                  >
+                    <span>Apply Credits</span>
+                  </Button>
+                )}
+
+                <button
+                  onClick={() => setSelectedPayment(null)}
+                  className="hidden md:flex p-1 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 ml-1"
+                  title="Close Pane"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Scrollable details area */}
+            <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-gray-50/50">
+              {/* Paper Layout */}
+              <div className="bg-white max-w-2xl mx-auto shadow-sm border border-gray-200 rounded p-6 md:p-8 space-y-6 relative overflow-hidden">
+                {/* Zoho Accent Bar */}
+                <div className="absolute top-0 inset-x-0 h-1 bg-primary-600" />
+                
+                {/* Header Section */}
+                <div className="flex justify-between items-start gap-4">
+                  <div>
+                    <h2 className="text-xs font-extrabold text-gray-800 tracking-tight">Vegnar Private Limited</h2>
+                    <p className="text-[10px] text-gray-500 mt-0.5">Inventory & Sales Department</p>
+                  </div>
+                  <div className="text-right">
+                    <h1 className="text-xs font-black text-gray-400 uppercase tracking-widest leading-none">Receipt</h1>
+                    <span className="inline-block px-2 py-0.5 rounded bg-primary-50 text-primary-800 border border-primary-200 text-[9px] font-bold mt-1.5 uppercase">
+                      {selectedPayment.transactionType === 'customer_advance' ? 'Customer Advance' : selectedPayment.transactionType === 'credit_application' ? 'Credit Applied' : 'Invoice Payment'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* KPI Highlight Card */}
+                <div className="bg-gradient-to-r from-primary-50/30 to-primary-50/10 border border-primary-100 rounded-lg p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-inner">
+                  <div className="text-center sm:text-left">
+                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Amount Received</span>
+                    <span className="text-xl font-black text-primary-605 mt-0.5 block">{formatCurrency(selectedPayment.amount)}</span>
+                  </div>
+                  <div className="h-px w-full sm:h-8 sm:w-px bg-primary-200/60" />
+                  <div className="text-center sm:text-left">
+                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Unused (Advance)</span>
+                    <span className={cn("text-sm font-extrabold mt-0.5 block", selectedPayment.unusedAmount > 0 ? "text-amber-600" : "text-gray-500")}>
+                      {formatCurrency(selectedPayment.unusedAmount)}
+                    </span>
+                  </div>
+                  <div className="h-px w-full sm:h-8 sm:w-px bg-primary-200/60" />
+                  <div className="text-center sm:text-left">
+                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Payment Date</span>
+                    <span className="text-xs font-bold text-gray-700 mt-1 block">{formatDate(selectedPayment.date)}</span>
+                  </div>
+                </div>
+
+                {/* Details Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-b border-gray-150 pb-5">
+                  <div className="space-y-2">
+                    <h4 className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Payment Details</h4>
+                    <table className="w-full text-xs">
+                      <tbody>
+                        <tr className="border-b border-gray-50">
+                          <td className="py-1 text-gray-500 font-medium">Payment Mode</td>
+                          <td className="py-1 text-gray-900 font-bold text-right">{selectedPayment.paymentMode}</td>
+                        </tr>
+                        <tr className="border-b border-gray-50">
+                          <td className="py-1 text-gray-500 font-medium">Deposit To</td>
+                          <td className="py-1 text-gray-900 font-semibold text-right">{selectedPayment.depositTo}</td>
+                        </tr>
+                        <tr className="border-b border-gray-50">
+                          <td className="py-1 text-gray-500 font-medium">Reference #</td>
+                          <td className="py-1 text-gray-900 font-semibold text-right">{selectedPayment.referenceNumber || '—'}</td>
+                        </tr>
+                        {(selectedPayment.bankCharges ?? 0) > 0 && (
+                          <tr className="border-b border-gray-50">
+                            <td className="py-1 text-gray-500 font-medium">Bank Charges</td>
+                            <td className="py-1 text-gray-900 font-semibold text-right">{formatCurrency(selectedPayment.bankCharges ?? 0)}</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h4 className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Received From (Customer)</h4>
+                    <div className="bg-gray-50 rounded p-3 border border-gray-200 text-xs space-y-1">
+                      <div className="font-extrabold text-gray-900">{selectedPayment.customer?.name}</div>
+                      <div className="text-[10px] font-bold text-primary-600">{selectedPayment.customer?.code}</div>
+                      {selectedPayment.customer?.email && (
+                        <div className="text-gray-500 pt-0.5 truncate">{selectedPayment.customer.email}</div>
+                      )}
+                      {selectedPayment.customer?.phone && (
+                        <div className="text-gray-500">{selectedPayment.customer.phone}</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Allocated Invoices */}
+                <div className="space-y-2">
+                  <h4 className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Allocated Sales Invoices</h4>
+                  {selectedPayment.invoices && selectedPayment.invoices.length > 0 ? (
+                    <div className="overflow-x-auto rounded border border-gray-200">
+                      <table className="min-w-full divide-y divide-gray-200 text-xs">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-3 py-1.5 text-left font-bold text-gray-500 uppercase">Invoice No</th>
+                            <th className="px-3 py-1.5 text-left font-bold text-gray-500 uppercase">Invoice Date</th>
+                            <th className="px-3 py-1.5 text-right font-bold text-gray-500 uppercase">Invoice Total</th>
+                            <th className="px-3 py-1.5 text-right font-bold text-gray-500 uppercase">Amount Applied</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200 bg-white">
+                          {selectedPayment.invoices.map((inv, idx) => (
+                            <tr key={idx} className="hover:bg-gray-50/50">
+                              <td className="px-3 py-1.5 font-bold text-gray-900">{inv.invoice?.invoiceNo}</td>
+                              <td className="px-3 py-1.5 text-gray-500">{formatDate(inv.invoice?.date || '')}</td>
+                              <td className="px-3 py-1.5 text-right text-gray-900 font-medium">{formatCurrency(inv.invoice?.totalCost || 0)}</td>
+                              <td className="px-3 py-1.5 text-right text-emerald-600 font-extrabold">{formatCurrency(inv.amountApplied)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="p-4 rounded bg-amber-50/50 border border-amber-100 text-amber-800 text-xs">
+                      This payment was recorded as a customer advance. No invoices were applied.
+                      {selectedPayment.unusedAmount > 0 && (
+                        <div className="mt-1">
+                          You can allocate the remaining <strong className="font-extrabold">{formatCurrency(selectedPayment.unusedAmount)}</strong> credits against unpaid invoices by clicking the "Apply Credits" button above.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Notes */}
+                {selectedPayment.notes && (
+                  <div className="space-y-1 pt-1">
+                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Notes</span>
+                    <div className="p-3 bg-gray-50 border rounded text-xs text-gray-600 italic">
+                      "{selectedPayment.notes}"
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Detail Modal (fallback/mobile backdrop) */}
       <Modal
         isOpen={viewModalOpen}
         onClose={() => setViewModalOpen(false)}
@@ -371,7 +797,7 @@ const PaymentsReceived: React.FC = () => {
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase">Amount Received</label>
-                <div className="text-lg font-bold text-primary-600">{formatCurrency(selectedPayment.amount)}</div>
+                <div className="text-lg font-bold text-primary-605">{formatCurrency(selectedPayment.amount)}</div>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase">Customer</label>
@@ -496,6 +922,10 @@ const PaymentsReceived: React.FC = () => {
           onClose={() => setApplyCreditsPayment(null)}
           onSuccess={() => {
             dispatch(fetchPaymentsReceived({ page: currentPage, limit: 10, search, sortBy: sortColumnParam, sortOrder: sortOrderParam === 'D' ? 'desc' : 'asc' }));
+            // Also update selected payment if it matches the credit payment
+            if (selectedPayment && selectedPayment.id === applyCreditsPayment.id) {
+              dispatch(fetchPaymentReceivedById(selectedPayment.id)).unwrap().then((updated) => setSelectedPayment(updated));
+            }
           }}
         />
       )}
