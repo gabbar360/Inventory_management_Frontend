@@ -1,36 +1,38 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { checkAuth } from '@/slices/authSlice';
 import Layout from '@/components/Layout';
 import Login from '@/pages/Login';
-import ForgotPassword from '@/pages/ForgotPassword';
-import ResetPassword from '@/pages/ResetPassword';
-import Dashboard from '@/pages/Dashboard';
-import Categories from '@/pages/Categories';
-import Products from '@/pages/Products';
-import Vendors from '@/pages/Vendors';
-import Customers from '@/pages/Customers';
-import Locations from '@/pages/Locations';
-import Inward from '@/pages/Inward';
-import Outward from '@/pages/Outward';
-import Inventory from '@/pages/Inventory';
-import Samples from '@/pages/Samples';
-import Quotes from '@/pages/Quotes';
-import SalesOrders from '@/pages/SalesOrders';
-import OrderDispatchPage from '@/pages/OrderDispatchPage';
-import Settings from '@/pages/Settings';
-import Leads from '@/pages/Leads';
-import WebsiteQuotes from '@/pages/WebsiteQuotes';
-import ProfitLossAnalysis from '@/pages/ProfitLossAnalysis';
-import Users from '@/pages/Users';
-import Roles from '@/pages/Roles';
-import PurchaseOrders from '@/pages/PurchaseOrders';
-import BarcodePrint from '@/pages/BarcodePrint';
-import PaymentsReceived from '@/pages/PaymentsReceived';
-import PaymentsMade from '@/pages/PaymentsMade';
-import VendorLedger from '@/pages/VendorLedger';
-import CustomerLedger from '@/pages/CustomerLedger';
+
+// Lazy-loaded pages
+const ForgotPassword = lazy(() => import('@/pages/ForgotPassword'));
+const ResetPassword = lazy(() => import('@/pages/ResetPassword'));
+const Dashboard = lazy(() => import('@/pages/Dashboard'));
+const Categories = lazy(() => import('@/pages/Categories'));
+const Products = lazy(() => import('@/pages/Products'));
+const Vendors = lazy(() => import('@/pages/Vendors'));
+const Customers = lazy(() => import('@/pages/Customers'));
+const Locations = lazy(() => import('@/pages/Locations'));
+const Inward = lazy(() => import('@/pages/Inward'));
+const Outward = lazy(() => import('@/pages/Outward'));
+const Inventory = lazy(() => import('@/pages/Inventory'));
+const Samples = lazy(() => import('@/pages/Samples'));
+const Quotes = lazy(() => import('@/pages/Quotes'));
+const SalesOrders = lazy(() => import('@/pages/SalesOrders'));
+const OrderDispatchPage = lazy(() => import('@/pages/OrderDispatchPage'));
+const Settings = lazy(() => import('@/pages/Settings'));
+const Leads = lazy(() => import('@/pages/Leads'));
+const WebsiteQuotes = lazy(() => import('@/pages/WebsiteQuotes'));
+const ProfitLossAnalysis = lazy(() => import('@/pages/ProfitLossAnalysis'));
+const Users = lazy(() => import('@/pages/Users'));
+const Roles = lazy(() => import('@/pages/Roles'));
+const PurchaseOrders = lazy(() => import('@/pages/PurchaseOrders'));
+const BarcodePrint = lazy(() => import('@/pages/BarcodePrint'));
+const PaymentsReceived = lazy(() => import('@/pages/PaymentsReceived'));
+const PaymentsMade = lazy(() => import('@/pages/PaymentsMade'));
+const VendorLedger = lazy(() => import('@/pages/VendorLedger'));
+const CustomerLedger = lazy(() => import('@/pages/CustomerLedger'));
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -69,100 +71,117 @@ function App() {
   }
 
   return (
-    <Routes>
-      <Route
-        path="/login"
-        element={
-          <PublicRoute>
-            <Login />
-          </PublicRoute>
-        }
-      />
-      <Route
-        path="/forgot-password"
-        element={
-          <PublicRoute>
-            <ForgotPassword />
-          </PublicRoute>
-        }
-      />
-      <Route path="/reset-password" element={<ResetPassword />} />
-      <Route
-        path="/print-barcodes/:source/:id"
-        element={
-          <ProtectedRoute>
-            <BarcodePrint />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <Layout />
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="leads" element={<Leads />} />
-        <Route path="website-quotes" element={<WebsiteQuotes />} />
-        <Route path="categories" element={<Categories />} />
-        <Route path="categories/add" element={<Categories />} />
-        <Route path="categories/edit/:id" element={<Categories />} />
-        <Route path="products" element={<Products />} />
-        <Route path="products/add" element={<Products />} />
-        <Route path="products/edit/:id" element={<Products />} />
-        <Route path="vendors" element={<Vendors />} />
-        <Route path="vendors/add" element={<Vendors />} />
-        <Route path="vendors/edit/:id" element={<Vendors />} />
-        <Route path="customers" element={<Customers />} />
-        <Route path="customers/add" element={<Customers />} />
-        <Route path="customers/edit/:id" element={<Customers />} />
-        <Route path="locations" element={<Locations />} />
-        <Route path="locations/add" element={<Locations />} />
-        <Route path="locations/edit/:id" element={<Locations />} />
-        <Route path="inward" element={<Inward />} />
-        <Route path="inward/add" element={<Inward />} />
-        <Route path="inward/edit/:id" element={<Inward />} />
-        <Route path="outward" element={<Outward />} />
-        <Route path="outward/add" element={<Outward />} />
-        <Route path="outward/edit/:id" element={<Outward />} />
-        <Route path="profit-loss" element={<ProfitLossAnalysis />} />
-        <Route path="inventory" element={<Inventory />} />
-        <Route path="samples" element={<Samples />} />
-        <Route path="samples/add" element={<Samples />} />
-        <Route path="samples/edit/:id" element={<Samples />} />
-        <Route path="quotes" element={<Quotes />} />
-        <Route path="quotes/add" element={<Quotes />} />
-        <Route path="quotes/edit/:id" element={<Quotes />} />
-        <Route path="sales-orders" element={<SalesOrders />} />
-        <Route path="sales-orders/add" element={<SalesOrders />} />
-        <Route path="sales-orders/edit/:id" element={<SalesOrders />} />
-        <Route path="paymentsreceived" element={<PaymentsReceived />} />
-        <Route path="paymentsreceived/add" element={<PaymentsReceived />} />
-        <Route path="paymentsreceived/edit/:id" element={<PaymentsReceived />} />
-        <Route path="customer-ledger" element={<CustomerLedger />} />
-        <Route path="purchase-orders" element={<PurchaseOrders />} />
-        <Route path="purchase-orders/add" element={<PurchaseOrders />} />
-        <Route path="purchase-orders/edit/:id" element={<PurchaseOrders />} />
-        <Route path="paymentsmade" element={<PaymentsMade />} />
-        <Route path="paymentsmade/add" element={<PaymentsMade />} />
-        <Route path="paymentsmade/edit/:id" element={<PaymentsMade />} />
-        <Route path="vendor-ledger" element={<VendorLedger />} />
-        <Route path="order-dispatch" element={<OrderDispatchPage />} />
-        <Route path="order-dispatch/add" element={<OrderDispatchPage />} />
-        <Route path="order-dispatch/edit/:id" element={<OrderDispatchPage />} />
-        <Route path="order-dispatch/view/:id" element={<OrderDispatchPage />} />
-        <Route path="settings" element={<Settings />} />
-        <Route path="roles" element={<Roles />} />
-        <Route path="roles/add" element={<Roles />} />
-        <Route path="roles/edit/:id" element={<Roles />} />
-        <Route path="users" element={<Users />} />
-        <Route path="users/add" element={<Users />} />
-        <Route path="users/edit/:id" element={<Users />} />
-      </Route>
-    </Routes>
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
+          <div className="flex flex-col items-center gap-2">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
+            <div className="text-xs font-semibold text-gray-500">Loading page...</div>
+          </div>
+        </div>
+      }
+    >
+      <Routes>
+        <Route
+          path="/login"
+          element={
+            <PublicRoute>
+              <Login />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/forgot-password"
+          element={
+            <PublicRoute>
+              <ForgotPassword />
+            </PublicRoute>
+          }
+        />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route
+          path="/print-barcodes/:source/:id"
+          element={
+            <ProtectedRoute>
+              <BarcodePrint />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="leads" element={<Leads />} />
+          <Route path="website-quotes" element={<WebsiteQuotes />} />
+          <Route path="categories" element={<Categories />} />
+          <Route path="categories/add" element={<Categories />} />
+          <Route path="categories/edit/:id" element={<Categories />} />
+          <Route path="products" element={<Products />} />
+          <Route path="products/add" element={<Products />} />
+          <Route path="products/edit/:id" element={<Products />} />
+          <Route path="vendors" element={<Vendors />} />
+          <Route path="vendors/add" element={<Vendors />} />
+          <Route path="vendors/edit/:id" element={<Vendors />} />
+          <Route path="vendors/:id" element={<Vendors />} />
+          <Route path="vendors/:id/purchase" element={<Vendors />} />
+          <Route path="vendors/:id/statement" element={<Vendors />} />
+          <Route path="customers" element={<Customers />} />
+          <Route path="customers/add" element={<Customers />} />
+          <Route path="customers/edit/:id" element={<Customers />} />
+          <Route path="customers/:id" element={<Customers />} />
+          <Route path="customers/:id/sales" element={<Customers />} />
+          <Route path="customers/:id/statement" element={<Customers />} />
+          <Route path="locations" element={<Locations />} />
+          <Route path="locations/add" element={<Locations />} />
+          <Route path="locations/edit/:id" element={<Locations />} />
+          <Route path="inward" element={<Inward />} />
+          <Route path="inward/add" element={<Inward />} />
+          <Route path="inward/edit/:id" element={<Inward />} />
+          <Route path="outward" element={<Outward />} />
+          <Route path="outward/add" element={<Outward />} />
+          <Route path="outward/edit/:id" element={<Outward />} />
+          <Route path="profit-loss" element={<ProfitLossAnalysis />} />
+          <Route path="inventory" element={<Inventory />} />
+          <Route path="samples" element={<Samples />} />
+          <Route path="samples/add" element={<Samples />} />
+          <Route path="samples/edit/:id" element={<Samples />} />
+          <Route path="quotes" element={<Quotes />} />
+          <Route path="quotes/add" element={<Quotes />} />
+          <Route path="quotes/edit/:id" element={<Quotes />} />
+          <Route path="sales-orders" element={<SalesOrders />} />
+          <Route path="sales-orders/add" element={<SalesOrders />} />
+          <Route path="sales-orders/edit/:id" element={<SalesOrders />} />
+          <Route path="paymentsreceived" element={<PaymentsReceived />} />
+          <Route path="paymentsreceived/add" element={<PaymentsReceived />} />
+          <Route path="paymentsreceived/edit/:id" element={<PaymentsReceived />} />
+          <Route path="customer-ledger" element={<CustomerLedger />} />
+          <Route path="purchase-orders" element={<PurchaseOrders />} />
+          <Route path="purchase-orders/add" element={<PurchaseOrders />} />
+          <Route path="purchase-orders/edit/:id" element={<PurchaseOrders />} />
+          <Route path="paymentsmade" element={<PaymentsMade />} />
+          <Route path="paymentsmade/add" element={<PaymentsMade />} />
+          <Route path="paymentsmade/edit/:id" element={<PaymentsMade />} />
+          <Route path="vendor-ledger" element={<VendorLedger />} />
+          <Route path="order-dispatch" element={<OrderDispatchPage />} />
+          <Route path="order-dispatch/add" element={<OrderDispatchPage />} />
+          <Route path="order-dispatch/edit/:id" element={<OrderDispatchPage />} />
+          <Route path="order-dispatch/view/:id" element={<OrderDispatchPage />} />
+          <Route path="settings" element={<Settings />} />
+          <Route path="roles" element={<Roles />} />
+          <Route path="roles/add" element={<Roles />} />
+          <Route path="roles/edit/:id" element={<Roles />} />
+          <Route path="users" element={<Users />} />
+          <Route path="users/add" element={<Users />} />
+          <Route path="users/edit/:id" element={<Users />} />
+        </Route>
+      </Routes>
+    </Suspense>
   );
 }
 
