@@ -20,6 +20,7 @@ import {
   fetchStockSummary,
   fetchAvailableStock,
   clearAvailableStock,
+  downloadStockReport,
 } from '@/slices/inventorySlice';
 import { fetchLocations } from '@/slices/locationSlice';
 import { StockBatch, StockSummary } from '@/types';
@@ -30,6 +31,7 @@ import StockTransferModal from '@/components/StockTransferModal';
 import { transferStock } from '@/services/stockTransferService';
 import { toast } from 'react-hot-toast';
 import ReactDOM from 'react-dom';
+import { Download } from 'lucide-react';
 
 /* ── Locations hover popover (portal-based) ── */
 const LocationsPopover: React.FC<{ locations: any[] }> = ({ locations }) => {
@@ -128,6 +130,7 @@ const Inventory: React.FC = () => {
     globalStats = null,
     pagination = null,
     loading = false,
+    reportDownloading = false,
   } = useAppSelector((state) => state.inventory) || {};
   const { locations = [] } = useAppSelector((state) => state.locations) || {};
 
@@ -139,7 +142,18 @@ const Inventory: React.FC = () => {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [transferModalOpen, setTransferModalOpen] = useState(false);
   const [selectedBatch, setSelectedBatch] = useState<StockBatch | null>(null);
-  const [lowStockOpen, setLowStockOpen] = useState(true);
+  const [lowStockOpen, setLowStockOpen] = useState(false);
+  const handleDownloadReport = async (type: 'location' | 'all') => {
+    try {
+      await dispatch(downloadStockReport({
+        locationId: selectedLocation || undefined,
+        reportType: type
+      })).unwrap();
+      toast.success(`${type === 'location' ? 'Location-wise' : 'All Locations'} report downloaded successfully`);
+    } catch (error) {
+      toast.error('Failed to download report');
+    }
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -323,7 +337,7 @@ const Inventory: React.FC = () => {
             </p>
           </div>
 
-          {/* Search + Location row */}
+          {/* Search + Location + Download Buttons row */}
           <div className="flex flex-col gap-2">
             <input
               type="text"
@@ -341,6 +355,28 @@ const Inventory: React.FC = () => {
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <button
+                onClick={() => handleDownloadReport('location')}
+                disabled={reportDownloading || !selectedLocation}
+                className="flex items-center justify-center gap-2 px-4 py-2 text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-lg border border-blue-700 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                title={!selectedLocation ? 'Select a location first' : 'Download location-wise report'}
+              >
+                <Download className="w-4 h-4" />
+                <span className="hidden sm:inline">Location Report</span>
+                <span className="sm:hidden">Loc. Report</span>
+              </button>
+              <button
+                onClick={() => handleDownloadReport('all')}
+                disabled={reportDownloading}
+                className="flex items-center justify-center gap-2 px-4 py-2 text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 rounded-lg border border-emerald-700 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Download all locations report"
+              >
+                <Download className="w-4 h-4" />
+                <span className="hidden sm:inline">All Locations Report</span>
+                <span className="sm:hidden">All Locs Report</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
