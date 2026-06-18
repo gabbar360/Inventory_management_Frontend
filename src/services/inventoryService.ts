@@ -49,4 +49,18 @@ export const inventoryService = {
     );
     return response.data.data!;
   },
+
+  async downloadStockReportPDF(locationId?: string, reportType: 'location' | 'all' = 'all'): Promise<Blob> {
+    const params: any = { reportType };
+    if (locationId) {
+      params.locationId = locationId;
+    }
+    
+    const response = await api.get('/inventory/stock-report/pdf', {
+      params,
+      responseType: 'blob',
+    });
+    
+    return response.data;
+  },
 };

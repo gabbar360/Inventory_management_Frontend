@@ -13,6 +13,7 @@ interface InventoryState {
   } | null;
   pagination: any;
   loading: boolean;
+  reportDownloading: boolean;
   error: string | null;
 }
 
@@ -23,6 +24,7 @@ const initialState: InventoryState = {
   globalStats: null,
   pagination: null,
   loading: false,
+  reportDownloading: false,
   error: null,
 };
 
@@ -45,6 +47,19 @@ export const fetchAvailableStock = createAsyncThunk(
     includeIds?: string[];
   }) => {
     return await inventoryService.getAvailableStock(productId, locationId, includeIds);
+  }
+);
+
+export const downloadStockReport = createAsyncThunk(
+  'inventory/downloadStockReport',
+  async ({ locationId, reportType }: { locationId?: string; reportType: 'location' | 'all' }) => {
+    const blob = await inventoryService.downloadStockReportPDF(locationId, reportType);
+    
+    // Open PDF in new window (inline view like quote)
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    
+    return { locationId, reportType };
   }
 );
 
@@ -78,6 +93,17 @@ const inventorySlice = createSlice({
       })
       .addCase(fetchAvailableStock.fulfilled, (state, action) => {
         state.availableStock = action.payload || [];
+      })
+      .addCase(downloadStockReport.pending, (state) => {
+        state.reportDownloading = true;
+        state.error = null;
+      })
+      .addCase(downloadStockReport.fulfilled, (state) => {
+        state.reportDownloading = false;
+      })
+      .addCase(downloadStockReport.rejected, (state, action) => {
+        state.reportDownloading = false;
+        state.error = action.error.message || 'Failed to download report';
       });
   },
 });
