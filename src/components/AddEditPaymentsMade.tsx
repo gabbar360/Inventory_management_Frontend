@@ -7,6 +7,7 @@ import { createPaymentMade, updatePaymentMade } from '@/slices/paymentsMadeSlice
 import { PaymentMade, Vendor, InwardInvoice } from '@/types';
 import { formatDate, formatCurrency, cn } from '@/utils';
 import Button from '@/components/Button';
+import { SearchableDropdown } from './SearchableDropdown';
 
 interface AddEditPaymentsMadeProps {
   payment?: PaymentMade;
@@ -37,6 +38,15 @@ const AddEditPaymentsMade: React.FC<AddEditPaymentsMadeProps> = ({
   const [bankCharges, setBankCharges] = useState<number>(0);
   const [notes, setNotes] = useState('');
   const [isAdvance, setIsAdvance] = useState(false);
+
+  // Map vendors list to options compatible with SearchableDropdown
+  const vendorOptions = (vendors || []).map((v: Vendor) => ({
+    name: `${v.code} - ${v.name}`,
+    code: v.id.toString(),
+  }));
+
+  const selectedVendorObj = (vendors || []).find((v: Vendor) => v.id.toString() === vendorId);
+  const selectedVendorName = selectedVendorObj ? `${selectedVendorObj.code} - ${selectedVendorObj.name}` : '';
 
   // Bills/Invoices allocation state
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -283,13 +293,13 @@ const AddEditPaymentsMade: React.FC<AddEditPaymentsMadeProps> = ({
   return (
     <div className="max-w-5xl mx-auto bg-white rounded-lg shadow-sm border border-gray-200">
       {/* Header section in Zoho style */}
-      <div className="px-6 py-4 border-b border-gray-200 bg-gray-50/70 flex justify-between items-center rounded-t-lg">
+      <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-gray-200 bg-gray-50/70 flex justify-between items-center rounded-t-lg">
         <h2 className="text-base font-bold text-gray-800">
           {isEdit ? `Edit Payment Made: ${paymentNumber}` : 'Record Payment Made'}
         </h2>
       </div>
 
-      <form onSubmit={handleSubmit} className="p-6 space-y-6">
+      <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-6">
         {/* Main Zoho form fields (two-column row design) */}
         <div className="space-y-4 max-w-4xl">
           {/* Vendor Selection */}
@@ -298,20 +308,19 @@ const AddEditPaymentsMade: React.FC<AddEditPaymentsMadeProps> = ({
               Vendor Name <span className="text-red-500">*</span>
             </label>
             <div className="col-span-12 md:col-span-9">
-              <select
-                disabled={isEdit || vendorsLoading}
-                value={vendorId}
-                onChange={(e) => setVendorId(e.target.value)}
-                className="w-full max-w-[360px] px-3 py-1.5 text-[13px] border border-gray-300 rounded focus:ring-1 focus:ring-teal-500 focus:border-teal-500 outline-none bg-white disabled:bg-gray-100"
-                required
-              >
-                <option value="">-- Select Vendor --</option>
-                {vendors.map((v: Vendor) => (
-                  <option key={v.id} value={v.id}>
-                    {v.code} - {v.name}
-                  </option>
-                ))}
-              </select>
+              <div className="w-full max-w-[360px]">
+                <SearchableDropdown
+                  disabled={isEdit || vendorsLoading}
+                  value={selectedVendorName}
+                  options={vendorOptions}
+                  onChange={(name) => {
+                    const v = (vendors || []).find((vend: Vendor) => `${vend.code} - ${vend.name}` === name);
+                    setVendorId(v ? v.id.toString() : '');
+                  }}
+                  placeholder="-- Select Vendor --"
+                  required
+                />
+              </div>
 
               {/* Dynamic Vendor Info Dashboard */}
               {vendorId && !vendorsLoading && (

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, X } from 'lucide-react';
 
 interface SearchableDropdownProps {
-  label: string;
+  label?: string;
   value: string;
   options: Array<{ name: string; code?: string }>;
   onChange: (value: string) => void;
@@ -65,9 +65,11 @@ export const SearchableDropdown = ({
 
   return (
     <div className="relative" ref={dropdownRef}>
-      <label className="block text-xs font-semibold mb-1 text-gray-700">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
+      {label && (
+        <label className="block text-xs font-semibold mb-1 text-gray-700">
+          {label} {required && <span className="text-red-500">*</span>}
+        </label>
+      )}
 
       <div
         onClick={() => !disabled && setIsOpen(!isOpen)}
@@ -79,7 +81,7 @@ export const SearchableDropdown = ({
           <input
             ref={inputRef}
             type="text"
-            placeholder={`Search ${label.toLowerCase()}...`}
+            placeholder={label ? `Search ${label.toLowerCase()}...` : 'Search...'}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             onClick={(e) => e.stopPropagation()}
