@@ -10,13 +10,13 @@ export const transferStock = async (data: {
   remarks?: string;
 }) => {
   const response = await api.post<ApiResponse<{ message: string; transferNo: string }>>(
-    '/transfer',
+    '/stock-transfers/transfer',
     data
   );
   return response.data;
 };
 
 export const getTransferHistory = async (params?: { page?: number; limit?: number }) => {
-  const response = await api.get<ApiResponse<any>>('/history', { params });
+  const response = await api.get<ApiResponse<any>>('/stock-transfers/history', { params });
   return response.data;
 };

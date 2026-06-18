@@ -32,6 +32,7 @@ const StockTransferModal: React.FC<StockTransferModalProps> = ({
   const [pieces, setPieces] = useState(0);
   const [remarks, setRemarks] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   if (!isOpen || !batch) return null;
 
@@ -44,6 +45,7 @@ const StockTransferModal: React.FC<StockTransferModalProps> = ({
     if (!toLocationId) return;
 
     setLoading(true);
+    setError('');
     try {
       await onTransfer({
         stockBatchId: parseInt(batch.id.toString()),
@@ -59,8 +61,8 @@ const StockTransferModal: React.FC<StockTransferModalProps> = ({
       setPacks(0);
       setPieces(0);
       setRemarks('');
-    } catch (error) {
-      console.error('Transfer failed:', error);
+    } catch (err: any) {
+      setError(typeof err === 'string' ? err : 'Transfer failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -175,6 +177,10 @@ const StockTransferModal: React.FC<StockTransferModalProps> = ({
               {loading ? 'Transferring...' : 'Transfer'}
             </Button>
           </div>
+
+          {error && (
+            <p className="text-sm text-red-600 text-center">{error}</p>
+          )}
         </form>
       </div>
     </div>
