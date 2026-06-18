@@ -7,6 +7,7 @@ import { createPaymentReceived, updatePaymentReceived } from '@/slices/paymentsR
 import { PaymentReceived, Customer, OutwardInvoice } from '@/types';
 import { formatDate, formatCurrency, cn } from '@/utils';
 import Button from '@/components/Button';
+import { SearchableDropdown } from './SearchableDropdown';
 
 interface AddEditPaymentsReceivedProps {
   payment?: PaymentReceived;
@@ -38,6 +39,15 @@ const AddEditPaymentsReceived: React.FC<AddEditPaymentsReceivedProps> = ({
   const [taxRate, setTaxRate] = useState<number>(0);
   const [notes, setNotes] = useState('');
   const [isAdvance, setIsAdvance] = useState(false);
+
+  // Map customers list to options compatible with SearchableDropdown
+  const customerOptions = (customers || []).map((c: Customer) => ({
+    name: `${c.code} - ${c.name}`,
+    code: c.id.toString(),
+  }));
+
+  const selectedCustomerObj = (customers || []).find((c: Customer) => c.id.toString() === customerId);
+  const selectedCustomerName = selectedCustomerObj ? `${selectedCustomerObj.code} - ${selectedCustomerObj.name}` : '';
 
   // Invoices allocation state
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -282,13 +292,13 @@ const AddEditPaymentsReceived: React.FC<AddEditPaymentsReceivedProps> = ({
   return (
     <div className="max-w-5xl mx-auto bg-white rounded-lg shadow-sm border border-gray-200">
       {/* Header section in Zoho style */}
-      <div className="px-6 py-4 border-b border-gray-200 bg-gray-50/70 flex justify-between items-center rounded-t-lg">
+      <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-gray-200 bg-gray-50/70 flex justify-between items-center rounded-t-lg">
         <h2 className="text-base font-bold text-gray-800">
           {isEdit ? `Edit Payment Received: ${paymentNumber}` : 'Record Payment Received'}
         </h2>
       </div>
 
-      <form onSubmit={handleSubmit} className="p-6 space-y-6">
+      <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-6">
         {/* Main Zoho form fields (two-column row design) */}
         <div className="space-y-4 max-w-4xl">
           {/* Customer Selection */}
@@ -297,20 +307,19 @@ const AddEditPaymentsReceived: React.FC<AddEditPaymentsReceivedProps> = ({
               Customer Name <span className="text-red-500">*</span>
             </label>
             <div className="col-span-12 md:col-span-9">
-              <select
-                disabled={isEdit || customersLoading}
-                value={customerId}
-                onChange={(e) => setCustomerId(e.target.value)}
-                className="w-full max-w-[360px] px-3 py-1.5 text-[13px] border border-gray-300 rounded focus:ring-1 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white disabled:bg-gray-100"
-                required
-              >
-                <option value="">-- Select Customer --</option>
-                {customers.map((c: Customer) => (
-                  <option key={c.id} value={c.id}>
-                    {c.code} - {c.name}
-                  </option>
-                ))}
-              </select>
+              <div className="w-full max-w-[360px]">
+                <SearchableDropdown
+                  disabled={isEdit || customersLoading}
+                  value={selectedCustomerName}
+                  options={customerOptions}
+                  onChange={(name) => {
+                    const c = (customers || []).find((cust: Customer) => `${cust.code} - ${cust.name}` === name);
+                    setCustomerId(c ? c.id.toString() : '');
+                  }}
+                  placeholder="-- Select Customer --"
+                  required
+                />
+              </div>
 
               {/* Dynamic Customer Info Dashboard */}
               {customerId && !customersLoading && (

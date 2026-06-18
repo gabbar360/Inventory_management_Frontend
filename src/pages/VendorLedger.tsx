@@ -3,9 +3,10 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchVendors } from '@/slices/vendorSlice';
 import { ledgerService, VendorLedgerData } from '@/services/ledgerService';
 import { formatDate, formatCurrency, cn } from '@/utils';
-import { Download, Calendar, Loader2, ArrowLeftRight } from 'lucide-react';
+import { Download, Loader2, ArrowLeftRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Button from '@/components/Button';
+import { SearchableDropdown } from '@/components/SearchableDropdown';
 
 const getLocalYYYYMMDD = (date: Date): string => {
   const y = date.getFullYear();
@@ -31,6 +32,15 @@ const VendorLedger: React.FC = () => {
 
   const [selectedVendorId, setSelectedVendorId] = useState<string>('');
   const [dateRangePreset, setDateRangePreset] = useState<string>('this_month');
+
+  // Map vendors list to options compatible with SearchableDropdown
+  const vendorOptions = (vendors || []).map((v) => ({
+    name: `${v.name} (${v.code})`,
+    code: v.id.toString(),
+  }));
+
+  const selectedVendorObj = (vendors || []).find((v) => v.id.toString() === selectedVendorId);
+  const selectedVendorName = selectedVendorObj ? `${selectedVendorObj.name} (${selectedVendorObj.code})` : '';
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [ledgerData, setLedgerData] = useState<VendorLedgerData | null>(null);
@@ -148,29 +158,28 @@ const VendorLedger: React.FC = () => {
 
       {/* Control panel bar */}
       <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="grid grid-cols-1 sm:flex sm:flex-wrap items-stretch sm:items-center gap-3 w-full lg:w-auto">
           {/* Vendor Selector */}
-          <div className="flex flex-col gap-1 min-w-[200px]">
+          <div className="flex flex-col gap-1 w-full sm:w-auto sm:min-w-[220px]">
             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Select Vendor</label>
-            <select
-              value={selectedVendorId}
-              onChange={(e) => setSelectedVendorId(e.target.value)}
-              className="h-9 text-xs font-semibold bg-gray-50 border border-gray-300 rounded-md px-2.5 text-gray-800 focus:outline-none focus:ring-1 focus:ring-teal-650 focus:border-teal-650 truncate shadow-2xs"
-            >
-              <option value="">-- Choose Vendor --</option>
-              {vendors && vendors.map((v) => (
-                <option key={v.id} value={v.id}>{v.name} ({v.code})</option>
-              ))}
-            </select>
+            <SearchableDropdown
+              value={selectedVendorName}
+              options={vendorOptions}
+              onChange={(name) => {
+                const v = (vendors || []).find((vend) => `${vend.name} (${vend.code})` === name);
+                setSelectedVendorId(v ? v.id.toString() : '');
+              }}
+              placeholder="-- Choose Vendor --"
+            />
           </div>
 
           {/* Date range Presets */}
-          <div className="flex flex-col gap-1 min-w-[130px]">
+          <div className="flex flex-col gap-1 w-full sm:w-auto sm:min-w-[130px]">
             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Date Period</label>
             <select
               value={dateRangePreset}
               onChange={(e) => setDateRangePreset(e.target.value)}
-              className="h-9 text-xs font-semibold bg-gray-50 border border-gray-300 rounded-md px-2.5 text-gray-800 focus:outline-none focus:ring-1 focus:ring-teal-650 focus:border-teal-650 shadow-2xs"
+              className="h-9 text-xs font-semibold bg-gray-50 border border-gray-300 rounded-md px-2.5 text-gray-800 focus:outline-none focus:ring-1 focus:ring-teal-655 focus:border-teal-655 shadow-2xs w-full"
             >
               <option value="this_month">This Month</option>
               <option value="last_month">Last Month</option>
@@ -184,43 +193,37 @@ const VendorLedger: React.FC = () => {
           {/* Custom Date selection inputs */}
           {(dateRangePreset === 'custom' || startDate || endDate) && dateRangePreset !== 'all_time' && (
             <>
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1 w-full sm:w-auto">
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Start Date</label>
-                <div className="relative">
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => {
-                      setStartDate(e.target.value);
-                      if (dateRangePreset !== 'custom') setDateRangePreset('custom');
-                    }}
-                    className="h-9 text-xs font-semibold bg-gray-50 border border-gray-300 rounded-md pl-8 pr-2.5 text-gray-800 focus:outline-none focus:ring-1 focus:ring-teal-650 focus:border-teal-655 outline-none shadow-2xs"
-                  />
-                  <Calendar className="h-3.5 w-3.5 text-gray-400 absolute left-2.5 top-3" />
-                </div>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => {
+                    setStartDate(e.target.value);
+                    if (dateRangePreset !== 'custom') setDateRangePreset('custom');
+                  }}
+                  className="h-9 w-full text-xs font-semibold bg-gray-50 border border-gray-300 rounded-md px-3 text-gray-800 focus:outline-none focus:ring-1 focus:ring-teal-650 focus:border-teal-655 outline-none shadow-2xs"
+                />
               </div>
 
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1 w-full sm:w-auto">
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">End Date</label>
-                <div className="relative">
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => {
-                      setEndDate(e.target.value);
-                      if (dateRangePreset !== 'custom') setDateRangePreset('custom');
-                    }}
-                    className="h-9 text-xs font-semibold bg-gray-50 border border-gray-300 rounded-md pl-8 pr-2.5 text-gray-800 focus:outline-none focus:ring-1 focus:ring-teal-650 focus:border-teal-655 outline-none shadow-2xs"
-                  />
-                  <Calendar className="h-3.5 w-3.5 text-gray-400 absolute left-2.5 top-3" />
-                </div>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => {
+                    setEndDate(e.target.value);
+                    if (dateRangePreset !== 'custom') setDateRangePreset('custom');
+                  }}
+                  className="h-9 w-full text-xs font-semibold bg-gray-50 border border-gray-300 rounded-md px-3 text-gray-800 focus:outline-none focus:ring-1 focus:ring-teal-650 focus:border-teal-655 outline-none shadow-2xs"
+                />
               </div>
             </>
           )}
         </div>
 
         {/* Action Button: Export PDF */}
-        <div className="flex items-end self-stretch lg:self-auto pt-3 lg:pt-0">
+        <div className="flex items-end w-full lg:w-auto pt-3 lg:pt-0">
           <Button
             onClick={handleDownloadPDF}
             disabled={!selectedVendorId || !ledgerData || downloading || loading}
@@ -306,7 +309,8 @@ const VendorLedger: React.FC = () => {
               </div>
             </div>
 
-            <div className="overflow-x-auto">
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 text-xs">
                 <thead className="bg-gray-100/60">
                   <tr>
@@ -379,6 +383,86 @@ const VendorLedger: React.FC = () => {
                   </tr>
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile Card List View */}
+            <div className="md:hidden divide-y divide-gray-100 bg-white">
+              {/* Opening Balance Card */}
+              <div className="p-4 bg-gray-50/50 flex justify-between items-center text-xs font-bold text-gray-700">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[9px] text-gray-400 uppercase tracking-wider">Start Date</span>
+                  <span>{startDate ? formatDate(startDate) : '—'}</span>
+                </div>
+                <div className="text-right flex flex-col gap-0.5">
+                  <span className="text-[9px] text-gray-400 uppercase tracking-wider">Opening Balance</span>
+                  <span className="text-gray-800 font-extrabold">{formatLedgerBalance(ledgerData.openingBalance)}</span>
+                </div>
+              </div>
+
+              {/* Transactions List */}
+              {ledgerData.transactions.length > 0 ? (
+                ledgerData.transactions.map((tx) => (
+                  <div key={tx.id} className="p-4 hover:bg-gray-50/30 space-y-2">
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-1.5">
+                        <span className={cn(
+                          "inline-block px-1.5 py-0.5 rounded text-[9px] font-bold uppercase",
+                          tx.type === 'Bill' ? "bg-emerald-50 text-emerald-800 border border-emerald-200" : "bg-teal-50 text-teal-800 border border-teal-200"
+                        )}>
+                          {tx.type}
+                        </span>
+                        <span className="text-xs font-bold text-gray-900">{tx.refNo}</span>
+                      </div>
+                      <span className="text-[11px] text-gray-500 font-medium">{formatDate(tx.date)}</span>
+                    </div>
+
+                    {tx.details && (
+                      <p className="text-xs text-gray-500 italic font-medium">{tx.details}</p>
+                    )}
+
+                    <div className="flex justify-between items-end pt-1">
+                      <div className="flex gap-4 text-xs">
+                        {tx.debit > 0 && (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-[9px] text-gray-400 uppercase tracking-wider">Debit (Paid)</span>
+                            <span className="font-bold text-red-600">{formatCurrency(tx.debit)}</span>
+                          </div>
+                        )}
+                        {tx.credit > 0 && (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-[9px] text-gray-400 uppercase tracking-wider">Credit (Billed)</span>
+                            <span className="font-bold text-emerald-600">{formatCurrency(tx.credit)}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-right flex flex-col gap-0.5">
+                        <span className="text-[9px] text-gray-400 uppercase tracking-wider">Balance</span>
+                        <span className="font-extrabold text-gray-900">{formatLedgerBalance(tx.balance)}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="p-6 text-center text-gray-450 font-semibold text-xs">
+                  No transactions recorded in this period.
+                </div>
+              )}
+
+              {/* Closing Balance Card */}
+              <div className="p-4 bg-gray-50 flex flex-col gap-2 text-xs border-t border-gray-200 font-extrabold">
+                <div className="flex justify-between items-center text-gray-500">
+                  <span>Total Payments (Debits):</span>
+                  <span className="text-gray-900">{formatCurrency(ledgerData.totalDebit)}</span>
+                </div>
+                <div className="flex justify-between items-center text-gray-500">
+                  <span>Total Billed (Credits):</span>
+                  <span className="text-gray-900">{formatCurrency(ledgerData.totalCredit)}</span>
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                  <span className="text-gray-900">Closing Balance:</span>
+                  <span className="text-orange-650 text-sm font-black">{formatLedgerBalance(ledgerData.closingBalance)}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
