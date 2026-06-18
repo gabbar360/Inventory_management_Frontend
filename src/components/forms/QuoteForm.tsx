@@ -11,6 +11,7 @@ import Select from '@/components/Select';
 import Button from '@/components/Button';
 import ProductSearch from '@/components/ProductSearch';
 import AddEditCustomer from '@/components/AddEditCustomer';
+import StockAvailabilityPanel from '@/components/StockAvailabilityPanel';
 
 interface QuoteItem {
   id?: number;
@@ -59,7 +60,6 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
   });
   const [editingItem, setEditingItem] = useState<number | null>(null);
   const [editingData, setEditingData] = useState<QuoteItem | null>(null);
-
   useEffect(() => {
     dispatch(fetchCustomers({ limit: 1000 }));
     dispatch(fetchProducts());
@@ -345,19 +345,22 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
         <h3 className="font-semibold mb-3">Quote Items</h3>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4">
-          <ProductSearch
-            value={newItem.productId?.toString()}
-            onChange={(productId, product) => {
-              const gstRate = product?.category?.gstRate || 0;
-              setNewItem({ 
-                ...newItem, 
-                productId: parseInt(productId),
-                taxRate: gstRate,
-                description: product?.description || '',
-                product: product // Store product object
-              });
-            }}
-          />
+          <div>
+            <ProductSearch
+              value={newItem.productId?.toString()}
+              onChange={(productId, product) => {
+                const gstRate = product?.category?.gstRate || 0;
+                setNewItem({ 
+                  ...newItem, 
+                  productId: parseInt(productId),
+                  taxRate: gstRate,
+                  description: product?.description || '',
+                  product: product
+                });
+              }}
+            />
+            <StockAvailabilityPanel productId={newItem.productId} />
+          </div>
 
           <Input
             type="number"
