@@ -10,6 +10,7 @@ import Button from '@/components/Button';
 import Modal from '@/components/Modal';
 import Input from '@/components/Input';
 import ProductSearch from '@/components/ProductSearch';
+import StockAvailabilityPanel from '@/components/StockAvailabilityPanel';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -365,6 +366,7 @@ const AddEditSalesOrder: React.FC<AddEditSalesOrderProps> = ({ order, onSuccess,
                       setNewItem({ ...newItem, productId, product, taxRate: product?.category?.gstRate || 0, description: product?.description || '' })
                     }
                   />
+                  <StockAvailabilityPanel productId={newItem.productId} />
                 </div>
                 <Input label="Quantity" type="number" min="1" value={newItem.quantity || ''}
                   onChange={(e) => setNewItem({ ...newItem, quantity: parseInt(e.target.value) || 0 })} />

@@ -5,7 +5,11 @@ export interface User {
   id: number;
   email: string;
   name: string;
-  role: string;
+  roleId: number;
+  role?: {
+    id: number;
+    name: string;
+  };
   isActive: boolean;
   createdAt: string;
   updatedAt?: string;
@@ -64,7 +68,7 @@ export const fetchUserById = createAsyncThunk(
 
 export const createUser = createAsyncThunk(
   'users/createUser',
-  async (userData: { email: string; password: string; name: string; role: string }, { rejectWithValue }) => {
+  async (userData: { email: string; password: string; name: string; roleId: number }, { rejectWithValue }) => {
     try {
       const response = await userService.createUser(userData);
       return response.user;
