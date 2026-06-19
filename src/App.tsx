@@ -4,6 +4,7 @@ import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { checkAuth } from '@/slices/authSlice';
 import Layout from '@/components/Layout';
 import Login from '@/pages/Login';
+import { usePermission } from '@/hooks/usePermission';
 
 // Lazy-loaded pages
 const ForgotPassword = lazy(() => import('@/pages/ForgotPassword'));
@@ -27,6 +28,7 @@ const WebsiteQuotes = lazy(() => import('@/pages/WebsiteQuotes'));
 const ProfitLossAnalysis = lazy(() => import('@/pages/ProfitLossAnalysis'));
 const Users = lazy(() => import('@/pages/Users'));
 const Roles = lazy(() => import('@/pages/Roles'));
+const Menus = lazy(() => import('@/pages/Menus'));
 const PurchaseOrders = lazy(() => import('@/pages/PurchaseOrders'));
 const BarcodePrint = lazy(() => import('@/pages/BarcodePrint'));
 const PaymentsReceived = lazy(() => import('@/pages/PaymentsReceived'));
@@ -34,11 +36,23 @@ const PaymentsMade = lazy(() => import('@/pages/PaymentsMade'));
 const VendorLedger = lazy(() => import('@/pages/VendorLedger'));
 const CustomerLedger = lazy(() => import('@/pages/CustomerLedger'));
 
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
+
+const ProtectedRoute: React.FC<{ children: React.ReactNode; permission?: string }> = ({
   children,
+  permission,
 }) => {
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
+  const { hasPermission } = usePermission();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (permission && !hasPermission(permission)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
 };
 
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -176,6 +190,30 @@ function App() {
           <Route path="roles" element={<Roles />} />
           <Route path="roles/add" element={<Roles />} />
           <Route path="roles/edit/:id" element={<Roles />} />
+          <Route
+            path="menus"
+            element={
+              <ProtectedRoute permission="roles.read">
+                <Menus />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="menus/add"
+            element={
+              <ProtectedRoute permission="roles.update">
+                <Menus />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="menus/edit/:id"
+            element={
+              <ProtectedRoute permission="roles.update">
+                <Menus />
+              </ProtectedRoute>
+            }
+          />
           <Route path="users" element={<Users />} />
           <Route path="users/add" element={<Users />} />
           <Route path="users/edit/:id" element={<Users />} />
