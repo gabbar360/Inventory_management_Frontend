@@ -366,7 +366,10 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
     const expenseVal = parseFloat(watchedExpense.toString()) || 0;
     const shippingVal = parseFloat(watchedShipping.toString()) || 0;
     const discountVal = parseFloat(watchedDiscount.toString()) || 0;
-    const raw = totalBase + totalGst + expenseVal + shippingVal - discountVal;
+    const allTaxRates = items.map((i) => getPreviewDetails(i).gstRate);
+    const shippingGstRate = allTaxRates.includes(18) ? 18 : allTaxRates.includes(5) ? 5 : 0;
+    const shippingGstAmt = shippingVal > 0 ? shippingVal * (shippingGstRate / 100) : 0;
+    const raw = totalBase + totalGst + shippingGstAmt + expenseVal + shippingVal - discountVal;
     const rounding = raw - Math.round(raw);
     setValue('adjustment', rounding.toFixed(2));
   }, [items, watchedExpense, watchedShipping, watchedDiscount]);
@@ -508,6 +511,10 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
     const expenseVal = parseFloat(watchedExpense.toString()) || 0;
     const shippingVal = parseFloat(watchedShipping.toString()) || 0;
     const discountVal = parseFloat(watchedDiscount.toString()) || 0;
+    const allTaxRates = items.map((i) => getPreviewDetails(i).gstRate);
+    const shippingGstRate = allTaxRates.includes(18) ? 18 : allTaxRates.includes(5) ? 5 : 0;
+    const shippingGstAmt = shippingVal > 0 ? shippingVal * (shippingGstRate / 100) : 0;
+    totalGst += shippingGstAmt;
 
     const rawTotal = totalBase + totalGst + expenseVal + shippingVal - discountVal;
     const adjustmentVal = rawTotal - Math.round(rawTotal); // auto rounding
@@ -1335,12 +1342,12 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
                 return (
                   <div className="w-full sm:w-auto sm:min-w-[300px] bg-green-50 border border-green-200 p-4 rounded space-y-2">
                     <div className="flex justify-between text-xs text-gray-600">
-                      <span>Total Cost (Base):</span>
+                      <span>Subtotal:</span>
                       <span className="font-semibold text-gray-900">{formatCurrency(totalBase)}</span>
                     </div>
                     <div className="flex justify-between text-xs text-gray-600">
-                      <span>Total GST:</span>
-                      <span className="font-semibold text-gray-900">{formatCurrency(totalGst)}</span>
+                      <span>Total Tax:</span>
+                      <span className="font-semibold text-gray-900">+{formatCurrency(totalGst)}</span>
                     </div>
                     {expenseVal > 0 && (
                       <div className="flex justify-between text-xs text-gray-600">
