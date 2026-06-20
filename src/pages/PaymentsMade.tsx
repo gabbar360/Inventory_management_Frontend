@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Plus, Eye, Download, Edit, Trash2, Loader2, X, ArrowLeft } from 'lucide-react';
+import { Plus, Eye, Download, Edit, Trash2, Loader2, X, ArrowLeft, Mail } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
@@ -20,6 +20,7 @@ import Pagination from '@/components/Pagination';
 import AddEditPaymentsMade from '@/components/AddEditPaymentsMade';
 import ApplyCreditsModal from '@/components/ApplyCreditsModal';
 import { SearchableDropdown } from '@/components/SearchableDropdown';
+import ShareDocumentModal from '@/components/ShareDocumentModal';
 
 const PaymentsMade: React.FC = () => {
   const navigate = useNavigate();
@@ -37,6 +38,7 @@ const PaymentsMade: React.FC = () => {
   const [applyCreditsPayment, setApplyCreditsPayment] = useState<PaymentMade | null>(null);
   const [selectedVendorId, setSelectedVendorId] = useState<string>('');
   const [searchVal, setSearchVal] = useState('');
+  const [sharePayment, setSharePayment] = useState<PaymentMade | null>(null);
 
   // Map vendors list to options compatible with SearchableDropdown
   const vendorOptions = [
@@ -266,6 +268,9 @@ const PaymentsMade: React.FC = () => {
           </Button>
           <Button variant="ghost" size="sm" onClick={() => handleDownloadPDF(record)} title="Download Receipt" disabled={downloadingId === record.id}>
             {downloadingId === record.id ? <Loader2 className="h-4 w-4 animate-spin text-teal-500" /> : <Download className="h-4 w-4" />}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setSharePayment(record)} title="Send via Email">
+            <Mail className="h-4 w-4" />
           </Button>
           {record.transactionType === 'vendor_advance' && record.unusedAmount > 0 && (
             <Button
@@ -634,6 +639,17 @@ const PaymentsMade: React.FC = () => {
                   <span className="hidden sm:inline">PDF</span>
                 </Button>
 
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSharePayment(selectedPayment)}
+                  className="h-8 text-xs font-bold text-blue-600 hover:bg-blue-50 flex items-center gap-1 px-2.5"
+                  title="Send via Email"
+                >
+                  <Mail className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Email</span>
+                </Button>
+
                 {selectedPayment.transactionType === 'vendor_advance' && selectedPayment.unusedAmount > 0 && (
                   <Button
                     variant="ghost"
@@ -962,6 +978,17 @@ const PaymentsMade: React.FC = () => {
           </div>
         )}
       </Modal>
+      {sharePayment && (
+        <ShareDocumentModal
+          isOpen={!!sharePayment}
+          onClose={() => setSharePayment(null)}
+          docType="paymentMade"
+          docId={sharePayment.id}
+          docLabel={sharePayment.paymentNumber}
+          defaultEmail={sharePayment.vendor?.email || ''}
+        />
+      )}
+
       {/* Apply Credits Modal */}
       {applyCreditsPayment && (
         <ApplyCreditsModal

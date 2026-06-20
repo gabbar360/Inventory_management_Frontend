@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Plus, Eye, Upload, Download, Edit, Trash2, Loader2 } from 'lucide-react';
+import { Plus, Eye, Upload, Download, Edit, Trash2, Loader2, Mail } from 'lucide-react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import BarcodeScannerModal from '@/components/BarcodeScannerModal';
@@ -24,6 +24,7 @@ import BulkUpload from '@/components/BulkUpload';
 import Pagination from '@/components/Pagination';
 import PageHeader from '@/components/PageHeader';
 import AddEditOutward from '@/components/AddEditOutward';
+import ShareDocumentModal from '@/components/ShareDocumentModal';
 
 const Outward: React.FC = () => {
   const navigate = useNavigate();
@@ -39,6 +40,7 @@ const Outward: React.FC = () => {
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [downloadingId, setDownloadingId] = useState<string | number | null>(null);
+  const [shareInvoice, setShareInvoice] = useState<OutwardInvoice | null>(null);
   const [directScannerOpen, setDirectScannerOpen] = useState(false);
   const [showScanOutwardModal, setShowScanOutwardModal] = useState(false);
   const [selectedScanCustomer, setSelectedScanCustomer] = useState('');
@@ -270,6 +272,9 @@ const Outward: React.FC = () => {
           <Button variant="ghost" size="sm" onClick={() => handleDownloadPDF(record)} title="Download PDF" disabled={downloadingId === record.id}>
             {downloadingId === record.id ? <Loader2 className="h-4 w-4 animate-spin text-blue-500" /> : <Download className="h-4 w-4" />}
           </Button>
+          <Button variant="ghost" size="sm" onClick={() => setShareInvoice(record)} title="Send via Email">
+            <Mail className="h-4 w-4" />
+          </Button>
           <Button variant="ghost" size="sm" onClick={() => handleEditInvoice(record)}>
             <Edit className="h-4 w-4" />
           </Button>
@@ -318,6 +323,17 @@ const Outward: React.FC = () => {
           loading={loading}
         />
       </div>
+
+      {shareInvoice && (
+        <ShareDocumentModal
+          isOpen={!!shareInvoice}
+          onClose={() => setShareInvoice(null)}
+          docType="invoice"
+          docId={shareInvoice.id}
+          docLabel={shareInvoice.invoiceNo}
+          defaultEmail={shareInvoice.customer?.email || ''}
+        />
+      )}
 
       {/* View Invoice Modal */}
       <Modal
