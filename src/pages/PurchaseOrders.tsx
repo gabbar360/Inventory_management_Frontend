@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Plus, Trash2, Eye, Download, Edit, Loader2, Printer } from 'lucide-react';
+import { Plus, Trash2, Eye, Download, Edit, Loader2, Printer, Mail } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
@@ -18,6 +18,7 @@ import Pagination from '@/components/Pagination';
 import PageHeader from '@/components/PageHeader';
 import ConfirmModal from '@/components/ConfirmModal';
 import AddEditPurchaseOrder from '@/components/AddEditPurchaseOrder';
+import ShareDocumentModal from '@/components/ShareDocumentModal';
 
 const PurchaseOrders: React.FC = () => {
   const navigate = useNavigate();
@@ -32,6 +33,7 @@ const PurchaseOrders: React.FC = () => {
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [shareOrder, setShareOrder] = useState<PurchaseOrder | null>(null);
 
   useEffect(() => {
     dispatch(fetchPurchaseOrders({ page: currentPage, limit: 10, search }));
@@ -153,6 +155,9 @@ const PurchaseOrders: React.FC = () => {
             {downloadingId === record.id.toString()
               ? <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
               : <Download className="h-4 w-4" />}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setShareOrder(record)} title="Send via Email">
+            <Mail className="h-4 w-4" />
           </Button>
           <Button
             variant="ghost"
@@ -329,6 +334,17 @@ const PurchaseOrders: React.FC = () => {
           </div>
         )}
       </Modal>
+
+      {shareOrder && (
+        <ShareDocumentModal
+          isOpen={!!shareOrder}
+          onClose={() => setShareOrder(null)}
+          docType="purchaseOrder"
+          docId={shareOrder.id}
+          docLabel={shareOrder.poNo}
+          defaultEmail={(shareOrder.vendor as any)?.email || ''}
+        />
+      )}
 
       <ConfirmModal
         isOpen={isDeleteModalOpen}

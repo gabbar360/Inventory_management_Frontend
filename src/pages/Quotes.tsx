@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   Plus, Edit, Trash2, Download, Loader2,
   MoreVertical, ShoppingCart, FileText, Package,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, Mail,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -22,6 +22,7 @@ import Modal from '@/components/Modal';
 import Table from '@/components/Table';
 import PageHeader from '@/components/PageHeader';
 import QuoteForm from '@/components/forms/QuoteForm';
+import ShareDocumentModal from '@/components/ShareDocumentModal';
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 
@@ -64,6 +65,7 @@ const Quotes: React.FC = () => {
   const [submittingInvoice, setSubmittingInvoice] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [shareQuote, setShareQuote] = useState<Quote | null>(null);
 
   useEffect(() => {
     dispatch(fetchQuotes({ search, page: currentPage, limit: pageSize }));
@@ -210,6 +212,9 @@ const Quotes: React.FC = () => {
           <Button variant="ghost" size="sm" onClick={() => handleDownloadPDF(record)} title="Download PDF" disabled={downloadingId === record.id.toString()}>
             {downloadingId === record.id.toString() ? <Loader2 className="h-4 w-4 animate-spin text-blue-500" /> : <Download className="h-4 w-4" />}
           </Button>
+          <Button variant="ghost" size="sm" onClick={() => setShareQuote(record)} title="Send via Email">
+            <Mail className="h-4 w-4" />
+          </Button>
           <Button variant="ghost" size="sm" onClick={() => handleEditQuote(record)}>
             <Edit className="h-4 w-4" />
           </Button>
@@ -342,6 +347,18 @@ const Quotes: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Share via Email Modal */}
+      {shareQuote && (
+        <ShareDocumentModal
+          isOpen={!!shareQuote}
+          onClose={() => setShareQuote(null)}
+          docType="quote"
+          docId={shareQuote.id}
+          docLabel={shareQuote.quoteNo}
+          defaultEmail={shareQuote.customer?.email || ''}
+        />
+      )}
 
       {/* Convert to Invoice Modal */}
       <Modal isOpen={!!invoiceModalQuote} onClose={() => setInvoiceModalQuote(null)}
