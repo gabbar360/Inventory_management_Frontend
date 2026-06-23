@@ -73,8 +73,8 @@ const PurchaseOrders: React.FC = () => {
       setIsDeleteModalOpen(false);
       setDeleteId(null);
       dispatch(fetchPurchaseOrders({ page: currentPage, limit: 10, search }));
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to delete');
+    } catch (error) {
+      // Error handled by Redux
     }
   };
 

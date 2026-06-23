@@ -11,7 +11,7 @@ import {
 } from '@/slices/menuSlice';
 import Button from '@/components/Button';
 import ConfirmModal from '@/components/ConfirmModal';
-import Table from '@/components/Table';
+
 import PageHeader from '@/components/PageHeader';
 import AddEditMenu from '@/components/AddEditMenu';
 import DynamicIcon from '@/components/DynamicIcon';
@@ -330,8 +330,8 @@ const Menus: React.FC = () => {
                         {/* Status */}
                         <td className="px-4 py-3 text-center">
                           <ToggleSwitch
-                            checked={mainMenu.isActive}
-                            onChange={() => handleToggleStatus(mainMenu.id, mainMenu.isActive, 'main')}
+                            checked={mainMenu.isActive || false}
+                            onChange={() => handleToggleStatus(mainMenu.id, mainMenu.isActive || false, 'main')}
                           />
                         </td>
 
@@ -470,7 +470,7 @@ const Menus: React.FC = () => {
       {/* Confirm Status Change Modal */}
       <ConfirmModal
         isOpen={statusConfirmModal.isOpen}
-        onClose={() => setStatusConfirmModal({ isOpen: false, menuId: 0, currentStatus: false })}
+        onClose={() => setStatusConfirmModal({ isOpen: false, menuId: 0, currentStatus: false, menuType: 'main' })}
         onConfirm={confirmToggleStatus}
         title="Update Menu Status"
         message={`Are you sure you want to ${statusConfirmModal.currentStatus ? 'deactivate' : 'activate'} this menu item?`}

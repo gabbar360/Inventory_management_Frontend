@@ -114,8 +114,17 @@ const productSlice = createSlice({
       .addCase(updateProduct.rejected, (state, action) => {
         state.error = action.payload as string || 'Failed to update product';
       })
+      .addCase(deleteProduct.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(deleteProduct.fulfilled, (state, action) => {
+        state.loading = false;
         state.products = state.products.filter((p) => p.id !== action.payload);
+      })
+      .addCase(deleteProduct.rejected, (state, action: any) => {
+        state.loading = false;
+        state.error = action.payload?.error || action.error.message || 'Failed to delete product';
       });
   },
 });
