@@ -84,8 +84,8 @@ const OrderDispatchPage: React.FC = () => {
       await dispatch(deleteOrderDispatch(dispatchItem.id)).unwrap();
       toast.success('Dispatch deleted successfully');
       dispatch(fetchOrderDispatches({ page: currentPage, limit: 10, search, status: statusFilter || undefined }));
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to delete');
+    } catch (error) {
+      // Error handled by Redux
     }
   };
 

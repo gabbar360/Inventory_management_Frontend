@@ -275,7 +275,7 @@ const Customers: React.FC = () => {
         toast.success('Customer deleted successfully');
         navigate('/customers');
       } catch (error) {
-        // Handled by Redux
+        // Error handled by Redux effect
       }
     }
   };

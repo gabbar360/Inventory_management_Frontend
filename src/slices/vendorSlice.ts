@@ -97,8 +97,26 @@ const vendorSlice = createSlice({
           state.currentVendor = action.payload;
         }
       })
+      .addCase(deleteVendor.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(deleteVendor.fulfilled, (state, action) => {
+        state.loading = false;
         state.vendors = state.vendors.filter((v) => v.id !== action.payload);
+      })
+      .addCase(deleteVendor.rejected, (state, action: any) => {
+        state.loading = false;
+        state.error = action.payload?.error || action.error.message || 'Failed to delete vendor';
+      })
+      .addCase(createVendor.rejected, (state, action: any) => {
+        state.error = action.payload?.error || action.error.message || 'Failed to create vendor';
+      })
+      .addCase(updateVendor.rejected, (state, action: any) => {
+        state.error = action.payload?.error || action.error.message || 'Failed to update vendor';
+      })
+      .addCase(fetchVendorById.rejected, (state, action) => {
+        state.error = action.error.message || 'Failed to fetch vendor details';
       });
   },
 });

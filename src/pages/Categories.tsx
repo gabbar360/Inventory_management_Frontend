@@ -7,6 +7,7 @@ import {
   fetchCategories,
   fetchCategoryById,
   deleteCategory,
+  clearError,
 } from '@/slices/categorySlice';
 import { bulkUploadService } from '@/services/bulkUploadService';
 import { Category } from '@/types';
@@ -23,7 +24,7 @@ const Categories: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const dispatch = useAppDispatch();
-  const { categories, currentCategory, pagination, loading } = useAppSelector(
+  const { categories, currentCategory, pagination, loading, error } = useAppSelector(
     (state) => state.categories
   );
 
@@ -46,6 +47,14 @@ const Categories: React.FC = () => {
       });
     }
   }, [id, dispatch]);
+
+  // Error handling for delete and other operations
+  useEffect(() => {
+    if (error) {
+      toast.error(error);
+      dispatch(clearError());
+    }
+  }, [error, dispatch]);
 
   const debouncedSearch = debounce((value: string) => {
     setSearch(value);
@@ -74,9 +83,8 @@ const Categories: React.FC = () => {
       try {
         await dispatch(deleteCategory(category.id)).unwrap();
         toast.success('Category deleted successfully');
-      } catch (error: any) {
-        const errorMessage = typeof error === 'string' ? error : error?.message || 'Failed to delete category';
-        toast.error(errorMessage);
+      } catch (error) {
+        // Error handled by Redux
       }
     }
   };

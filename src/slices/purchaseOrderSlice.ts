@@ -99,8 +99,17 @@ const purchaseOrderSlice = createSlice({
         const idx = state.orders.findIndex((o) => o.id === action.payload.id);
         if (idx !== -1) state.orders[idx] = action.payload;
       })
+      .addCase(deletePurchaseOrder.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(deletePurchaseOrder.fulfilled, (state, action) => {
+        state.loading = false;
         state.orders = state.orders.filter((o) => o.id !== action.payload);
+      })
+      .addCase(deletePurchaseOrder.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to delete purchase order';
       })
       .addCase(downloadPurchaseOrderPDF.pending, (state) => { state.downloadingPDF = true; state.error = null; })
       .addCase(downloadPurchaseOrderPDF.fulfilled, (state) => { state.downloadingPDF = false; })
