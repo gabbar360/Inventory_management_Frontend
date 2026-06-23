@@ -7,13 +7,13 @@ import {
   fetchCategories,
   fetchCategoryById,
   deleteCategory,
-  clearError,
 } from '@/slices/categorySlice';
 import { bulkUploadService } from '@/services/bulkUploadService';
 import { Category } from '@/types';
 import { formatDate, debounce } from '@/utils';
 import Button from '@/components/Button';
 import Table from '@/components/Table';
+
 import BulkUpload from '@/components/BulkUpload';
 import Pagination from '@/components/Pagination';
 import PageHeader from '@/components/PageHeader';
@@ -23,7 +23,7 @@ const Categories: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const dispatch = useAppDispatch();
-  const { categories, currentCategory, pagination, loading, error } = useAppSelector(
+  const { categories, currentCategory, pagination, loading } = useAppSelector(
     (state) => state.categories
   );
 
@@ -34,13 +34,6 @@ const Categories: React.FC = () => {
   useEffect(() => {
     dispatch(fetchCategories({ page: currentPage, limit: 10, search }));
   }, [dispatch, search, currentPage]);
-
-  useEffect(() => {
-    if (error) {
-      toast.error(error);
-      dispatch(clearError());
-    }
-  }, [error, dispatch]);
 
   // Fetch category data when in edit mode
   useEffect(() => {
@@ -81,8 +74,9 @@ const Categories: React.FC = () => {
       try {
         await dispatch(deleteCategory(category.id)).unwrap();
         toast.success('Category deleted successfully');
-      } catch (error) {
-        // Error handled by Redux
+      } catch (error: any) {
+        const errorMessage = typeof error === 'string' ? error : error?.message || 'Failed to delete category';
+        toast.error(errorMessage);
       }
     }
   };

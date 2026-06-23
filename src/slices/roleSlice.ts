@@ -5,6 +5,7 @@ export interface Role {
   id: number;
   name: string;
   description?: string;
+  isSuperAdmin?: boolean;
   isActive?: boolean;
   createdAt: string;
   updatedAt?: string;
@@ -63,7 +64,7 @@ export const fetchRoleById = createAsyncThunk(
 
 export const createRole = createAsyncThunk(
   'roles/createRole',
-  async (roleData: { name: string; description?: string }, { rejectWithValue }) => {
+  async (roleData: { name: string; description?: string; isSuperAdmin?: boolean; isActive?: boolean }, { rejectWithValue }) => {
     try {
       const response = await roleService.createRole(roleData);
       return response.role;
@@ -117,7 +118,6 @@ const roleSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    // Fetch Roles
     builder
       .addCase(fetchRoles.pending, (state) => {
         state.loading = true;
@@ -131,10 +131,7 @@ const roleSlice = createSlice({
       .addCase(fetchRoles.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
-      });
-
-    // Fetch Role By ID
-    builder
+      })
       .addCase(fetchRoleById.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -146,10 +143,7 @@ const roleSlice = createSlice({
       .addCase(fetchRoleById.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
-      });
-
-    // Create Role
-    builder
+      })
       .addCase(createRole.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -161,10 +155,7 @@ const roleSlice = createSlice({
       .addCase(createRole.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
-      });
-
-    // Update Role
-    builder
+      })
       .addCase(updateRole.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -182,10 +173,7 @@ const roleSlice = createSlice({
       .addCase(updateRole.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
-      });
-
-    // Delete Role
-    builder
+      })
       .addCase(deleteRole.pending, (state) => {
         state.loading = true;
         state.error = null;

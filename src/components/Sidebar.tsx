@@ -1,72 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard,
-  Users,
-  MapPin,
-  ArrowDownToLine,
-  ArrowUpFromLine,
-  Warehouse,
   LogOut,
   Menu,
-  FolderTree,
-  Box,
-  FlaskConical,
-  FileText,
-  Megaphone,
-  TrendingUp,
-  ClipboardList,
-  ShoppingCart,
-  ShoppingBag,
   ChevronDown,
   ChevronRight,
-  Globe,
-  Truck,
-  CreditCard,
 } from 'lucide-react';
-import { useAppDispatch } from '@/store/hooks';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutUser } from '@/slices/authSlice';
 import { cn } from '@/utils';
 import Button from '@/components/Button';
 import toast from 'react-hot-toast';
-
-const topNavigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Leads', href: '/leads', icon: Megaphone },
-  { name: 'Website Quotes', href: '/website-quotes', icon: Globe },
-  { name: 'Categories', href: '/categories', icon: FolderTree },
-  { name: 'Products', href: '/products', icon: Box },
-];
-
-const purchaseItems = [
-  { name: 'Vendors', href: '/vendors', icon: Users },
-  { name: 'Purchase Orders', href: '/purchase-orders', icon: ShoppingCart },
-  { name: 'Inward', href: '/inward', icon: ArrowDownToLine },
-  { name: 'Payments Made', href: '/paymentsmade', icon: CreditCard },
-  { name: 'Vendor Ledger', href: '/vendor-ledger', icon: FileText },
-];
-
-const salesItems = [
-  { name: 'Customers', href: '/customers', icon: Users },
-  { name: 'Quotes', href: '/quotes', icon: FileText },
-  { name: 'Sales Orders', href: '/sales-orders', icon: ClipboardList },
-  { name: 'Order Dispatch', href: '/order-dispatch', icon: Truck },
-  { name: 'Outward', href: '/outward', icon: ArrowUpFromLine },
-  { name: 'Payments Received', href: '/paymentsreceived', icon: CreditCard },
-  { name: 'Customer Ledger', href: '/customer-ledger', icon: FileText },
-];
-
-const userManagementItems = [
-  { name: 'Roles', href: '/roles', icon: Users },
-  { name: 'Users', href: '/users', icon: Users },
-];
-
-const bottomNavigation = [
-  { name: 'Warehouse', href: '/locations', icon: MapPin },
-  { name: 'Inventory', href: '/inventory', icon: Warehouse },
-  { name: 'Samples', href: '/samples', icon: FlaskConical },
-  { name: 'Profit & Loss', href: '/profit-loss', icon: TrendingUp },
-];
+import { DynamicIcon } from '@/components/DynamicIcon';
+import { fetchSidebarMenu } from '@/slices/menuSlice';
+import { MenuItem } from '@/types';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -78,15 +25,35 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const [showLogoutMenu, setShowLogoutMenu] = useState(false);
-  const [purchaseOpen, setPurchaseOpen] = useState(
-    purchaseItems.some((i) => location.pathname === i.href)
-  );
-  const [salesOpen, setSalesOpen] = useState(
-    salesItems.some((i) => location.pathname === i.href)
-  );
-  const [userManagementOpen, setUserManagementOpen] = useState(
-    userManagementItems.some((i) => location.pathname === i.href)
-  );
+
+  // Dynamic menu selected from Redux state
+  const { menuTree, loading } = useAppSelector((state) => state.menu);
+  const [openGroups, setOpenGroups] = useState<Record<number, boolean>>({});
+
+  // Fetch the dynamic menu on load
+  useEffect(() => {
+    dispatch(fetchSidebarMenu());
+  }, [dispatch]);
+
+  // Sync openGroups state with location path when menu loads
+  useEffect(() => {
+    if (menuTree.length > 0) {
+      const initialOpen: Record<number, boolean> = {};
+      menuTree.forEach((group) => {
+        if (group.children && group.children.some((child) => location.pathname === child.path)) {
+          initialOpen[group.id] = true;
+        }
+      });
+      setOpenGroups((prev) => ({ ...initialOpen, ...prev }));
+    }
+  }, [menuTree, location.pathname]);
+
+  const toggleGroup = (id: number) => {
+    setOpenGroups((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
 
   const handleLogout = async () => {
     try {
@@ -104,12 +71,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
     }
   };
 
-  const navLink = (item: { name: string; href: string; icon: React.ElementType }, isChild: boolean = false) => {
-    const isActive = location.pathname === item.href;
+  const navLink = (item: MenuItem, isChild: boolean = false) => {
+    const isActive = location.pathname === item.path;
     return (
       <Link
-        key={item.name}
-        to={item.href}
+        key={item.id}
+        to={item.path || '#'}
         onClick={handleLinkClick}
         className={cn(
           'group flex items-center py-1.5 text-xs sm:text-sm font-medium transition-colors mb-0.5 rounded-md',
@@ -121,51 +88,54 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
             : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 pl-3'
         )}
       >
-        <item.icon
-          className={cn(
-            'h-4 w-4 flex-shrink-0 transition-colors',
-            isOpen ? 'mr-2.5' : 'mx-auto',
-            isActive ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-600'
-          )}
-        />
+        {item.icon && (
+          <DynamicIcon
+            name={item.icon}
+            className={cn(
+              'h-4 w-4 flex-shrink-0 transition-colors',
+              isOpen ? 'mr-2.5' : 'mx-auto',
+              isActive ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-600'
+            )}
+          />
+        )}
         {isOpen && <span className="truncate">{item.name}</span>}
       </Link>
     );
-  }
+  };
 
-  const dropdownGroup = (
-    label: string,
-    Icon: React.ElementType,
-    items: typeof purchaseItems,
-    open: boolean,
-    setOpen: (v: boolean) => void
-  ) => {
-    const isGroupActive = items.some((i) => location.pathname === i.href);
+  const dropdownGroup = (item: MenuItem) => {
+    const children = item.children || [];
+    const isGroupActive = children.some((child) => location.pathname === child.path);
+    const isGroupOpen = !!openGroups[item.id];
+
     return (
-      <div className="space-y-0.5">
+      <div key={item.id} className="space-y-0.5">
         <button
           onClick={() => {
             if (!isOpen) onToggle();
-            else setOpen(!open);
+            else toggleGroup(item.id);
           }}
           className={cn(
             'w-full group flex items-center py-1.5 text-xs sm:text-sm font-medium transition-colors pl-3',
-            isGroupActive && !open
+            isGroupActive && !isGroupOpen
               ? 'bg-primary-100/60 text-primary-900 border-l-[3px] border-primary-600 rounded-r-sm pl-2 sm:pl-3'
               : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
           )}
         >
-          <Icon
-            className={cn(
-              'h-4 w-4 flex-shrink-0 transition-colors',
-              isOpen ? 'mr-2.5' : 'mx-auto',
-              isGroupActive ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-600'
-            )}
-          />
+          {item.icon && (
+            <DynamicIcon
+              name={item.icon}
+              className={cn(
+                'h-4 w-4 flex-shrink-0 transition-colors',
+                isOpen ? 'mr-2.5' : 'mx-auto',
+                isGroupActive ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-600'
+              )}
+            />
+          )}
           {isOpen && (
             <>
-              <span className="flex-1 text-left truncate">{label}</span>
-              {open ? (
+              <span className="flex-1 text-left truncate">{item.name}</span>
+              {isGroupOpen ? (
                 <ChevronDown className="h-3.5 w-3.5 text-gray-400 group-hover:text-gray-600" />
               ) : (
                 <ChevronRight className="h-3.5 w-3.5 text-gray-400 group-hover:text-gray-600" />
@@ -173,13 +143,20 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
             </>
           )}
         </button>
-        {isOpen && open && (
+        {isOpen && isGroupOpen && (
           <div className="ml-3 mt-0.5 space-y-0.5 border-l-2 border-primary-200 pl-3">
-            {items.map((item) => navLink(item, true))}
+            {children.map((child) => navLink(child, true))}
           </div>
         )}
       </div>
     );
+  };
+
+  const renderNavItem = (item: MenuItem) => {
+    if (item.children && item.children.length > 0) {
+      return dropdownGroup(item);
+    }
+    return navLink(item, false);
   };
 
   return (
@@ -222,14 +199,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
 
           {/* Navigation links */}
           <nav className="flex-1 space-y-0.5 px-1.5 py-3 overflow-y-auto">
-            {topNavigation.map((item) => navLink(item, false))}
-
-            {dropdownGroup('Purchase', ShoppingCart, purchaseItems, purchaseOpen, setPurchaseOpen)}
-            {dropdownGroup('Sales', ShoppingBag, salesItems, salesOpen, setSalesOpen)}
-
-            {bottomNavigation.map((item) => navLink(item, false))}
-
-            {dropdownGroup('System Settings', Users, userManagementItems, userManagementOpen, setUserManagementOpen)}
+            {loading ? (
+              isOpen ? (
+                <div className="flex justify-center py-4">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-600 border-t-transparent"></div>
+                </div>
+              ) : null
+            ) : (
+              menuTree.map((item) => renderNavItem(item))
+            )}
           </nav>
 
           {/* Logout */}

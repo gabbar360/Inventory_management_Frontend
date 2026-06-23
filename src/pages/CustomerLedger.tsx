@@ -3,10 +3,11 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchCustomers } from '@/slices/customerSlice';
 import { ledgerService, CustomerLedgerData } from '@/services/ledgerService';
 import { formatDate, formatCurrency, cn } from '@/utils';
-import { Download, Loader2, ArrowLeftRight } from 'lucide-react';
+import { Download, Loader2, ArrowLeftRight, Mail } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Button from '@/components/Button';
 import { SearchableDropdown } from '@/components/SearchableDropdown';
+import { emailService } from '@/services/emailService';
 
 const getLocalYYYYMMDD = (date: Date): string => {
   const y = date.getFullYear();
@@ -46,6 +47,11 @@ const CustomerLedger: React.FC = () => {
   const [ledgerData, setLedgerData] = useState<CustomerLedgerData | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [downloading, setDownloading] = useState<boolean>(false);
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [emailTo, setEmailTo] = useState('');
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailMessage, setEmailMessage] = useState('');
+  const [sending, setSending] = useState(false);
 
   // Load customers list
   useEffect(() => {
@@ -147,6 +153,36 @@ const CustomerLedger: React.FC = () => {
     }
   };
 
+  const openEmailModal = () => {
+    const name = selectedCustomerObj?.name || 'Customer';
+    setEmailTo(selectedCustomerObj?.email || '');
+    setEmailSubject(`Account Statement - ${name}`);
+    setEmailMessage(`Dear ${name},\n\nPlease find attached your account statement.\n\nRegards,\nVegnar Global Team`);
+    setEmailModalOpen(true);
+  };
+
+  const handleSendEmail = async () => {
+    if (!emailTo.trim()) return toast.error('Recipient email is required');
+    setSending(true);
+    try {
+      await emailService.sendLedger({
+        to: emailTo.trim(),
+        subject: emailSubject,
+        message: emailMessage,
+        ledgerType: 'customer',
+        entityId: selectedCustomerId,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+      });
+      toast.success(`Statement sent to ${emailTo}`);
+      setEmailModalOpen(false);
+    } catch (err: any) {
+      toast.error(err || 'Failed to send email');
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
     <div className="space-y-5">
       {/* Breadcrumbs */}
@@ -223,7 +259,15 @@ const CustomerLedger: React.FC = () => {
         </div>
 
         {/* Action Button: Export PDF */}
-        <div className="flex items-end w-full lg:w-auto pt-3 lg:pt-0">
+        <div className="flex items-end w-full lg:w-auto pt-3 lg:pt-0 gap-2">
+          <Button
+            onClick={openEmailModal}
+            disabled={!selectedCustomerId || !ledgerData || loading}
+            className="h-9 w-full lg:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 rounded-md text-xs flex items-center justify-center gap-1.5 shadow-sm transition-colors"
+          >
+            <Mail className="h-4 w-4" />
+            <span>Send via Email</span>
+          </Button>
           <Button
             onClick={handleDownloadPDF}
             disabled={!selectedCustomerId || !ledgerData || downloading || loading}
@@ -474,6 +518,40 @@ const CustomerLedger: React.FC = () => {
           </div>
           <h3 className="text-sm font-extrabold text-gray-800">Select a customer above</h3>
           <p className="text-xs text-gray-450">Choose a customer from the dropdown selector to compile their account ledger statement.</p>
+        </div>
+      )}
+
+      {/* Send Email Modal */}
+      {emailModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-screen items-center justify-center p-4">
+            <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => setEmailModalOpen(false)} />
+            <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6 space-y-4">
+              <h3 className="text-base font-semibold text-gray-900">Send Statement via Email</h3>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">To <span className="text-red-500">*</span></label>
+                <input type="email" value={emailTo} onChange={(e) => setEmailTo(e.target.value)}
+                  placeholder="recipient@example.com"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Subject</label>
+                <input type="text" value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Message</label>
+                <textarea rows={4} value={emailMessage} onChange={(e) => setEmailMessage(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none" />
+              </div>
+              <div className="flex justify-end gap-2 pt-1 border-t border-gray-100">
+                <Button variant="outline" onClick={() => setEmailModalOpen(false)} disabled={sending}>Cancel</Button>
+                <Button onClick={handleSendEmail} loading={sending}>
+                  <Mail className="h-4 w-4 mr-1" /> Send
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

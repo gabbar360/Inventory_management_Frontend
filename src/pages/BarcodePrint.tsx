@@ -60,101 +60,91 @@ export const BarcodePrint: React.FC = () => {
       </div>
 
       {/* Labels Container */}
-      {Array.from({ length: Math.ceil(boxes.length / 4) }, (_, pageIdx) => (
-        <div
-          key={pageIdx}
-          style={{
-            width: '8.27in',
-            height: '11.69in',
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gridTemplateRows: '1fr 1fr',
-            gap: '3mm',
-            padding: '3mm',
-            boxSizing: 'border-box',
-            breakAfter: pageIdx < Math.ceil(boxes.length / 4) - 1 ? 'page' : 'auto',
-            marginBottom: '10px',
-            background: 'white'
-          }}
-        >
-          {boxes.slice(pageIdx * 4, pageIdx * 4 + 4).map((box) => (
-            <div
-              key={box.id}
-              style={{
-                width: '3.9in',
-                height: '5.5in',
-                border: '2px solid black',
-                boxSizing: 'border-box',
-                display: 'flex',
-                flexDirection: 'column',
-                fontFamily: 'Arial, sans-serif',
-                overflow: 'hidden',
-                background: 'white',
-              }}
-            >
-              {/* Row 1: SKU + Product */}
-              <div style={{ display: 'flex', borderBottom: '1px solid black', flexShrink: 0 }}>
-                <div style={{ width: '28%', borderRight: '1px solid black', padding: '0px 6px' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 'bold' }}>SKU</div>
-                  <div style={{ fontSize: '36px', fontWeight: 'bold', lineHeight: 1 }}>{box.product?.sku || '—'}</div>
-                </div>
-                <div style={{ width: '72%', padding: '0px 6px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 'bold' }}>PRODUCT</div>
-                  <div style={{ fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', wordBreak: 'break-word' }}>{box.product?.name || '—'}</div>
-                </div>
+      <div className="flex flex-col gap-4 print:gap-0 print:block">
+        {boxes.map((box, index) => (
+          <div
+            key={box.id}
+            style={{
+              width: '100mm',
+              height: '100mm',
+              border: '2px solid black',
+              boxSizing: 'border-box',
+              display: 'flex',
+              flexDirection: 'column',
+              fontFamily: 'Arial, sans-serif',
+              overflow: 'hidden',
+              background: 'white',
+              breakAfter: index < boxes.length - 1 ? 'page' : 'auto',
+              marginBottom: '15px',
+            }}
+            className="print:mb-0 print:border-black"
+          >
+            {/* Row 1: SKU + Product */}
+            <div style={{ display: 'flex', borderBottom: '1px solid black', flexShrink: 0 }}>
+              <div style={{ width: '28%', borderRight: '1px solid black', padding: '2px 6px' }}>
+                <div style={{ fontSize: '10px', fontWeight: 'bold' }}>SKU</div>
+                <div style={{ fontSize: '24px', fontWeight: 'bold', lineHeight: 1.1, wordBreak: 'break-all' }}>{box.product?.sku || '—'}</div>
               </div>
-
-              {/* Row 2: Colour + Brand */}
-              <div style={{ display: 'flex', borderBottom: '1px solid black', flexShrink: 0 }}>
-                <div style={{ width: '50%', borderRight: '1px solid black', padding: '0px 6px' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 'bold' }}>COLOUR</div>
-                  <div style={{ fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase' }}>{box.color || '—'}</div>
-                </div>
-                <div style={{ width: '50%', padding: '0px 6px' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 'bold' }}>BRAND</div>
-                  <div style={{ fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase' }}>{box.brand || '—'}</div>
-                </div>
-              </div>
-
-              {/* Row 3: Batch Code + MFG Date */}
-              <div style={{ display: 'flex', borderBottom: '1px solid black', flexShrink: 0 }}>
-                <div style={{ width: '50%', borderRight: '1px solid black', padding: '4px 6px' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 'bold' }}>BATCH CODE</div>
-                  <div style={{ fontSize: '13px', fontWeight: 'bold' }}>{box.batchCode || '—'}</div>
-                </div>
-                <div style={{ width: '50%', padding: '4px 6px' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 'bold' }}>MFG DATE</div>
-                  <div style={{ fontSize: '13px', fontWeight: 'bold' }}>{box.mfgDate ? formatDate(box.mfgDate) : '—'}</div>
-                </div>
-              </div>
-
-              {/* Row 4: Pack Of + Total Pcs */}
-              <div style={{ display: 'flex', borderBottom: '1px solid black', flexShrink: 0 }}>
-                <div style={{ width: '50%', borderRight: '1px solid black', padding: '4px 6px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 'bold' }}>PACK OF</div>
-                  <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{box.packPerBox || '—'}</div>
-                </div>
-                <div style={{ width: '50%', padding: '4px 6px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 'bold' }}>TOTAL PCS</div>
-                  <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{box.totalPcs || '—'}</div>
-                </div>
-              </div>
-
-              {/* Row 5: Barcode */}
-              <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6px' }}>
-                <BarcodeImage barcode={box.barcode} width="100%" height="auto" />
+              <div style={{ width: '72%', padding: '2px 6px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                <div style={{ fontSize: '10px', fontWeight: 'bold' }}>PRODUCT</div>
+                <div style={{ fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', wordBreak: 'break-word', lineHeight: 1.2 }}>{box.product?.name || '—'}</div>
               </div>
             </div>
-          ))}
-        </div>
-      ))}
+
+            {/* Row 2: Colour + Brand */}
+            <div style={{ display: 'flex', borderBottom: '1px solid black', flexShrink: 0 }}>
+              <div style={{ width: '50%', borderRight: '1px solid black', padding: '2px 6px' }}>
+                <div style={{ fontSize: '10px', fontWeight: 'bold' }}>COLOUR</div>
+                <div style={{ fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase' }}>{box.color || '—'}</div>
+              </div>
+              <div style={{ width: '50%', padding: '2px 6px' }}>
+                <div style={{ fontSize: '10px', fontWeight: 'bold' }}>BRAND</div>
+                <div style={{ fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase' }}>{box.brand || '—'}</div>
+              </div>
+            </div>
+
+            {/* Row 3: Batch Code + MFG Date */}
+            <div style={{ display: 'flex', borderBottom: '1px solid black', flexShrink: 0 }}>
+              <div style={{ width: '50%', borderRight: '1px solid black', padding: '2px 6px' }}>
+                <div style={{ fontSize: '10px', fontWeight: 'bold' }}>BATCH CODE</div>
+                <div style={{ fontSize: '12px', fontWeight: 'bold' }}>{box.batchCode || '—'}</div>
+              </div>
+              <div style={{ width: '50%', padding: '2px 6px' }}>
+                <div style={{ fontSize: '10px', fontWeight: 'bold' }}>MFG DATE</div>
+                <div style={{ fontSize: '12px', fontWeight: 'bold' }}>{box.mfgDate ? formatDate(box.mfgDate) : '—'}</div>
+              </div>
+            </div>
+
+            {/* Row 4: Pack Of + Total Pcs */}
+            <div style={{ display: 'flex', borderBottom: '1px solid black', flexShrink: 0 }}>
+              <div style={{ width: '50%', borderRight: '1px solid black', padding: '2px 6px', textAlign: 'center' }}>
+                <div style={{ fontSize: '10px', fontWeight: 'bold' }}>PACK OF</div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', lineHeight: 1.1 }}>{box.packPerBox || '—'}</div>
+              </div>
+              <div style={{ width: '50%', padding: '2px 6px', textAlign: 'center' }}>
+                <div style={{ fontSize: '10px', fontWeight: 'bold' }}>TOTAL PCS</div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', lineHeight: 1.1 }}>{box.totalPcs || '—'}</div>
+              </div>
+            </div>
+
+            {/* Row 5: Barcode */}
+            <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4px 6px' }}>
+              <BarcodeImage barcode={box.barcode} width="100%" height="auto" />
+            </div>
+          </div>
+        ))}
+      </div>
 
       <style>{`
         @media print {
-          @page { size: A4; margin: 0; }
+          @page { size: 100mm 100mm; margin: 0; }
           .no-print { display: none !important; }
-          body { margin: 0; padding: 0; }
-
+          body { 
+            margin: 0; 
+            padding: 0; 
+            -webkit-print-color-adjust: exact; 
+            print-color-adjust: exact; 
+          }
         }
       `}</style>
     </div>

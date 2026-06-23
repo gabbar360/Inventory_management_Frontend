@@ -110,7 +110,7 @@ function Table<T extends Record<string, any>>(
                     handleSort(String(column.key), column.sortable)
                   }
                 >
-                  <div className="flex items-center space-x-1">
+                  <div className={cn('flex items-center space-x-1', column.align === 'right' && 'justify-end')}>
                     <span>{column.title}</span>
                     {column.sortable && (
                       <div className="flex flex-col">

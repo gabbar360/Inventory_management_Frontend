@@ -6,8 +6,40 @@ export interface User {
   role?: {
     id: number;
     name: string;
+    isSuperAdmin?: boolean;
   };
+  permissions?: string[];
   createdAt: string;
+}
+
+export interface MenuItem {
+  id: number;
+  name: string;
+  path: string | null;
+  icon: string | null;
+  order: number;
+  permissionId?: number | null;
+  isActive?: boolean;
+  permission?: { id: number; slug: string; name: string } | null;
+  subMenus?: SubMenuItem[];
+  children?: MenuItem[]; // Sidebar structure mapping
+  type?: 'main' | 'sub'; // Unified list type
+  parentId?: number | null; // UI mapping compatibility
+  parent?: MenuItem | null; // UI mapping compatibility
+}
+
+export interface SubMenuItem {
+  id: number;
+  name: string;
+  path: string;
+  icon: string | null;
+  order: number;
+  menuItemId: number;
+  permissionId?: number | null;
+  isActive?: boolean;
+  permission?: { id: number; slug: string; name: string } | null;
+  menuItem?: MenuItem;
+  type?: 'main' | 'sub'; // Unified list type
 }
 
 export interface Category {
