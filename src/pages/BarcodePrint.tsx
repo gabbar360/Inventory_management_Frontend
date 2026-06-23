@@ -82,12 +82,12 @@ export const BarcodePrint: React.FC = () => {
             {/* Row 1: SKU + Product */}
             <div style={{ display: 'flex', borderBottom: '1px solid black', flexShrink: 0 }}>
               <div style={{ width: '28%', borderRight: '1px solid black', padding: '2px 6px' }}>
-                <div style={{ fontSize: '10px', fontWeight: 'bold' }}>SKU</div>
-                <div style={{ fontSize: '24px', fontWeight: 'bold', lineHeight: 1.1, wordBreak: 'break-all' }}>{box.product?.sku || '—'}</div>
+                <div style={{ fontSize: '12px', fontWeight: 'bold' }}>SKU</div>
+                <div style={{ fontSize: '32px', fontWeight: 'bold', lineHeight: 1.1, wordBreak: 'break-all' }}>{box.product?.sku || '—'}</div>
               </div>
               <div style={{ width: '72%', padding: '2px 6px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                <div style={{ fontSize: '10px', fontWeight: 'bold' }}>PRODUCT</div>
-                <div style={{ fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', wordBreak: 'break-word', lineHeight: 1.2 }}>{box.product?.name || '—'}</div>
+                <div style={{ fontSize: '12px', fontWeight: 'bold' }}>PRODUCT</div>
+                <div style={{ fontSize: '16px', fontWeight: 'bold', textTransform: 'uppercase', wordBreak: 'break-word', lineHeight: 1.2 }}>{box.product?.name || '—'}</div>
               </div>
             </div>
 
