@@ -7,7 +7,6 @@ import {
   fetchCategories,
   fetchCategoryById,
   deleteCategory,
-  clearError,
 } from '@/slices/categorySlice';
 import { bulkUploadService } from '@/services/bulkUploadService';
 import { Category } from '@/types';
@@ -34,13 +33,6 @@ const Categories: React.FC = () => {
   useEffect(() => {
     dispatch(fetchCategories({ page: currentPage, limit: 10, search }));
   }, [dispatch, search, currentPage]);
-
-  useEffect(() => {
-    if (error) {
-      toast.error(error);
-      dispatch(clearError());
-    }
-  }, [error, dispatch]);
 
   // Fetch category data when in edit mode
   useEffect(() => {
@@ -81,8 +73,9 @@ const Categories: React.FC = () => {
       try {
         await dispatch(deleteCategory(category.id)).unwrap();
         toast.success('Category deleted successfully');
-      } catch (error) {
-        // Error handled by Redux
+      } catch (error: any) {
+        const errorMessage = typeof error === 'string' ? error : error?.message || 'Failed to delete category';
+        toast.error(errorMessage);
       }
     }
   };

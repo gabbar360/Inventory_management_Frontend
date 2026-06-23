@@ -41,6 +41,18 @@ export const fetchAllMenus = createAsyncThunk(
   }
 );
 
+export const fetchMenuById = createAsyncThunk(
+  'menu/fetchMenuById',
+  async (id: number, { rejectWithValue }) => {
+    try {
+      const response = await menuService.getMenuById(id);
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to load menu');
+    }
+  }
+);
+
 export const createMenuItem = createAsyncThunk(
   'menu/createMenuItem',
   async (menuData: any, { rejectWithValue, dispatch }) => {
@@ -57,7 +69,7 @@ export const createMenuItem = createAsyncThunk(
 
 export const updateMenuItem = createAsyncThunk(
   'menu/updateMenuItem',
-  async ({ id, data }: { id: number; data: any }, { rejectWithValue, dispatch }) => {
+  async ({ id, data, type }: { id: number; data: any; type?: 'main' | 'sub' }, { rejectWithValue, dispatch }) => {
     try {
       const response = await menuService.updateMenu(id, data);
       // Reload sidebar to reflect changes immediately
@@ -71,9 +83,9 @@ export const updateMenuItem = createAsyncThunk(
 
 export const deleteMenuItem = createAsyncThunk(
   'menu/deleteMenuItem',
-  async (id: number, { rejectWithValue, dispatch }) => {
+  async ({ id, type }: { id: number; type: 'main' | 'sub' }, { rejectWithValue, dispatch }) => {
     try {
-      await menuService.deleteMenu(id);
+      await menuService.deleteMenu(id, type);
       // Reload sidebar to reflect changes immediately
       dispatch(fetchSidebarMenu());
       return id;

@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { createMenuItem, updateMenuItem, fetchAllMenus } from '@/slices/menuSlice';
+import { createMenuItem, updateMenuItem, fetchAllMenus, fetchMenuById } from '@/slices/menuSlice';
 import { fetchMasterPermissions } from '@/slices/permissionSlice';
 import Button from '@/components/Button';
 import Input from '@/components/Input';
@@ -122,6 +122,13 @@ const AddEditMenu: React.FC<AddEditMenuProps> = ({ menu, onSuccess, onCancel }) 
     dispatch(fetchMasterPermissions());
   }, [dispatch]);
 
+  // Fetch individual menu by ID if editing
+  useEffect(() => {
+    if (menu && menu.id) {
+      dispatch(fetchMenuById(menu.id));
+    }
+  }, [menu?.id, dispatch]);
+
   // Set initial form values if editing
   useEffect(() => {
     if (menu) {
@@ -150,7 +157,11 @@ const AddEditMenu: React.FC<AddEditMenuProps> = ({ menu, onSuccess, onCancel }) 
       };
 
       if (menu) {
-        await dispatch(updateMenuItem({ id: menu.id, data: submitData })).unwrap();
+        await dispatch(updateMenuItem({ 
+          id: menu.id, 
+          data: submitData,
+          type: menu.type as 'main' | 'sub'
+        })).unwrap();
         toast.success('Menu item updated successfully');
       } else {
         await dispatch(createMenuItem(submitData)).unwrap();

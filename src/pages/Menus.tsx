@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Plus, Edit, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
@@ -17,11 +17,9 @@ import AddEditMenu from '@/components/AddEditMenu';
 import DynamicIcon from '@/components/DynamicIcon';
 
 // Inline Toggle Component
-const ToggleSwitch: React.FC<{ checked: boolean; onChange: (checked: boolean) => void; disabled?: boolean }> = ({
-  checked,
-  onChange,
-  disabled = false,
-}) => (
+const ToggleSwitch: React.FC<{ checked: boolean; onChange: (checked: boolean) => void; disabled?: boolean }> = (
+  { checked, onChange, disabled = false }
+) => (
   <button
     type="button"
     onClick={() => !disabled && onChange(!checked)}
@@ -43,30 +41,29 @@ const Menus: React.FC = () => {
   const { id } = useParams();
   const location = useLocation();
   const dispatch = useAppDispatch();
-  
-  // Select state from Redux
+
   const { menus, loading, error } = useAppSelector((state) => state.menu);
 
-  // Local state
   const [search, setSearch] = useState('');
   const [selectedMenu, setSelectedMenu] = useState<any>(null);
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [statusConfirmModal, setStatusConfirmModal] = useState({
     isOpen: false,
     menuId: 0,
     currentStatus: false,
+    menuType: 'main' as 'main' | 'sub',
   });
   const [deleteConfirmModal, setDeleteConfirmModal] = useState({
     isOpen: false,
     menuId: 0,
     menuName: '',
+    menuType: 'main' as 'main' | 'sub',
   });
 
-  // Load all menus on component mount
   useEffect(() => {
     dispatch(fetchAllMenus());
   }, [dispatch]);
 
-  // If editing, find the selected menu item from loaded list
   useEffect(() => {
     if (id && menus.length > 0) {
       const found = menus.find((m) => m.id === Number(id));
@@ -78,7 +75,6 @@ const Menus: React.FC = () => {
     }
   }, [id, menus]);
 
-  // Display errors if any occur
   useEffect(() => {
     if (error) {
       toast.error(error);
@@ -103,11 +99,12 @@ const Menus: React.FC = () => {
     navigate('/menus');
   };
 
-  const handleToggleStatus = (menuId: number, currentStatus: boolean) => {
+  const handleToggleStatus = (menuId: number, currentStatus: boolean, menuType: 'main' | 'sub') => {
     setStatusConfirmModal({
       isOpen: true,
       menuId,
       currentStatus,
+      menuType,
     });
   };
 
@@ -117,10 +114,11 @@ const Menus: React.FC = () => {
         updateMenuItem({
           id: statusConfirmModal.menuId,
           data: { isActive: !statusConfirmModal.currentStatus },
+          type: statusConfirmModal.menuType,
         })
       ).unwrap();
       toast.success('Menu status updated successfully');
-      setStatusConfirmModal({ isOpen: false, menuId: 0, currentStatus: false });
+      setStatusConfirmModal({ isOpen: false, menuId: 0, currentStatus: false, menuType: 'main' });
       dispatch(fetchAllMenus());
     } catch (err) {
       // Handled by slice
@@ -132,139 +130,66 @@ const Menus: React.FC = () => {
       isOpen: true,
       menuId: menuItem.id,
       menuName: menuItem.name,
+      menuType: menuItem.type as 'main' | 'sub',
     });
   };
 
   const confirmDelete = async () => {
     try {
-      await dispatch(deleteMenuItem(deleteConfirmModal.menuId)).unwrap();
+      await dispatch(deleteMenuItem({ 
+        id: deleteConfirmModal.menuId,
+        type: deleteConfirmModal.menuType 
+      })).unwrap();
       toast.success('Menu item deleted successfully');
-      setDeleteConfirmModal({ isOpen: false, menuId: 0, menuName: '' });
+      setDeleteConfirmModal({ isOpen: false, menuId: 0, menuName: '', menuType: 'main' });
       dispatch(fetchAllMenus());
     } catch (err) {
       // Handled by slice
     }
   };
 
-  // Perform client-side filter based on query
-  const filteredMenus = menus.filter((menuItem) => {
-    const term = search.toLowerCase();
-    const nameMatch = menuItem.name.toLowerCase().includes(term);
-    const pathMatch = menuItem.path ? menuItem.path.toLowerCase().includes(term) : false;
-    const permMatch = menuItem.permission?.slug ? menuItem.permission.slug.toLowerCase().includes(term) : false;
-    return nameMatch || pathMatch || permMatch;
+  const toggleRow = (rowId: number) => {
+    const newExpanded = new Set(expandedRows);
+    if (newExpanded.has(rowId)) {
+      newExpanded.delete(rowId);
+    } else {
+      newExpanded.add(rowId);
+    }
+    setExpandedRows(newExpanded);
+  };
+
+  // Build hierarchical structure
+  const mainMenus = menus.filter((m) => m.type === 'main');
+  const subMenusMap = new Map<number, any[]>();
+
+  menus.forEach((m) => {
+    if (m.type === 'sub' && m.parentId) {
+      if (!subMenusMap.has(m.parentId)) {
+        subMenusMap.set(m.parentId, []);
+      }
+      subMenusMap.get(m.parentId)!.push(m);
+    }
   });
 
-  const columns = [
-    {
-      key: 'name',
-      title: 'Name',
-      sortable: true,
-      render: (_value: string, record: any) => (
-        <div className="flex items-center gap-2">
-          {record.icon ? (
-            <DynamicIcon name={record.icon} className="h-4 w-4 text-gray-500 flex-shrink-0" />
-          ) : (
-            <div className="h-4 w-4 flex-shrink-0" />
-          )}
-          <span className="font-medium text-gray-800 text-xs sm:text-sm">{record.name}</span>
-        </div>
-      ),
-    },
-    {
-      key: 'type',
-      title: 'Type',
-      sortable: true,
-      render: (value: string) => (
-        <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${
-          value === 'main' 
-            ? 'bg-blue-50 border-blue-150 text-blue-700' 
-            : 'bg-emerald-50 border-emerald-150 text-emerald-700'
-        }`}>
-          {value === 'main' ? 'Main Menu' : 'Submenu'}
-        </span>
-      ),
-    },
-    {
-      key: 'path',
-      title: 'Path',
-      sortable: true,
-      render: (value: string | null) => (
-        <span className="font-mono text-xs text-gray-600">{value || '—'}</span>
-      ),
-    },
-    {
-      key: 'order',
-      title: 'Order',
-      sortable: true,
-      align: 'center' as const,
-      render: (value: number) => (
-        <span className="text-gray-600 font-semibold">{value}</span>
-      ),
-    },
-    {
-      key: 'parent.name',
-      title: 'Parent',
-      sortable: true,
-      render: (_value: any, record: any) => (
-        <span className="text-gray-600 text-xs sm:text-sm">
-          {record.parent ? record.parent.name : <span className="text-gray-400 italic">Root</span>}
-        </span>
-      ),
-    },
-    {
-      key: 'permission.slug',
-      title: 'Required Permission',
-      sortable: true,
-      render: (_value: any, record: any) => (
-        <span className="text-xs">
-          {record.permission ? (
-            <span className="px-2 py-0.5 bg-blue-50 border border-blue-150 rounded text-blue-700 font-mono text-[10px]">
-              {record.permission.slug}
-            </span>
-          ) : (
-            <span className="text-gray-400 italic text-[11px]">Public (None)</span>
-          )}
-        </span>
-      ),
-    },
-    {
-      key: 'isActive',
-      title: 'Status',
-      render: (value: boolean, record: any) => (
-        <div className="flex items-center gap-1.5 flex-nowrap">
-          <ToggleSwitch
-            checked={value}
-            onChange={() => handleToggleStatus(record.id, value)}
-          />
-          <span className="text-xs font-medium text-gray-700 whitespace-nowrap">
-            {value ? 'Active' : 'Inactive'}
-          </span>
-        </div>
-      ),
-    },
-    {
-      key: 'actions',
-      title: 'Actions',
-      render: (_: any, record: any) => (
-        <div className="flex gap-1 sm:gap-2">
-          <Button variant="ghost" size="sm" onClick={() => handleEditMenu(record)}>
-            <Edit className="h-4 w-4 text-gray-500" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => handleDeleteClick(record)}
-            className="text-red-650 hover:text-red-750 hover:bg-red-50"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      ),
-    },
-  ];
+  // Filter based on search
+  const term = search.toLowerCase();
+  const filteredMainMenus = mainMenus.filter((mainMenu) => {
+    const mainMatches =
+      mainMenu.name.toLowerCase().includes(term) ||
+      (mainMenu.path ? mainMenu.path.toLowerCase().includes(term) : false) ||
+      (mainMenu.permission?.slug ? mainMenu.permission.slug.toLowerCase().includes(term) : false);
 
-  // Render form if in add/edit router paths
+    if (mainMatches) return true;
+
+    const subMenus = subMenusMap.get(mainMenu.id) || [];
+    return subMenus.some(
+      (sub) =>
+        sub.name.toLowerCase().includes(term) ||
+        (sub.path ? sub.path.toLowerCase().includes(term) : false) ||
+        (sub.permission?.slug ? sub.permission.slug.toLowerCase().includes(term) : false)
+    );
+  });
+
   const isFormView = location.pathname.includes('/add') || !!id;
   if (isFormView) {
     return (
@@ -294,9 +219,252 @@ const Menus: React.FC = () => {
         ]}
       />
 
-      {/* Grid Container */}
+      {/* Menu Table */}
       <div className="card overflow-hidden bg-white border border-gray-200 rounded shadow-sm">
-        <Table data={filteredMenus} columns={columns} loading={loading} />
+        {loading ? (
+          <div className="flex items-center justify-center h-40">
+            <span className="text-gray-500">Loading menus...</span>
+          </div>
+        ) : filteredMainMenus.length === 0 ? (
+          <div className="flex items-center justify-center h-40">
+            <span className="text-gray-500">No menus found</span>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              {/* Table Header */}
+              <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 w-8"></th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 min-w-[200px]">Name</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 min-w-[120px]">Type</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 min-w-[150px]">Path</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 min-w-[60px]">Order</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 min-w-[120px]">Parent</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 min-w-[150px]">Permission</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 min-w-[80px]">Status</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 min-w-[100px]">Actions</th>
+                </tr>
+              </thead>
+
+              {/* Table Body */}
+              <tbody className="divide-y divide-gray-200">
+                {filteredMainMenus.map((mainMenu) => {
+                  const subMenus = subMenusMap.get(mainMenu.id) || [];
+                  const isExpanded = expandedRows.has(mainMenu.id);
+                  const hasChildren = subMenus.length > 0;
+
+                  return (
+                    <React.Fragment key={mainMenu.id}>
+                      {/* Main Menu Row */}
+                      <tr className="hover:bg-gray-50 transition-colors border-b-2 border-gray-200 bg-white">
+                        <td className="px-4 py-3">
+                          {hasChildren ? (
+                            <button
+                              onClick={() => toggleRow(mainMenu.id)}
+                              className="p-1 hover:bg-gray-200 rounded transition-colors"
+                            >
+                              {isExpanded ? (
+                                <ChevronDown className="h-4 w-4 text-gray-600" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 text-gray-600" />
+                              )}
+                            </button>
+                          ) : (
+                            <div className="w-6" />
+                          )}
+                        </td>
+
+                        {/* Name */}
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            {mainMenu.icon ? (
+                              <DynamicIcon name={mainMenu.icon} className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                            ) : (
+                              <div className="h-4 w-4 flex-shrink-0" />
+                            )}
+                            <div>
+                              <div className="font-semibold text-gray-800 text-sm">{mainMenu.name}</div>
+                              {hasChildren && (
+                                <span className="text-xs text-gray-500">{subMenus.length} submenus</span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Type */}
+                        <td className="px-4 py-3">
+                          <span className="px-2 py-0.5 rounded text-xs font-semibold border bg-blue-50 border-blue-150 text-blue-700 inline-block">
+                            Main Menu
+                          </span>
+                        </td>
+
+                        {/* Path */}
+                        <td className="px-4 py-3">
+                          <span className="font-mono text-xs text-gray-600">
+                            {mainMenu.path || '—'}
+                          </span>
+                        </td>
+
+                        {/* Order */}
+                        <td className="px-4 py-3">
+                          <span className="text-sm font-semibold text-gray-700">{mainMenu.order}</span>
+                        </td>
+
+                        {/* Parent */}
+                        <td className="px-4 py-3">
+                          <span className="text-sm text-gray-600">—</span>
+                        </td>
+
+                        {/* Permission */}
+                        <td className="px-4 py-3">
+                          {mainMenu.permission ? (
+                            <span className="px-2 py-0.5 bg-blue-50 border border-blue-150 rounded text-blue-700 font-mono text-xs inline-block">
+                              {mainMenu.permission.slug}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 italic text-xs">Public</span>
+                          )}
+                        </td>
+
+                        {/* Status */}
+                        <td className="px-4 py-3 text-center">
+                          <ToggleSwitch
+                            checked={mainMenu.isActive}
+                            onChange={() => handleToggleStatus(mainMenu.id, mainMenu.isActive, 'main')}
+                          />
+                        </td>
+
+                        {/* Actions */}
+                        <td className="px-4 py-3 text-center">
+                          <div className="flex justify-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditMenu(mainMenu)}
+                              title="Edit"
+                            >
+                              <Edit className="h-4 w-4 text-gray-500" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteClick(mainMenu)}
+                              className="text-red-650 hover:text-red-750 hover:bg-red-50"
+                              title="Delete"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+
+                      {/* Submenu Rows - Expandable with LEFT PADDING */}
+                      {hasChildren && isExpanded && (
+                        <>
+                          {subMenus.map((subMenu, index) => (
+                            <tr key={subMenu.id} className="hover:bg-blue-50 transition-colors bg-blue-50/40">
+                              {/* Extra padding on left */}
+                              <td colSpan={1} className="px-4 py-3">
+                                <div className="flex items-center justify-center">
+                                  {index === subMenus.length - 1 ? (
+                                    <div className="text-gray-300 text-lg">└</div>
+                                  ) : (
+                                    <div className="text-gray-300 text-lg">├</div>
+                                  )}
+                                </div>
+                              </td>
+
+                              {/* Name - with extra left padding */}
+                              <td className="px-4 py-3 pl-8">
+                                <div className="flex items-center gap-2">
+                                  {subMenu.icon ? (
+                                    <DynamicIcon name={subMenu.icon} className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                                  ) : (
+                                    <div className="h-4 w-4 flex-shrink-0" />
+                                  )}
+                                  <span className="font-medium text-gray-700 text-sm">{subMenu.name}</span>
+                                </div>
+                              </td>
+
+                              {/* Type */}
+                              <td className="px-4 py-3">
+                                <span className="px-2 py-0.5 rounded text-xs font-semibold border bg-emerald-50 border-emerald-150 text-emerald-700 inline-block">
+                                  Submenu
+                                </span>
+                              </td>
+
+                              {/* Path */}
+                              <td className="px-4 py-3">
+                                <span className="font-mono text-xs text-gray-600">
+                                  {subMenu.path || '—'}
+                                </span>
+                              </td>
+
+                              {/* Order */}
+                              <td className="px-4 py-3">
+                                <span className="text-sm font-semibold text-gray-700">{subMenu.order}</span>
+                              </td>
+
+                              {/* Parent */}
+                              <td className="px-4 py-3">
+                                <span className="text-sm text-gray-600 font-medium bg-gray-100 px-2 py-1 rounded">
+                                  {mainMenu.name}
+                                </span>
+                              </td>
+
+                              {/* Permission */}
+                              <td className="px-4 py-3">
+                                {subMenu.permission ? (
+                                  <span className="px-2 py-0.5 bg-blue-50 border border-blue-150 rounded text-blue-700 font-mono text-xs inline-block">
+                                    {subMenu.permission.slug}
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-400 italic text-xs">Public</span>
+                                )}
+                              </td>
+
+                              {/* Status */}
+                              <td className="px-4 py-3 text-center">
+                                <ToggleSwitch
+                                  checked={subMenu.isActive}
+                                  onChange={() => handleToggleStatus(subMenu.id, subMenu.isActive, 'sub')}
+                                />
+                              </td>
+
+                              {/* Actions */}
+                              <td className="px-4 py-3 text-center">
+                                <div className="flex justify-center gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleEditMenu(subMenu)}
+                                    title="Edit"
+                                  >
+                                    <Edit className="h-4 w-4 text-gray-500" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteClick(subMenu)}
+                                    className="text-red-650 hover:text-red-750 hover:bg-red-50"
+                                    title="Delete"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Confirm Status Change Modal */}
@@ -305,7 +473,7 @@ const Menus: React.FC = () => {
         onClose={() => setStatusConfirmModal({ isOpen: false, menuId: 0, currentStatus: false })}
         onConfirm={confirmToggleStatus}
         title="Update Menu Status"
-        message={`Are you sure you want to ${statusConfirmModal.currentStatus ? 'deactivate' : 'activate'} this menu item? This will affect its visibility in the sidebar.`}
+        message={`Are you sure you want to ${statusConfirmModal.currentStatus ? 'deactivate' : 'activate'} this menu item?`}
         confirmText="Yes, Update"
         cancelText="Cancel"
         type="warning"
@@ -314,7 +482,7 @@ const Menus: React.FC = () => {
       {/* Confirm Delete Modal */}
       <ConfirmModal
         isOpen={deleteConfirmModal.isOpen}
-        onClose={() => setDeleteConfirmModal({ isOpen: false, menuId: 0, menuName: '' })}
+        onClose={() => setDeleteConfirmModal({ isOpen: false, menuId: 0, menuName: '', menuType: 'main' })}
         onConfirm={confirmDelete}
         title="Delete Menu Item"
         message={`Are you sure you want to delete "${deleteConfirmModal.menuName}"? This action cannot be undone.`}
