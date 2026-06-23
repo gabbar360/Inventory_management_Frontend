@@ -157,10 +157,10 @@ const Customers: React.FC = () => {
 
   // Fetch specific customer details
   useEffect(() => {
-    if (id && !isEditMode && !isAddMode) {
+    if (id && !isAddMode) {
       dispatch(fetchCustomerById(id));
     }
-  }, [id, dispatch, isEditMode, isAddMode]);
+  }, [id, dispatch, isAddMode]);
 
   // Fetch statement data when tab is 'statement' or selected customer changes
   useEffect(() => {

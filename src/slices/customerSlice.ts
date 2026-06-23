@@ -93,6 +93,9 @@ const customerSlice = createSlice({
         if (index !== -1) {
           state.customers[index] = action.payload;
         }
+        if (state.currentCustomer && state.currentCustomer.id === action.payload.id) {
+          state.currentCustomer = action.payload;
+        }
       })
       .addCase(deleteCustomer.fulfilled, (state, action) => {
         state.customers = state.customers.filter(

@@ -168,6 +168,7 @@ function App() {
           <Route path="quotes" element={<Quotes />} />
           <Route path="quotes/add" element={<Quotes />} />
           <Route path="quotes/edit/:id" element={<Quotes />} />
+          <Route path="quotes/:id" element={<Quotes />} />
           <Route path="sales-orders" element={<SalesOrders />} />
           <Route path="sales-orders/add" element={<SalesOrders />} />
           <Route path="sales-orders/edit/:id" element={<SalesOrders />} />

@@ -12,6 +12,7 @@ interface ShareDocumentModalProps {
   docId: string | number;
   docLabel: string;           // e.g. "Quote-001" or "Invoice-INV-002"
   defaultEmail?: string;      // pre-fill customer/vendor email
+  onSuccess?: () => void;
 }
 
 const ShareDocumentModal: React.FC<ShareDocumentModalProps> = ({
@@ -21,6 +22,7 @@ const ShareDocumentModal: React.FC<ShareDocumentModalProps> = ({
   docId,
   docLabel,
   defaultEmail = '',
+  onSuccess,
 }) => {
   const [to, setTo] = useState(defaultEmail);
   const [cc, setCc] = useState('');
@@ -43,6 +45,7 @@ const ShareDocumentModal: React.FC<ShareDocumentModalProps> = ({
     try {
       await emailService.sendDocument({ to: to.trim(), cc: cc.trim() || undefined, subject, message, docType, docId });
       toast.success(`${docLabel} sent to ${to}`);
+      if (onSuccess) onSuccess();
       onClose();
     } catch (err: any) {
       toast.error(err || 'Failed to send email');

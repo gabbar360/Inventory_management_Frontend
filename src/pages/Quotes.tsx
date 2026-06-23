@@ -1,26 +1,27 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import {
   Plus, Edit, Trash2, Download, Loader2,
   MoreVertical, ShoppingCart, FileText, Package,
-  ChevronLeft, ChevronRight, Mail,
+  ChevronLeft, ChevronRight, Mail, ChevronDown, ArrowLeft, X, Check, Search
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   fetchQuotes,
+  fetchQuoteById,
   deleteQuote,
   downloadQuotePDF,
   convertQuoteToInvoice,
 } from '@/slices/quoteSlice';
 import { convertQuoteToSalesOrder } from '@/slices/salesOrderSlice';
 import { fetchAvailableStock } from '@/slices/inventorySlice';
+import { fetchSettings } from '@/slices/settingsSlice';
 import { Quote, QuoteItem, StockBatch } from '@/types';
-import { formatDate, debounce } from '@/utils';
+import { formatDate, formatCurrency, cn, debounce } from '@/utils';
 import Button from '@/components/Button';
 import Modal from '@/components/Modal';
 import Table from '@/components/Table';
-import PageHeader from '@/components/PageHeader';
 import QuoteForm from '@/components/forms/QuoteForm';
 import ShareDocumentModal from '@/components/ShareDocumentModal';
 
@@ -28,35 +29,104 @@ import ShareDocumentModal from '@/components/ShareDocumentModal';
 
 const getStatusBadge = (status: string) => {
   const statusConfig = {
-    draft:    { bg: 'bg-gray-100',   text: 'text-gray-800',  label: 'Draft' },
-    sent:     { bg: 'bg-blue-100',   text: 'text-blue-800',  label: 'Sent' },
-    accepted: { bg: 'bg-green-100',  text: 'text-green-800', label: 'Accepted' },
-    rejected: { bg: 'bg-red-100',    text: 'text-red-800',   label: 'Rejected' },
-    expired:  { bg: 'bg-yellow-100', text: 'text-yellow-800',label: 'Expired' },
+    draft:    { bg: 'bg-gray-100 border-gray-200',   text: 'text-gray-800',  label: 'Draft' },
+    sent:     { bg: 'bg-blue-50 border-blue-200',   text: 'text-blue-700',  label: 'Sent' },
+    accepted: { bg: 'bg-emerald-50 border-emerald-200',  text: 'text-emerald-700', label: 'Accepted' },
+    rejected: { bg: 'bg-red-50 border-red-200',    text: 'text-red-700',   label: 'Rejected' },
+    expired:  { bg: 'bg-amber-50 border-amber-200', text: 'text-amber-700',label: 'Expired' },
   };
   const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.draft;
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${config.bg} ${config.text}`}>
       {config.label}
     </span>
   );
 };
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+// ─── Timeline / Visual Progress Indicator ─────────────────────────────────────
+
+const renderTimeline = (status: string) => {
+  const steps = [
+    { label: 'Draft', active: true, done: ['sent', 'accepted', 'rejected', 'expired'].includes(status), color: 'blue' },
+    { label: 'Sent', active: status === 'sent', done: ['accepted', 'rejected', 'expired'].includes(status), color: 'blue' },
+  ];
+
+  if (status === 'rejected') {
+    steps.push({ label: 'Rejected', active: true, done: false, color: 'red' });
+  } else if (status === 'expired') {
+    steps.push({ label: 'Expired', active: true, done: false, color: 'amber' });
+  } else {
+    steps.push({ label: 'Accepted', active: status === 'accepted', done: false, color: 'green' });
+  }
+
+  return (
+    <div className="flex items-center w-full max-w-lg mx-auto py-5 px-4 select-none relative">
+      {steps.map((step, idx) => (
+        <React.Fragment key={step.label}>
+          {idx > 0 && (
+            <div className={`flex-1 h-0.5 mx-2 transition-colors duration-300 ${
+              step.active || step.done ? 'bg-blue-500' : 'bg-gray-250'
+            }`} />
+          )}
+          <div className="flex flex-col items-center relative">
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center border-2 transition-all ${
+              step.done
+                ? 'bg-emerald-500 border-emerald-500 text-white'
+                : step.active
+                ? step.color === 'red'
+                  ? 'bg-red-500 border-red-500 text-white animate-pulse'
+                  : step.color === 'amber'
+                  ? 'bg-amber-500 border-amber-500 text-white'
+                  : 'bg-blue-500 border-blue-500 text-white'
+                : 'bg-white border-gray-300 text-gray-400'
+            }`}>
+              {step.done ? (
+                <Check className="w-4 h-4" />
+              ) : (
+                <span className="text-xs font-bold">{idx + 1}</span>
+              )}
+            </div>
+            <span className={`text-[10px] font-bold uppercase mt-2 tracking-wider whitespace-nowrap absolute top-7 ${
+              step.done ? 'text-emerald-600' : step.active ? 'text-blue-500' : 'text-gray-400'
+            }`}>
+              {step.label}
+            </span>
+          </div>
+        </React.Fragment>
+      ))}
+    </div>
+  );
+};
+
+// ─── Main Page Component ──────────────────────────────────────────────────────
 
 const Quotes: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const dispatch = useAppDispatch();
-  const { quotes, loading, error, pagination } = useAppSelector(
+
+  const { quotes, currentQuote, loading, error, pagination } = useAppSelector(
     (state) => state.quotes
-  ) as { quotes: Quote[]; loading: boolean; error: string | null; pagination: any };
+  ) as { quotes: Quote[]; currentQuote: Quote | null; loading: boolean; error: string | null; pagination: any };
+
+  const { settings } = useAppSelector((state) => state.settings);
 
   const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
   const [search, setSearch] = useState('');
+  const [sidebarSearch, setSidebarSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  
+  // Dropdown states
+  const [filterMenuOpen, setFilterMenuOpen] = useState(false);
+  const [sidebarFilterMenuOpen, setSidebarFilterMenuOpen] = useState(false);
+  const [convertMenuOpen, setConvertMenuOpen] = useState(false);
+  
+  const filterDropdownRef = useRef<HTMLDivElement>(null);
+  const sidebarFilterDropdownRef = useRef<HTMLDivElement>(null);
+  const convertDropdownRef = useRef<HTMLDivElement>(null);
+
   const [downloadingId, setDownloadingId] = useState<string | number | null>(null);
   const [convertingId, setConvertingId] = useState<string | number | null>(null);
-  const [convertingInvoiceId] = useState<string | number | null>(null);
   const [actionModalQuote, setActionModalQuote] = useState<Quote | null>(null);
   const [invoiceModalQuote, setInvoiceModalQuote] = useState<Quote | null>(null);
   const [batchSelections, setBatchSelections] = useState<Record<string, { stockBatchId: string; saleUnit: string }>>({});
@@ -66,37 +136,88 @@ const Quotes: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [shareQuote, setShareQuote] = useState<Quote | null>(null);
+  
+  const [salesModalQuote, setSalesModalQuote] = useState<Quote | null>(null);
 
+  const isEditMode = window.location.pathname.includes('/edit');
+  const isAddMode = window.location.pathname.includes('/add');
+  const isViewMode = id && !isEditMode && !isAddMode;
+
+  // Fetch settings on mount
   useEffect(() => {
-    dispatch(fetchQuotes({ search, page: currentPage, limit: pageSize }));
-  }, [dispatch, search, currentPage, pageSize]);
+    dispatch(fetchSettings());
+  }, [dispatch]);
+
+  // Close dropdowns on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(event.target as Node)) {
+        setFilterMenuOpen(false);
+      }
+      if (sidebarFilterDropdownRef.current && !sidebarFilterDropdownRef.current.contains(event.target as Node)) {
+        setSidebarFilterMenuOpen(false);
+      }
+      if (convertDropdownRef.current && !convertDropdownRef.current.contains(event.target as Node)) {
+        setConvertMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Fetch Quotes list (larger list for sidebar view, paginated for main list view)
+  useEffect(() => {
+    if (isViewMode) {
+      dispatch(fetchQuotes({ limit: 200, search: sidebarSearch, status: statusFilter === 'all' ? undefined : statusFilter }));
+    } else if (!isEditMode && !isAddMode) {
+      dispatch(fetchQuotes({ page: currentPage, limit: pageSize, search, status: statusFilter === 'all' ? undefined : statusFilter }));
+    }
+  }, [dispatch, search, sidebarSearch, statusFilter, currentPage, pageSize, id, isEditMode, isAddMode, isViewMode]);
+
+  // Fetch single quote details
+  useEffect(() => {
+    if (id && !isAddMode) {
+      dispatch(fetchQuoteById(id));
+    }
+  }, [id, dispatch, isAddMode]);
+
+  // Handle Edit navigation & setup
+  useEffect(() => {
+    if (id && isEditMode) {
+      const found = quotes.find((q) => q.id.toString() === id) || currentQuote;
+      if (found && found.id.toString() === id.toString()) {
+        setEditingQuote(found);
+      }
+    }
+  }, [id, isEditMode, quotes, currentQuote]);
 
   useEffect(() => {
     if (error) toast.error(error);
   }, [error]);
-
-  // When editing via route param, find quote from list
-  useEffect(() => {
-    if (id && quotes.length > 0) {
-      const found = quotes.find((q) => q.id.toString() === id);
-      if (found) setEditingQuote(found);
-    }
-  }, [id, quotes]);
 
   const debouncedSearch = debounce((value: string) => {
     setSearch(value);
     setCurrentPage(1);
   });
 
-  // ── Navigation handlers (Product-module flow) ──
+  const debouncedSidebarSearch = debounce((value: string) => {
+    setSidebarSearch(value);
+  });
+
+  // Navigation handlers
   const handleAddQuote = () => navigate('/quotes/add');
+  
   const handleEditQuote = (quote: Quote) => {
     setEditingQuote(quote);
     navigate(`/quotes/edit/${quote.id}`);
   };
 
   const handleFormClose = () => {
-    navigate('/quotes');
+    if (editingQuote) {
+      navigate(`/quotes/${editingQuote.id}`);
+    } else {
+      navigate('/quotes');
+    }
     setEditingQuote(null);
     dispatch(fetchQuotes({ search, page: currentPage, limit: pageSize }));
   };
@@ -106,13 +227,12 @@ const Quotes: React.FC = () => {
       try {
         await dispatch(deleteQuote(quote.id)).unwrap();
         toast.success('Quote deleted successfully');
+        navigate('/quotes');
       } catch {
         // Error handled by Redux
       }
     }
   };
-
-  const [salesModalQuote, setSalesModalQuote] = useState<Quote | null>(null);
 
   const openSalesModal = (quote: Quote) => {
     setSalesModalQuote(quote);
@@ -137,7 +257,6 @@ const Quotes: React.FC = () => {
     }
   };
 
-  // Original handler replaced with modal opener
   const handleConvertToSalesOrder = (quote: Quote) => {
     openSalesModal(quote);
   };
@@ -197,46 +316,11 @@ const Quotes: React.FC = () => {
     }
   };
 
-  const columns = [
-    { key: 'quoteNo', title: 'Quote No', sortable: true },
-    { key: 'customer.name', title: 'Customer', render: (_: any, record: Quote) => record.customer?.name || '-' },
-    { key: 'quoteDate', title: 'Quote Date', render: (value: string) => formatDate(value) },
-    { key: 'expiryDate', title: 'Expiry Date', render: (value: string) => formatDate(value) },
-    { key: 'totalAmount', title: 'Amount', render: (value: number) => `₹${value?.toFixed(2) || '0.00'}` },
-    { key: 'status', title: 'Status', render: (value: string) => getStatusBadge(value) },
-    {
-      key: 'actions',
-      title: 'Actions',
-      render: (_: any, record: Quote) => (
-        <div className="flex gap-1 sm:gap-2 items-center">
-          <Button variant="ghost" size="sm" onClick={() => handleDownloadPDF(record)} title="Download PDF" disabled={downloadingId === record.id.toString()}>
-            {downloadingId === record.id.toString() ? <Loader2 className="h-4 w-4 animate-spin text-blue-500" /> : <Download className="h-4 w-4" />}
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => setShareQuote(record)} title="Send via Email">
-            <Mail className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => handleEditQuote(record)}>
-            <Edit className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => handleDelete(record)} className="text-red-600 hover:text-red-700">
-            <Trash2 className="h-4 w-4" />
-          </Button>
-          {/* Action Trigger Button */}
-          <Button variant="ghost" size="sm" onClick={() => setActionModalQuote(record)} title="More options">
-            {(convertingId === record.id || convertingInvoiceId === record.id)
-              ? <Loader2 className="h-4 w-4 animate-spin" />
-              : <MoreVertical className="h-4 w-4" />}
-          </Button>
-        </div>
-      ),
-    },
-  ];
-
-  // ── Show form if in add/edit mode (like Products.tsx) ──
-  if (id || window.location.pathname.includes('/add')) {
+  // ── Show form if in add/edit mode ──
+  if (isEditMode || isAddMode) {
     return (
       <div className="space-y-3 animate-fadeIn">
-        {/* Odoo-style Breadcrumb + Control Bar */}
+        {/* Zoho-style Breadcrumb + Control Bar */}
         <div className="bg-white border border-gray-200 rounded px-3 py-1.5 flex items-center justify-between shadow-sm">
           <div className="flex items-center gap-1.5 text-xs text-gray-400">
             <span className="hover:text-primary-600 cursor-pointer" onClick={handleFormClose}>Quotes</span>
@@ -254,21 +338,590 @@ const Quotes: React.FC = () => {
     );
   }
 
-  // ── List View ─────────────────────────────────────────────────────────────
+  // ─── SPLIT PANE VIEW (View Mode) ──────────────────────────────────────────
+
+  if (isViewMode) {
+    const activeQuote = currentQuote;
+    const itemsSubtotal = activeQuote?.items ? activeQuote.items.reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.rate) || 0), 0) : 0;
+
+    return (
+      <div className="flex h-[calc(100vh-80px)] border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm -mt-2">
+        {/* LEFT COLUMN: Sidebar Quotes list */}
+        <div className="hidden md:flex md:w-[28%] md:min-w-[280px] md:max-w-[340px] border-r border-gray-200 flex-col bg-gray-50/50">
+          
+          {/* Sidebar Header */}
+          <div className="p-3 border-b border-gray-200 bg-white flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <div className="relative" ref={sidebarFilterDropdownRef}>
+                <div
+                  onClick={() => setSidebarFilterMenuOpen(!sidebarFilterMenuOpen)}
+                  className="flex items-center gap-1 cursor-pointer select-none hover:opacity-85"
+                >
+                  <span className="text-[13px] font-bold text-gray-800 tracking-tight">
+                    {statusFilter === 'all' ? 'All Quotes' : statusFilter.toUpperCase()}
+                  </span>
+                  <ChevronDown className="h-3.5 w-3.5 text-gray-550" />
+                </div>
+                {sidebarFilterMenuOpen && (
+                  <div className="absolute left-0 mt-2 w-48 rounded bg-white shadow-lg ring-1 ring-black ring-opacity-5 border border-gray-200 divide-y divide-gray-100 z-50 animate-fadeIn">
+                    <div className="py-1">
+                      {['all', 'draft', 'sent', 'accepted', 'rejected', 'expired'].map((filter) => (
+                        <button
+                          key={filter}
+                          onClick={() => { setStatusFilter(filter); setSidebarFilterMenuOpen(false); }}
+                          className={cn(
+                            "w-full text-left px-4 py-2 text-xs font-semibold hover:bg-gray-100 transition-colors flex items-center justify-between",
+                            statusFilter === filter ? "text-blue-500 font-bold" : "text-gray-700"
+                          )}
+                        >
+                          <span>{filter === 'all' ? 'All Quotes' : filter.charAt(0).toUpperCase() + filter.slice(1)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Quick Add Button */}
+              <button
+                onClick={handleAddQuote}
+                className="w-6.5 h-6.5 flex items-center justify-center text-white bg-blue-500 hover:bg-blue-600 rounded transition-colors"
+                title="New Quote"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            </div>
+            
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search quotes..."
+                className="w-full pl-8 pr-3 py-1.5 text-xs bg-gray-50 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                onChange={(e) => debouncedSidebarSearch(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Sidebar Scrollable Cards List */}
+          <div className="flex-1 overflow-y-auto divide-y divide-gray-100 bg-white">
+            {loading && !quotes.length ? (
+              <div className="p-8 text-center text-xs text-gray-450 flex items-center justify-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                <span>Loading sidebar...</span>
+              </div>
+            ) : quotes.length > 0 ? (
+              quotes.map((q) => {
+                const isActive = id === q.id.toString();
+                return (
+                  <div
+                    key={q.id}
+                    onClick={() => navigate(`/quotes/${q.id}`)}
+                    className={cn(
+                      'p-3 flex flex-col gap-1 cursor-pointer transition-colors border-l-[3px] border-transparent hover:bg-gray-50/70',
+                      isActive ? 'bg-blue-50/40 border-blue-500' : ''
+                    )}
+                  >
+                    <div className="flex justify-between items-start">
+                      <span className={cn(
+                        "text-[12px] truncate font-bold",
+                        isActive ? "text-blue-600" : "text-gray-700"
+                      )}>
+                        {q.quoteNo}
+                      </span>
+                      <span className="text-[10px] text-gray-400 font-bold">{formatDate(q.quoteDate)}</span>
+                    </div>
+                    <div className="flex justify-between items-end mt-0.5">
+                      <span className="text-[11px] text-gray-500 font-semibold truncate max-w-[150px]">{q.customer?.name || '-'}</span>
+                      <div className="flex flex-col items-end">
+                        <span className="text-[11px] font-bold text-gray-800">{formatCurrency(q.totalAmount)}</span>
+                        <span className={cn(
+                          "text-[9px] font-bold uppercase mt-1 px-1 rounded-sm border",
+                          q.status === 'accepted' ? 'text-emerald-600 bg-emerald-50/40 border-emerald-100' :
+                          q.status === 'draft' ? 'text-gray-500 bg-gray-50 border-gray-100' :
+                          q.status === 'sent' ? 'text-blue-600 bg-blue-50/40 border-blue-100' :
+                          q.status === 'rejected' ? 'text-red-600 bg-red-50/40 border-red-100' :
+                          'text-amber-600 bg-amber-50/40 border-amber-100' // expired
+                        )}>
+                          {q.status}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="p-8 text-center text-xs text-gray-450 italic">No quotes found</div>
+            )}
+          </div>
+        </div>
+
+        {/* RIGHT COLUMN: Quote Details Panel */}
+        <div className="flex-1 flex flex-col overflow-y-auto bg-gray-50/30">
+          {!activeQuote ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-16 gap-3">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+              <span className="text-xs text-gray-500 font-medium animate-pulse">Loading quotation details...</span>
+            </div>
+          ) : (
+            <>
+              {/* Sticky Details Header */}
+              <div className="px-4 py-3.5 border-b border-gray-200 bg-white flex items-center justify-between sticky top-0 z-20 shadow-xs flex-shrink-0 gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <button
+                    onClick={() => navigate('/quotes')}
+                    className="p-1.5 -ml-1 rounded-full hover:bg-gray-100 text-gray-500 hover:text-gray-700 md:hidden flex-shrink-0"
+                    title="Back to List"
+                  >
+                    <ArrowLeft className="h-5.5 w-5.5" />
+                  </button>
+                  <h2 className="text-sm sm:text-base font-extrabold text-gray-900 tracking-tight truncate flex items-center gap-1.5">
+                    <span>Quote</span>
+                    <span className="text-blue-600 font-black">{activeQuote.quoteNo}</span>
+                  </h2>
+                  <span className="h-4.5 w-px bg-gray-250 mx-1 flex-shrink-0 hidden sm:inline"></span>
+                  <div className="hidden sm:inline-block flex-shrink-0">
+                    {getStatusBadge(activeQuote.status)}
+                  </div>
+                </div>
+
+                {/* Header Action Buttons */}
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {/* Edit */}
+                  <button
+                    className="h-8 text-xs font-bold px-3 border border-gray-300 hover:bg-gray-50 active:bg-gray-100 rounded text-gray-750 transition-all shadow-3xs"
+                    onClick={() => handleEditQuote(activeQuote)}
+                  >
+                    Edit
+                  </button>
+
+                  {/* Download PDF */}
+                  <button
+                    onClick={() => handleDownloadPDF(activeQuote)}
+                    disabled={downloadingId === activeQuote.id.toString()}
+                    className="h-8 w-8 border border-gray-300 hover:bg-gray-50 active:bg-gray-100 rounded text-gray-700 flex items-center justify-center transition-all shadow-3xs hidden md:flex"
+                    title="Download PDF"
+                  >
+                    {downloadingId === activeQuote.id.toString() ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
+                  </button>
+
+                  {/* Share Document Modal trigger */}
+                  <button
+                    onClick={() => setShareQuote(activeQuote)}
+                    className="h-8 w-8 border border-gray-300 hover:bg-gray-50 active:bg-gray-100 rounded text-gray-700 flex items-center justify-center transition-all shadow-3xs hidden md:flex"
+                    title="Send Email"
+                  >
+                    <Mail className="h-4 w-4" />
+                  </button>
+
+                  {/* Convert Options Dropdown */}
+                  <div className="relative hidden md:block" ref={convertDropdownRef}>
+                    <button
+                      onClick={() => setConvertMenuOpen(!convertMenuOpen)}
+                      className="h-8 text-xs font-bold px-3 bg-blue-500 hover:bg-blue-600 text-white rounded flex items-center gap-1.5 transition-colors shadow-2xs"
+                    >
+                      <span>Convert</span>
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    </button>
+                    {convertMenuOpen && (
+                      <div className="absolute right-0 mt-1 w-48 rounded bg-white shadow-lg border border-gray-200 divide-y divide-gray-100 z-50 animate-fadeIn">
+                        <div className="py-1">
+                          <button
+                            onClick={() => { setConvertMenuOpen(false); handleConvertToSalesOrder(activeQuote); }}
+                            className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-gray-50 text-gray-750 flex items-center gap-2"
+                          >
+                            <ShoppingCart className="h-3.5 w-3.5 text-emerald-600" />
+                            <span>Convert to Sales Order</span>
+                          </button>
+                          <button
+                            onClick={() => { setConvertMenuOpen(false); openInvoiceModal(activeQuote); }}
+                            className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-gray-50 text-gray-750 flex items-center gap-2"
+                          >
+                            <FileText className="h-3.5 w-3.5 text-blue-500" />
+                            <span>Convert to Invoice</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* More actions (Delete) */}
+                  <button
+                    onClick={() => handleDelete(activeQuote)}
+                    className="h-8 text-xs font-bold px-2.5 sm:px-3 text-red-600 hover:text-red-700 border border-gray-300 hover:bg-red-50 rounded transition-all shadow-3xs hidden md:inline-flex"
+                    title="Delete Quote"
+                  >
+                    Delete
+                  </button>
+
+                  {/* More actions dropdown/modal trigger (Mobile) */}
+                  <button
+                    onClick={() => setActionModalQuote(activeQuote)}
+                    className="h-8 w-8 border border-gray-300 hover:bg-gray-50 active:bg-gray-100 rounded text-gray-700 flex items-center justify-center transition-all shadow-3xs md:hidden"
+                    title="More Actions"
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                  </button>
+
+                  {/* Close pane */}
+                  <button
+                    onClick={() => navigate('/quotes')}
+                    className="hidden md:flex p-1.5 rounded hover:bg-gray-100 transition-colors text-gray-500 ml-1"
+                    title="Close Panel"
+                  >
+                    <X className="h-4.5 w-4.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Status Timeline */}
+              <div className="bg-white border-b border-gray-100 p-2.5 flex-shrink-0 shadow-3xs">
+                {renderTimeline(activeQuote.status)}
+              </div>
+
+              {/* Document Paper Preview Area */}
+              <div className="flex-1 p-2 sm:p-5 overflow-y-auto">
+                <div className="bg-white border border-gray-250/70 rounded-lg shadow-md p-4 sm:p-6 md:p-10 max-w-4xl mx-auto my-3 min-h-[900px] flex flex-col justify-between">
+                  <div>
+                    {/* Header */}
+                    <div className="flex justify-between items-start border-b border-gray-100 pb-5 mb-5">
+                      <div>
+                        <h1 className="text-xl md:text-2xl font-black tracking-tight text-emerald-700 uppercase">
+                          {settings?.companyName || 'VEGNAR GREENS'}
+                        </h1>
+                        <p className="text-[10px] text-gray-450 mt-1 uppercase font-bold tracking-wider leading-relaxed whitespace-pre-line">
+                          {settings?.companyAddress || 'Vegnar Greens LLP\n757, Food Park, Phase 1, Sector 38\nHSIIDC, Rai, Sonipat, Haryana, 131029'}
+                          {settings?.companyGstin && (
+                            <>
+                              <br />GSTIN: {settings.companyGstin}
+                            </>
+                          )}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <h2 className="text-lg md:text-xl font-black tracking-wider text-gray-300 uppercase">QUOTATION</h2>
+                        <div className="text-xs text-gray-650 mt-3.5 space-y-1.5 font-semibold">
+                          <div>
+                            <span className="text-gray-400 font-bold uppercase text-[9px] mr-1.5">Quote No:</span>
+                            <span className="text-gray-900 font-extrabold">{activeQuote.quoteNo}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-400 font-bold uppercase text-[9px] mr-1.5">Date:</span>
+                            <span className="text-gray-900">{formatDate(activeQuote.quoteDate)}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-400 font-bold uppercase text-[9px] mr-1.5">Expiry:</span>
+                            <span className="text-gray-900">{formatDate(activeQuote.expiryDate)}</span>
+                          </div>
+                          {(activeQuote as any).reference && (
+                            <div>
+                              <span className="text-gray-400 font-bold uppercase text-[9px] mr-1.5">Reference:</span>
+                              <span className="text-gray-900">{(activeQuote as any).reference}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Address Section */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 md:gap-8 mb-6">
+                      <div>
+                        <h3 className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-2">Bill To</h3>
+                        <div className="text-xs text-gray-800 font-semibold space-y-1">
+                          <div className="font-extrabold text-gray-950 text-sm">{activeQuote.customer?.name}</div>
+                          {activeQuote.customer?.email && <div className="text-gray-500 font-medium">Email: {activeQuote.customer.email}</div>}
+                          {activeQuote.customer?.phone && <div className="text-gray-500 font-medium">Phone: {activeQuote.customer.phone}</div>}
+                          {activeQuote.customer?.address && (
+                            <div className="text-gray-550 italic font-medium leading-relaxed mt-1">
+                              {activeQuote.customer.address}
+                            </div>
+                          )}
+                          {activeQuote.customer?.gstNumber && (
+                            <div className="text-[10px] font-bold text-gray-600 uppercase tracking-wide mt-1.5 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-150 inline-block">
+                              GSTIN: {activeQuote.customer.gstNumber}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <h3 className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-2">Ship To</h3>
+                        <div className="text-xs text-gray-800 font-semibold space-y-1">
+                          <div className="font-extrabold text-gray-955 text-sm">{activeQuote.customer?.name}</div>
+                          {activeQuote.customer?.shippingAddress ? (
+                            <div className="text-gray-550 italic font-medium leading-relaxed mt-1">
+                              {activeQuote.customer.shippingAddress}
+                            </div>
+                          ) : activeQuote.customer?.address ? (
+                            <div className="text-gray-550 italic font-medium leading-relaxed mt-1">
+                              {activeQuote.customer.address}
+                            </div>
+                          ) : (
+                            <div className="text-gray-400 italic">No shipping address provided</div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Delivery & Payment details */}
+                    {((activeQuote as any).paymentTerms || (activeQuote as any).termsOfDelivery) && (
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-gray-50/50 border border-gray-200/60 rounded px-4 py-2.5 mb-6 text-xs font-semibold">
+                        {(activeQuote as any).paymentTerms && (
+                          <div>
+                            <span className="block text-[8px] text-gray-400 uppercase font-bold tracking-wider mb-0.5">Payment Terms</span>
+                            <span className="text-gray-700">{(activeQuote as any).paymentTerms}</span>
+                          </div>
+                        )}
+                        {(activeQuote as any).termsOfDelivery && (
+                          <div>
+                            <span className="block text-[8px] text-gray-400 uppercase font-bold tracking-wider mb-0.5">Delivery Terms</span>
+                            <span className="text-gray-700">{(activeQuote as any).termsOfDelivery}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Items Table */}
+                    <div className="border border-gray-200 rounded overflow-x-auto mb-5 shadow-3xs">
+                      <table className="min-w-full divide-y divide-gray-200 text-xs text-left">
+                        <thead className="bg-gray-50/75">
+                          <tr className="font-bold text-gray-600 uppercase tracking-wider text-[10px]">
+                            <th className="px-3.5 py-2.5 text-center w-12 border-r border-gray-200">#</th>
+                            <th className="px-4 py-2.5 border-r border-gray-200">Product & Description</th>
+                            <th className="px-3 py-2.5 text-right w-20 border-r border-gray-200">Qty</th>
+                            <th className="px-3 py-2.5 text-left w-20 border-r border-gray-200">Unit</th>
+                            <th className="px-3.5 py-2.5 text-right w-28 border-r border-gray-200">Rate</th>
+                            <th className="px-3 py-2.5 text-right w-20 border-r border-gray-200">GST %</th>
+                            <th className="px-3.5 py-2.5 text-right w-28 border-r border-gray-200">GST Amt</th>
+                            <th className="px-4 py-2.5 text-right w-32">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-150 bg-white font-medium text-gray-700">
+                          {(activeQuote.items || []).map((item: QuoteItem, idx: number) => {
+                            const itemQty = Number(item.quantity) || 0;
+                            const itemRate = Number(item.rate) || 0;
+                            const itemTaxRate = (item as any).taxRate || (item.product?.category?.gstRate) || 0;
+                            const itemAmount = itemQty * itemRate;
+                            const itemGstAmt = (itemAmount * itemTaxRate) / 100;
+                            const itemTotal = itemAmount + itemGstAmt;
+
+                            return (
+                              <tr key={item.id} className="hover:bg-gray-50/20 transition-colors">
+                                <td className="px-3.5 py-2.5 text-center text-gray-400 font-bold border-r border-gray-100">{idx + 1}</td>
+                                <td className="px-4 py-2.5 border-r border-gray-100">
+                                  <div className="font-bold text-gray-905">{item.product?.name || `Product #${item.productId}`}</div>
+                                  {item.description && (
+                                    <p className="text-[11px] text-gray-400 mt-0.5 italic font-medium">{item.description}</p>
+                                  )}
+                                </td>
+                                <td className="px-3 py-2.5 text-right border-r border-gray-100">{itemQty}</td>
+                                <td className="px-3 py-2.5 text-left capitalize border-r border-gray-100">{item.unit}</td>
+                                <td className="px-3.5 py-2.5 text-right border-r border-gray-100">₹{itemRate.toFixed(2)}</td>
+                                <td className="px-3 py-2.5 text-right border-r border-gray-100">{itemTaxRate}%</td>
+                                <td className="px-3.5 py-2.5 text-right text-gray-500 border-r border-gray-100">₹{itemGstAmt.toFixed(2)}</td>
+                                <td className="px-4 py-2.5 text-right font-bold text-gray-900">₹{itemTotal.toFixed(2)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Summary Calculations */}
+                    <div className="flex justify-end mb-4">
+                      <div className="w-80 text-xs font-semibold space-y-2 text-right">
+                        <div className="flex justify-between text-gray-500 px-1">
+                          <span>Subtotal</span>
+                          <span>₹{itemsSubtotal.toFixed(2)}</span>
+                        </div>
+                        {Number(activeQuote.tax) > 0 && (
+                          <div className="flex justify-between text-gray-500 px-1">
+                            <span>GST Amount</span>
+                            <span>+₹{Number(activeQuote.tax).toFixed(2)}</span>
+                          </div>
+                        )}
+                        {Number(activeQuote.discount) > 0 && (
+                          <div className="flex justify-between text-gray-500 px-1">
+                            <span>Discount</span>
+                            <span>-₹{Number(activeQuote.discount).toFixed(2)}</span>
+                          </div>
+                        )}
+                        {Number(activeQuote.shippingCharge) > 0 && (
+                          <div className="flex justify-between text-gray-500 px-1">
+                            <span>Shipping Charge</span>
+                            <span>+₹{Number(activeQuote.shippingCharge).toFixed(2)}</span>
+                          </div>
+                        )}
+                        {Number((activeQuote as any).adjustment) !== 0 && (
+                          <div className="flex justify-between text-gray-500 px-1">
+                            <span>Round Off</span>
+                            <span>₹{Number((activeQuote as any).adjustment).toFixed(2)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between font-black text-gray-905 text-sm border-t border-gray-200 pt-2 px-2 py-1.5 bg-gray-50/60 rounded">
+                          <span>Grand Total</span>
+                          <span className="text-blue-600 font-black">₹{activeQuote.totalAmount.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Notes / Terms */}
+                  <div className="border-t border-gray-150 pt-5 mt-5 space-y-3.5 text-left">
+                    {activeQuote.notes && (
+                      <div>
+                        <h4 className="text-[8px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Notes</h4>
+                        <p className="text-xs text-gray-600 leading-relaxed font-semibold italic">{activeQuote.notes}</p>
+                      </div>
+                    )}
+                    {activeQuote.termsAndConditions && (
+                      <div>
+                        <h4 className="text-[8px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Terms & Conditions</h4>
+                        <p className="text-xs text-gray-550 leading-relaxed font-semibold whitespace-pre-wrap">{activeQuote.termsAndConditions}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ─── FULL WIDTH LIST VIEW (Default Mode) ──────────────────────────────────
+
+  const columns = [
+    {
+      key: 'quoteNo',
+      title: 'Quote No',
+      render: (_: any, record: Quote) => (
+        <Link to={`/quotes/${record.id}`} className="font-bold text-blue-500 hover:underline">
+          {record.quoteNo}
+        </Link>
+      ),
+    },
+    { key: 'customer.name', title: 'Customer', render: (_: any, record: Quote) => record.customer?.name || '-' },
+    { key: 'quoteDate', title: 'Quote Date', render: (value: string) => formatDate(value) },
+    { key: 'expiryDate', title: 'Expiry Date', render: (value: string) => formatDate(value) },
+    { key: 'totalAmount', title: 'Amount', align: 'right' as const, render: (value: number) => `₹${value?.toFixed(2) || '0.00'}` },
+    { key: 'status', title: 'Status', render: (value: string) => getStatusBadge(value) },
+    {
+      key: 'actions',
+      title: 'Actions',
+      align: 'right' as const,
+      render: (_: any, record: Quote) => (
+        <div className="flex gap-2 items-center justify-end">
+          <button
+            onClick={() => handleDownloadPDF(record)}
+            className="hidden md:inline-flex p-1 text-gray-500 hover:text-blue-600 rounded-full hover:bg-gray-100 transition-colors disabled:opacity-50"
+            title="Download PDF"
+            disabled={downloadingId === record.id.toString()}
+          >
+            {downloadingId === record.id.toString() ? (
+              <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+          </button>
+          <button
+            onClick={() => setShareQuote(record)}
+            className="hidden md:inline-flex p-1 text-gray-550 hover:text-blue-600 rounded-full hover:bg-gray-100 transition-colors"
+            title="Send via Email"
+          >
+            <Mail className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => handleEditQuote(record)}
+            className="hidden md:inline-flex p-1 text-gray-550 hover:text-amber-600 rounded-full hover:bg-gray-100 transition-colors"
+            title="Edit Quote"
+          >
+            <Edit className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => handleDelete(record)}
+            className="hidden md:inline-flex p-1 text-gray-400 hover:text-red-650 rounded-full hover:bg-red-50 transition-colors"
+            title="Delete Quote"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => setActionModalQuote(record)}
+            className="p-1 text-gray-500 hover:text-blue-600 rounded-full hover:bg-gray-100 transition-colors"
+            title="More Actions"
+          >
+            {(convertingId === record.id) ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <MoreVertical className="h-4 w-4" />
+            )}
+          </button>
+        </div>
+      ),
+    },
+  ];
 
   return (
-    <div className="space-y-4">
-      <PageHeader
-        title="Quotes"
-        searchPlaceholder="Search quotes..."
-        onSearch={(value) => debouncedSearch(value)}
-        actions={[
-          { label: 'Add Quote', icon: <Plus className="h-4 w-4" />, onClick: handleAddQuote, variant: 'primary' as const },
-        ]}
-      />
+    <div className="space-y-4 animate-fadeIn">
+      {/* Zoho Books style custom header panel */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between py-3 border-b border-gray-200 bg-white sticky top-0 z-10 gap-3">
+        <div className="relative" ref={filterDropdownRef}>
+          <div
+            onClick={() => setFilterMenuOpen(!filterMenuOpen)}
+            className="flex items-center gap-1.5 cursor-pointer select-none hover:opacity-85"
+          >
+            <h1 className="text-xl font-bold text-gray-800 tracking-tight">
+              {statusFilter === 'all' ? 'All Quotes' : statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1) + ' Quotes'}
+            </h1>
+            <ChevronDown className="h-4 w-4 text-gray-500 mt-0.5" />
+          </div>
+          {filterMenuOpen && (
+            <div className="absolute left-0 mt-2 w-56 rounded bg-white shadow-lg border border-gray-200 divide-y divide-gray-100 z-50 animate-fadeIn">
+              <div className="py-1">
+                {['all', 'draft', 'sent', 'accepted', 'rejected', 'expired'].map((filter) => (
+                  <button
+                    key={filter}
+                    onClick={() => { setStatusFilter(filter); setFilterMenuOpen(false); }}
+                    className={cn(
+                      "w-full text-left px-4 py-2 text-xs font-semibold hover:bg-gray-100 transition-colors flex items-center justify-between",
+                      statusFilter === filter ? "text-blue-500 font-bold" : "text-gray-700"
+                    )}
+                  >
+                    <span>{filter === 'all' ? 'All Quotes' : filter.charAt(0).toUpperCase() + filter.slice(1)}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full md:w-auto">
+          {/* Search Bar */}
+          <div className="relative flex-1 sm:flex-none min-w-[140px]">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search quotes..."
+              className="w-full sm:w-48 md:w-56 pl-8 pr-3 py-1.5 text-xs bg-gray-50 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+              onChange={(e) => debouncedSearch(e.target.value)}
+            />
+          </div>
 
-      {/* Date Filter */}
+          <button
+            onClick={handleAddQuote}
+            className="h-8 text-xs font-bold px-3.5 bg-blue-500 hover:bg-blue-600 text-white rounded flex items-center gap-1 shadow-2xs transition-colors flex-shrink-0 font-extrabold"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span>New</span>
+          </button>
+        </div>
+      </div>
 
+      {/* Main quotes Table */}
       <div className="card overflow-x-auto">
         <Table data={quotes} columns={columns} loading={loading} />
 
@@ -277,11 +930,11 @@ const Quotes: React.FC = () => {
           {/* Row 1: Items per page + record count */}
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-1.5">
-              <span className="text-xs text-gray-500">Per page:</span>
+              <span className="text-xs text-gray-500 font-semibold">Per page:</span>
               <select
                 value={pageSize}
                 onChange={(e) => { setPageSize(parseInt(e.target.value)); setCurrentPage(1); }}
-                className="px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
               >
                 <option value={10}>10</option>
                 <option value={25}>25</option>
@@ -289,7 +942,7 @@ const Quotes: React.FC = () => {
                 <option value={100}>100</option>
               </select>
             </div>
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-gray-500 font-semibold">
               {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, pagination?.total || 0)} of {pagination?.total || 0}
             </div>
           </div>
@@ -302,7 +955,7 @@ const Quotes: React.FC = () => {
               disabled={currentPage === 1 || loading}
               className="flex items-center gap-0.5 px-2 py-1 text-xs h-7"
             >
-              <ChevronLeft className="h-3 w-3" /> Prev
+              <ChevronLeft className="h-3.5 w-3.5" /> Prev
             </Button>
             <div className="flex items-center gap-0.5">
               {Array.from({ length: pagination?.totalPages || 1 }, (_, i) => i + 1)
@@ -319,13 +972,13 @@ const Quotes: React.FC = () => {
                 }, [])
                 .map((page, idx) =>
                   page === '...' ? (
-                    <span key={`ellipsis-${idx}`} className="px-1 text-xs text-gray-400">…</span>
+                    <span key={`ellipsis-${idx}`} className="px-1.5 text-xs text-gray-400 select-none">…</span>
                   ) : (
                     <button
                       key={page}
                       onClick={() => setCurrentPage(page as number)}
-                      className={`w-7 h-7 rounded text-xs font-medium transition-colors ${
-                        currentPage === page ? 'bg-blue-600 text-white' : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                      className={`w-7 h-7 rounded text-xs font-bold transition-colors ${
+                        currentPage === page ? 'bg-blue-500 text-white' : 'border border-gray-300 text-gray-700 hover:bg-gray-50 bg-white'
                       }`}
                       disabled={loading}
                     >
@@ -342,7 +995,7 @@ const Quotes: React.FC = () => {
               disabled={currentPage === (pagination?.totalPages || 1) || loading}
               className="flex items-center gap-0.5 px-2 py-1 text-xs h-7"
             >
-              Next <ChevronRight className="h-3 w-3" />
+              Next <ChevronRight className="h-3.5 w-3.5" />
             </Button>
           </div>
         </div>
@@ -357,6 +1010,14 @@ const Quotes: React.FC = () => {
           docId={shareQuote.id}
           docLabel={shareQuote.quoteNo}
           defaultEmail={shareQuote.customer?.email || ''}
+          onSuccess={() => {
+            if (id) {
+              dispatch(fetchQuoteById(id));
+              dispatch(fetchQuotes({ limit: 200, search: sidebarSearch, status: statusFilter === 'all' ? undefined : statusFilter }));
+            } else {
+              dispatch(fetchQuotes({ page: currentPage, limit: pageSize, search, status: statusFilter === 'all' ? undefined : statusFilter }));
+            }
+          }}
         />
       )}
 
@@ -372,35 +1033,35 @@ const Quotes: React.FC = () => {
             {stockLoading ? (
               <div className="flex items-center justify-center py-10 gap-3">
                 <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
-                <span className="text-sm text-gray-500">Loading stock batches...</span>
+                <span className="text-sm text-gray-500 font-semibold">Loading stock batches...</span>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
                 {(invoiceModalQuote.items || []).map((item: QuoteItem) => {
                   const batches: StockBatch[] = stockCache[item.productId.toString()] || [];
                   const sel = batchSelections[item.id] || { stockBatchId: '', saleUnit: 'box' };
                   return (
                     <div key={item.id} className="border border-gray-200 rounded p-4 space-y-3">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <Package className="h-4 w-4 text-gray-400" />
-                        <span className="font-semibold text-gray-900 text-sm">
+                        <span className="font-bold text-gray-900 text-sm">
                           {item.product?.name || `Product #${item.productId}`}
                           {item.product?.grade && <span className="text-xs text-gray-500 font-normal ml-1">({item.product.grade})</span>}
                           {item.product?.sku && <span className="text-xs text-gray-500 font-normal ml-2">[{item.product.sku}]</span>}
                         </span>
-                        <span className="ml-auto text-sm font-medium text-gray-700">Qty: {item.quantity} {item.unit}</span>
-                        <span className="text-sm font-medium text-gray-700">Rate: ₹{item.rate}</span>
+                        <span className="ml-auto text-xs font-bold text-gray-700">Qty: {item.quantity} {item.unit}</span>
+                        <span className="text-xs font-bold text-gray-700">Rate: ₹{item.rate}</span>
                       </div>
                       {item.description && (
                         <p className="text-xs text-gray-500 pl-6 italic">{item.description}</p>
                       )}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Stock Batch <span className="text-red-500">*</span></label>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">Stock Batch <span className="text-red-500">*</span></label>
                           {batches.length === 0 ? (
-                            <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">No stock available</div>
+                            <div className="text-xs text-red-650 bg-red-50 border border-red-200 rounded px-3 py-2 font-semibold">No stock available</div>
                           ) : (
-                            <select className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            <select className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
                               value={sel.stockBatchId}
                               onChange={(e) => setBatchSelections(prev => ({ ...prev, [item.id]: { ...sel, stockBatchId: e.target.value } }))}>
                               <option value="">Select batch...</option>
@@ -413,8 +1074,8 @@ const Quotes: React.FC = () => {
                           )}
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Sale Unit</label>
-                          <select className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          <label className="block text-xs font-bold text-gray-600 mb-1">Sale Unit</label>
+                          <select className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
                             value={sel.saleUnit}
                             onChange={(e) => setBatchSelections(prev => ({ ...prev, [item.id]: { ...sel, saleUnit: e.target.value } }))}>
                             <option value="box">Box</option>
@@ -428,7 +1089,7 @@ const Quotes: React.FC = () => {
                 })}
               </div>
             )}
-            <div className="flex justify-end gap-3 pt-2 border-t border-gray-200">
+            <div className="flex justify-end gap-3 pt-2.5 border-t border-gray-200">
               <Button variant="outline" onClick={() => setInvoiceModalQuote(null)}>Cancel</Button>
               <Button onClick={handleInvoiceSubmit} loading={submittingInvoice} disabled={stockLoading}>
                 Create Invoice
@@ -441,9 +1102,9 @@ const Quotes: React.FC = () => {
       {/* Convert to Sales Order Confirmation Modal */}
       <Modal isOpen={!!salesModalQuote} onClose={closeSalesModal} title="Convert to Sales Order" size="sm">
         {salesModalQuote && (
-          <div className="space-y-4 p-4">
-            <p>Are you sure you want to convert quote <strong>{salesModalQuote.quoteNo}</strong> to a Sales Order?</p>
-            <div className="flex justify-end gap-2">
+          <div className="space-y-4 p-2">
+            <p className="text-sm font-semibold text-gray-700">Are you sure you want to convert quote <strong>{salesModalQuote.quoteNo}</strong> to a Sales Order?</p>
+            <div className="flex justify-end gap-2.5">
               <Button variant="outline" onClick={closeSalesModal}>Cancel</Button>
               <Button onClick={confirmConvertToSalesOrder} loading={convertingId === salesModalQuote.id}>Convert</Button>
             </div>
@@ -451,11 +1112,60 @@ const Quotes: React.FC = () => {
         )}
       </Modal>
 
-      {/* Action Modal */}
+      {/* Action Modal (More choices in list view and details mobile view) */}
       <Modal isOpen={!!actionModalQuote} onClose={() => setActionModalQuote(null)}
         title={`Actions - ${actionModalQuote?.quoteNo}`} size="sm">
         {actionModalQuote && (
-          <div className="space-y-3 p-1">
+          <div className="space-y-2.5 p-1 max-h-[75vh] overflow-y-auto">
+            {/* Edit Quote */}
+            <button
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors border border-gray-100 font-medium"
+              onClick={() => {
+                const q = actionModalQuote;
+                setActionModalQuote(null);
+                handleEditQuote(q);
+              }}
+            >
+              <Edit className="h-5 w-5 text-amber-500 flex-shrink-0" />
+              <div className="text-left">
+                <div className="font-bold text-gray-900">Edit Quote</div>
+                <div className="text-xs text-gray-500">Modify quotation details, items, or terms</div>
+              </div>
+            </button>
+
+            {/* Download PDF */}
+            <button
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors border border-gray-100 font-medium"
+              onClick={() => {
+                const q = actionModalQuote;
+                setActionModalQuote(null);
+                handleDownloadPDF(q);
+              }}
+            >
+              <Download className="h-5 w-5 text-blue-500 flex-shrink-0" />
+              <div className="text-left">
+                <div className="font-bold text-gray-900">Download PDF</div>
+                <div className="text-xs text-gray-500">Download a PDF copy of this quotation</div>
+              </div>
+            </button>
+
+            {/* Send via Email */}
+            <button
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors border border-gray-100 font-medium"
+              onClick={() => {
+                const q = actionModalQuote;
+                setActionModalQuote(null);
+                setShareQuote(q);
+              }}
+            >
+              <Mail className="h-5 w-5 text-indigo-500 flex-shrink-0" />
+              <div className="text-left">
+                <div className="font-bold text-gray-900">Send via Email</div>
+                <div className="text-xs text-gray-500">Email this quotation directly to the customer</div>
+              </div>
+            </button>
+
+            {/* Convert to Sales Order */}
             <button
               className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors border border-gray-100 font-medium"
               onClick={() => {
@@ -464,13 +1174,14 @@ const Quotes: React.FC = () => {
                 handleConvertToSalesOrder(q);
               }}
             >
-              <ShoppingCart className="h-5 w-5 text-green-600" />
+              <ShoppingCart className="h-5 w-5 text-emerald-600 flex-shrink-0" />
               <div className="text-left">
-                <div className="font-semibold text-gray-900">Convert to Sales Order</div>
+                <div className="font-bold text-gray-900">Convert to Sales Order</div>
                 <div className="text-xs text-gray-500">Create a new sales order from this quote</div>
               </div>
             </button>
 
+            {/* Convert to Invoice */}
             <button
               className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors border border-gray-100 font-medium"
               onClick={() => {
@@ -479,10 +1190,26 @@ const Quotes: React.FC = () => {
                 openInvoiceModal(q);
               }}
             >
-              <FileText className="h-5 w-5 text-blue-600" />
+              <FileText className="h-5 w-5 text-blue-500 flex-shrink-0" />
               <div className="text-left">
-                <div className="font-semibold text-gray-900">Convert to Invoice</div>
+                <div className="font-bold text-gray-900">Convert to Invoice</div>
                 <div className="text-xs text-gray-500">Generate an outward invoice for this quote</div>
+              </div>
+            </button>
+
+            {/* Delete Quote */}
+            <button
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-red-700 hover:bg-red-50/50 transition-colors border border-red-100 font-medium bg-red-50/10"
+              onClick={() => {
+                const q = actionModalQuote;
+                setActionModalQuote(null);
+                handleDelete(q);
+              }}
+            >
+              <Trash2 className="h-5 w-5 text-red-500 flex-shrink-0" />
+              <div className="text-left">
+                <div className="font-bold text-red-700">Delete Quote</div>
+                <div className="text-xs text-red-500">Permanently delete this quotation</div>
               </div>
             </button>
           </div>

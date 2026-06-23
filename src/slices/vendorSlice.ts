@@ -93,6 +93,9 @@ const vendorSlice = createSlice({
         if (index !== -1) {
           state.vendors[index] = action.payload;
         }
+        if (state.currentVendor && state.currentVendor.id === action.payload.id) {
+          state.currentVendor = action.payload;
+        }
       })
       .addCase(deleteVendor.fulfilled, (state, action) => {
         state.vendors = state.vendors.filter((v) => v.id !== action.payload);

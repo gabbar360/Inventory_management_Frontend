@@ -157,10 +157,10 @@ const Vendors: React.FC = () => {
 
   // Fetch specific vendor details
   useEffect(() => {
-    if (id && !isEditMode && !isAddMode) {
+    if (id && !isAddMode) {
       dispatch(fetchVendorById(id));
     }
-  }, [id, dispatch, isEditMode, isAddMode]);
+  }, [id, dispatch, isAddMode]);
 
   // Fetch statement data when tab is 'statement' or selected vendor changes
   useEffect(() => {

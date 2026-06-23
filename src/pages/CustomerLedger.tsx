@@ -49,7 +49,6 @@ const CustomerLedger: React.FC = () => {
   const [downloading, setDownloading] = useState<boolean>(false);
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [emailTo, setEmailTo] = useState('');
-  const [emailCc, setEmailCc] = useState('');
   const [emailSubject, setEmailSubject] = useState('');
   const [emailMessage, setEmailMessage] = useState('');
   const [sending, setSending] = useState(false);
