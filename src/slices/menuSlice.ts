@@ -69,7 +69,7 @@ export const createMenuItem = createAsyncThunk(
 
 export const updateMenuItem = createAsyncThunk(
   'menu/updateMenuItem',
-  async ({ id, data, type }: { id: number; data: any; type?: 'main' | 'sub' }, { rejectWithValue, dispatch }) => {
+  async ({ id, data }: { id: number; data: any; type?: 'main' | 'sub' }, { rejectWithValue, dispatch }) => {
     try {
       const response = await menuService.updateMenu(id, data);
       // Reload sidebar to reflect changes immediately

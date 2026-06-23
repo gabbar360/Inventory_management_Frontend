@@ -13,6 +13,7 @@ import { Category } from '@/types';
 import { formatDate, debounce } from '@/utils';
 import Button from '@/components/Button';
 import Table from '@/components/Table';
+
 import BulkUpload from '@/components/BulkUpload';
 import Pagination from '@/components/Pagination';
 import PageHeader from '@/components/PageHeader';
@@ -22,7 +23,7 @@ const Categories: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const dispatch = useAppDispatch();
-  const { categories, currentCategory, pagination, loading, error } = useAppSelector(
+  const { categories, currentCategory, pagination, loading } = useAppSelector(
     (state) => state.categories
   );
 
