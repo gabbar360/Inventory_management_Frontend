@@ -159,13 +159,16 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
   };
 
   const subtotal = items.reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.rate) || 0), 0);
-  const totalTax = items.reduce((sum, item) => {
+  const itemsTax = items.reduce((sum, item) => {
     const itemAmount = (Number(item.quantity) || 0) * (Number(item.rate) || 0);
     return sum + (itemAmount * (Number(item.taxRate) || 0)) / 100;
   }, 0);
-  const totalAmount = subtotal + totalTax;
   const shippingCharge = Number(formData.shippingCharge) || 0;
-  const rawFinalAmount = totalAmount - (Number(formData.discount) || 0) + shippingCharge;
+  const allTaxRates = items.map((i) => Number(i.taxRate) || 0);
+  const shippingGstRate = allTaxRates.includes(18) ? 18 : allTaxRates.includes(5) ? 5 : 0;
+  const shippingGstAmt = shippingCharge > 0 ? shippingCharge * (shippingGstRate / 100) : 0;
+  const totalTax = itemsTax + shippingGstAmt;
+  const rawFinalAmount = subtotal + totalTax + shippingCharge - (Number(formData.discount) || 0);
   const roundingAdjustment = rawFinalAmount - Math.round(rawFinalAmount);
   const finalAmount = Math.round(rawFinalAmount);
 

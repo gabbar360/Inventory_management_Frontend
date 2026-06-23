@@ -208,7 +208,10 @@ const AddEditSalesOrder: React.FC<AddEditSalesOrderProps> = ({ order, onSuccess,
     }, 0);
     const shipping = parseFloat(formData.shippingCharge) || 0;
     const discount = parseFloat(formData.discount) || 0;
-    return itemsTotal + shipping - discount;
+    const allTaxRates = items.map((i) => i.taxRate || 0);
+    const shippingGstRate = allTaxRates.includes(18) ? 18 : allTaxRates.includes(5) ? 5 : 0;
+    const shippingGstAmt = shipping > 0 ? shipping * (shippingGstRate / 100) : 0;
+    return itemsTotal + shipping + shippingGstAmt - discount;
   };
 
   const calcTotal = () => Math.round(calcRawTotal());
@@ -279,8 +282,12 @@ const AddEditSalesOrder: React.FC<AddEditSalesOrderProps> = ({ order, onSuccess,
   const statusOptions = Object.entries(STATUS_CONFIG).map(([v, c]) => ({ value: v, label: c.label }));
 
   const subtotal = items.reduce((s, i) => s + i.quantity * i.rate, 0);
-  const totalTax = items.reduce((s, i) => s + i.quantity * i.rate * i.taxRate / 100, 0);
+  const itemsTax = items.reduce((s, i) => s + i.quantity * i.rate * i.taxRate / 100, 0);
   const shippingVal = parseFloat(formData.shippingCharge) || 0;
+  const allTaxRates = items.map((i) => i.taxRate || 0);
+  const shippingGstRate = allTaxRates.includes(18) ? 18 : allTaxRates.includes(5) ? 5 : 0;
+  const shippingGstAmt = shippingVal > 0 ? shippingVal * (shippingGstRate / 100) : 0;
+  const totalTax = itemsTax + shippingGstAmt;
   const adjustmentVal = parseFloat(formData.adjustment) || 0;
   const discountVal = parseFloat(formData.discount) || 0;
   const grandTotal = calcTotal();

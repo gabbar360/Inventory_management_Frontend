@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Plus, Edit, Trash2, Eye, Download, Loader2, MoreVertical, FileText, Package } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Download, Loader2, MoreVertical, FileText, Package, Mail } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { salesOrderService } from '@/services/salesOrderService';
@@ -14,6 +14,7 @@ import Table from '@/components/Table';
 import Pagination from '@/components/Pagination';
 import PageHeader from '@/components/PageHeader';
 import AddEditSalesOrder from '@/components/AddEditSalesOrder';
+import ShareDocumentModal from '@/components/ShareDocumentModal';
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 
@@ -56,6 +57,7 @@ const SalesOrders: React.FC = () => {
   const [stockCache, setStockCache] = useState<Record<string, StockBatch[]>>({});
   const [stockLoading, setStockLoading] = useState(false);
   const [submittingInvoice, setSubmittingInvoice] = useState(false);
+  const [shareOrder, setShareOrder] = useState<SalesOrder | null>(null);
 
   useEffect(() => {
     dispatch(fetchSalesOrders({ page: currentPage, limit: 10, search }));
@@ -178,6 +180,9 @@ const SalesOrders: React.FC = () => {
           <Button variant="ghost" size="sm" onClick={() => handleDownloadPDF(r)} title="Download PDF" disabled={downloadingId === r.id} className="hidden md:inline-flex">
             {downloadingId === r.id ? <Loader2 className="h-4 w-4 animate-spin text-blue-500" /> : <Download className="h-4 w-4" />}
           </Button>
+          <Button variant="ghost" size="sm" onClick={() => setShareOrder(r)} title="Send via Email" className="hidden md:inline-flex">
+            <Mail className="h-4 w-4" />
+          </Button>
           <Button variant="ghost" size="sm" onClick={() => handleEditOrder(r)} title="Edit" className="hidden md:inline-flex"><Edit className="h-4 w-4" /></Button>
           <Button variant="ghost" size="sm" onClick={() => handleDelete(r)} className="text-red-600 hover:text-red-700 hidden md:inline-flex" title="Delete"><Trash2 className="h-4 w-4" /></Button>
           {/* Action Trigger Button */}
@@ -224,6 +229,17 @@ const SalesOrders: React.FC = () => {
           loading={loading}
         />
       </div>
+
+      {shareOrder && (
+        <ShareDocumentModal
+          isOpen={!!shareOrder}
+          onClose={() => setShareOrder(null)}
+          docType="salesOrder"
+          docId={shareOrder.id}
+          docLabel={shareOrder.orderNo}
+          defaultEmail={shareOrder.customer?.email || ''}
+        />
+      )}
 
       {/* Convert to Invoice Modal */}
       <Modal isOpen={!!invoiceModalOrder} onClose={() => setInvoiceModalOrder(null)}
