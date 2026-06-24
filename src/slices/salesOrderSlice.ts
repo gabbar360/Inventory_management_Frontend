@@ -71,8 +71,17 @@ const salesOrderSlice = createSlice({
         const idx = state.orders.findIndex((o) => o.id === action.payload.id);
         if (idx !== -1) state.orders[idx] = action.payload;
       })
+      .addCase(deleteSalesOrder.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(deleteSalesOrder.fulfilled, (state, action) => {
+        state.loading = false;
         state.orders = state.orders.filter((o) => o.id !== action.payload);
+      })
+      .addCase(deleteSalesOrder.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to delete sales order';
       })
       .addCase(convertQuoteToSalesOrder.pending, (state) => { state.loading = true; })
       .addCase(convertQuoteToSalesOrder.fulfilled, (state, action) => {

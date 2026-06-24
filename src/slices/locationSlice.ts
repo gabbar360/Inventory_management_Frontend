@@ -94,10 +94,19 @@ const locationSlice = createSlice({
           state.locations[index] = action.payload;
         }
       })
+      .addCase(deleteLocation.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(deleteLocation.fulfilled, (state, action) => {
+        state.loading = false;
         state.locations = state.locations.filter(
           (l) => l.id !== action.payload
         );
+      })
+      .addCase(deleteLocation.rejected, (state, action: any) => {
+        state.loading = false;
+        state.error = action.payload?.error || action.error.message || 'Failed to delete location';
       });
   },
 });

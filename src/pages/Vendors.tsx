@@ -275,7 +275,7 @@ const Vendors: React.FC = () => {
         toast.success('Vendor deleted successfully');
         navigate('/vendors');
       } catch (error) {
-        // Handled by Redux
+        // Error handled by Redux effect
       }
     }
   };

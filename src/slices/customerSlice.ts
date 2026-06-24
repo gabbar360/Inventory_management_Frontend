@@ -97,10 +97,19 @@ const customerSlice = createSlice({
           state.currentCustomer = action.payload;
         }
       })
+      .addCase(deleteCustomer.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(deleteCustomer.fulfilled, (state, action) => {
+        state.loading = false;
         state.customers = state.customers.filter(
           (c) => c.id !== action.payload
         );
+      })
+      .addCase(deleteCustomer.rejected, (state, action: any) => {
+        state.loading = false;
+        state.error = action.payload?.error || action.error.message || 'Failed to delete customer';
       });
   },
 });

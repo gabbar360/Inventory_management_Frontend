@@ -115,7 +115,9 @@ const SalesOrders: React.FC = () => {
     try {
       await dispatch(deleteSalesOrder(order.id)).unwrap();
       toast.success('Sales order deleted');
-    } catch (e: any) { toast.error(e?.message || 'Failed to delete'); }
+    } catch (e) {
+      // Error handled by Redux
+    }
   };
 
   const openInvoiceModal = async (order: SalesOrder) => {
