@@ -388,7 +388,10 @@ const CustomerLedger: React.FC = () => {
                         <td className="px-4 py-2.5 text-left">
                           <span className={cn(
                             "inline-block px-1.5 py-0.5 rounded text-[10px] font-bold uppercase",
-                            tx.type === 'Invoice' ? "bg-emerald-50 text-emerald-800 border border-emerald-200" : "bg-primary-50 text-primary-800 border border-primary-200"
+                            tx.type === 'Sales' && "bg-emerald-50 text-emerald-800 border border-emerald-200",
+                            tx.type === 'Payment' && "bg-primary-50 text-primary-800 border border-primary-200",
+                            tx.type === 'Purchase' && "bg-amber-50 text-amber-800 border border-amber-200",
+                            tx.type === 'Payment Made' && "bg-orange-50 text-orange-800 border border-orange-200"
                           )}>
                             {tx.type}
                           </span>
@@ -451,7 +454,10 @@ const CustomerLedger: React.FC = () => {
                       <div className="flex items-center gap-1.5">
                         <span className={cn(
                           "inline-block px-1.5 py-0.5 rounded text-[9px] font-bold uppercase",
-                          tx.type === 'Invoice' ? "bg-emerald-50 text-emerald-800 border border-emerald-200" : "bg-primary-50 text-primary-800 border border-primary-200"
+                          tx.type === 'Sales' && "bg-emerald-50 text-emerald-800 border border-emerald-200",
+                          tx.type === 'Payment' && "bg-primary-50 text-primary-800 border border-primary-200",
+                          tx.type === 'Purchase' && "bg-amber-50 text-amber-800 border border-amber-200",
+                          tx.type === 'Payment Made' && "bg-orange-50 text-orange-800 border border-orange-200"
                         )}>
                           {tx.type}
                         </span>
