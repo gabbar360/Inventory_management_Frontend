@@ -686,10 +686,7 @@ const PaymentsReceived: React.FC = () => {
                     <p className="text-[10px] text-gray-500 mt-0.5">Inventory & Sales Department</p>
                   </div>
                   <div className="text-right">
-                    <h1 className="text-xs font-black text-gray-400 uppercase tracking-widest leading-none">Receipt</h1>
-                    <span className="inline-block px-2 py-0.5 rounded bg-primary-50 text-primary-800 border border-primary-200 text-[9px] font-bold mt-1.5 uppercase">
-                      {selectedPayment.transactionType === 'customer_advance' ? 'Customer Advance' : selectedPayment.transactionType === 'credit_application' ? 'Credit Applied' : 'Invoice Payment'}
-                    </span>
+                    <h1 className="text-xs font-black text-gray-400 uppercase tracking-widest leading-none">Payment Receipt</h1>
                   </div>
                 </div>
 

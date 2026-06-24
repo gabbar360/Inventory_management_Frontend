@@ -9,6 +9,24 @@ import { formatDate, formatCurrency, cn } from '@/utils';
 import Button from '@/components/Button';
 import { SearchableDropdown } from './SearchableDropdown';
 
+const calculateOutwardInvoiceGrandTotal = (invoice: any) => {
+  if (!invoice) return 0;
+  let baseCost = 0;
+  let gstCost = 0;
+  invoice.items?.forEach((item: any) => {
+    const gstRate = item.product?.category?.gstRate || 0;
+    const itemBase = item.quantity * item.ratePerUnit;
+    baseCost += itemBase;
+    gstCost += (itemBase * gstRate) / 100;
+  });
+  const expense = invoice.expense || 0;
+  const adjustment = invoice.adjustment || 0;
+  const shippingCharge = invoice.shippingCharge || 0;
+  const discount = invoice.discount || 0;
+  const grandTotal = baseCost + gstCost + expense + shippingCharge - adjustment - discount;
+  return Math.round(grandTotal * 100) / 100;
+};
+
 interface AddEditPaymentsReceivedProps {
   payment?: PaymentReceived;
   onSuccess: () => void;
@@ -105,14 +123,17 @@ const AddEditPaymentsReceived: React.FC<AddEditPaymentsReceivedProps> = ({
                 ? payment.invoices.find((i) => i.invoiceId === Number(inv.id))?.amountApplied || 0
                 : 0;
 
-              // unpaid balance = invoice total cost - amountReceived + previous applied amount if editing
-              const balanceDue = inv.totalCost - (inv.amountReceived || 0) + prevApplied;
+              // Calculate grand total using our helper
+              const grandTotal = calculateOutwardInvoiceGrandTotal(inv);
+
+              // unpaid balance = invoice grand total - amountReceived + previous applied amount if editing
+              const balanceDue = grandTotal - (inv.amountReceived || 0) + prevApplied;
 
               return {
                 id: inv.id,
                 invoiceNo: inv.invoiceNo,
                 date: inv.date,
-                totalCost: inv.totalCost,
+                totalCost: grandTotal,
                 amountReceived: inv.amountReceived || 0,
                 prevApplied,
                 balanceDue,
