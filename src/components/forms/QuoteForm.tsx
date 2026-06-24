@@ -209,7 +209,6 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
       }
       
       dispatch(fetchQuotes({ page: 1, limit: 10 }));
-      dispatch(clearCurrentQuote());
       onClose();
     } catch (error) {
       console.error('Error submitting quote:', error);
