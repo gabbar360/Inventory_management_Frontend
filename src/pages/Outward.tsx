@@ -132,18 +132,22 @@ const Outward: React.FC = () => {
   const calculateInvoiceBreakdown = (invoice: OutwardInvoice) => {
     let baseCost = 0;
     let gstCost = 0;
+    const allGstRates: number[] = [];
     invoice.items?.forEach((item) => {
       const gstRate = item.product?.category?.gstRate || 0;
       const itemBase = item.quantity * item.ratePerUnit;
       baseCost += itemBase;
       gstCost += (itemBase * gstRate) / 100;
+      allGstRates.push(gstRate);
     });
     const expense = invoice.expense || 0;
     const adjustment = invoice.adjustment || 0;
     const shippingCharge = invoice.shippingCharge || 0;
     const discount = invoice.discount || 0;
     const amountReceived = invoice.amountReceived || 0;
-    const grandTotal = baseCost + gstCost + expense + shippingCharge - adjustment - discount;
+    const shippingGstRate = allGstRates.includes(18) ? 18 : allGstRates.includes(5) ? 5 : 0;
+    const shippingGstAmt = shippingCharge > 0 ? shippingCharge * (shippingGstRate / 100) : 0;
+    const grandTotal = baseCost + gstCost + shippingGstAmt + expense + shippingCharge - adjustment - discount;
     const balanceDue = grandTotal - amountReceived;
     return { baseCost, gstCost, expense, adjustment, shippingCharge, discount, grandTotal, amountReceived, balanceDue };
   };
@@ -209,19 +213,7 @@ const Outward: React.FC = () => {
         return locations.length > 0 ? locations.join(', ') : '-';
       },
     },
-    {
-      key: 'saleType',
-      title: 'Type',
-      render: (value: string) => (
-        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${value === 'export' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>
-          {value.charAt(0).toUpperCase() + value.slice(1)}
-        </span>
-      ),
-    },
-    { key: 'totalQty', title: 'Qty', render: (_: any, record: any) => record.totalQty || 0 },
-    { key: 'totalBoxes', title: 'Boxes', render: (_: any, record: any) => record.totalBoxes || 0 },
-    { key: 'baseCost', title: 'Base Cost', render: (_: any, record: OutwardInvoice) => formatCurrency(calculateInvoiceBreakdown(record).baseCost) },
-    { key: 'gstCost', title: 'GST', render: (_: any, record: OutwardInvoice) => formatCurrency(calculateInvoiceBreakdown(record).gstCost) },
+    
     {
       key: 'totalCost',
       title: 'Grand Total',
