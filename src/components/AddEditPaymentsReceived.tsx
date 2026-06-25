@@ -13,17 +13,21 @@ const calculateOutwardInvoiceGrandTotal = (invoice: any) => {
   if (!invoice) return 0;
   let baseCost = 0;
   let gstCost = 0;
+  const allGstRates: number[] = [];
   invoice.items?.forEach((item: any) => {
     const gstRate = item.product?.category?.gstRate || 0;
     const itemBase = item.quantity * item.ratePerUnit;
     baseCost += itemBase;
     gstCost += (itemBase * gstRate) / 100;
+    allGstRates.push(gstRate);
   });
   const expense = invoice.expense || 0;
   const adjustment = invoice.adjustment || 0;
   const shippingCharge = invoice.shippingCharge || 0;
   const discount = invoice.discount || 0;
-  const grandTotal = baseCost + gstCost + expense + shippingCharge - adjustment - discount;
+  const shippingGstRate = allGstRates.includes(18) ? 18 : allGstRates.includes(5) ? 5 : 0;
+  const shippingGstAmt = shippingCharge > 0 ? shippingCharge * (shippingGstRate / 100) : 0;
+  const grandTotal = baseCost + gstCost + shippingGstAmt + expense + shippingCharge - adjustment - discount;
   return Math.round(grandTotal * 100) / 100;
 };
 

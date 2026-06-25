@@ -128,8 +128,11 @@ export const BarcodePrint: React.FC = () => {
             </div>
 
             {/* Row 5: Barcode */}
-            <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4px 6px' }}>
+            <div style={{ flexGrow: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px 6px' }}>
               <BarcodeImage barcode={box.barcode} width="100%" height="auto" />
+              <div style={{ position: 'absolute', bottom: '4px', left: 0, right: 0, textAlign: 'center', fontSize: '11px', fontWeight: 'bold', letterSpacing: '1px', pointerEvents: 'none' }}>
+                {index + 1} / {boxes.length}
+              </div>
             </div>
           </div>
         ))}
