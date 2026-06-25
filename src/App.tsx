@@ -33,8 +33,7 @@ const PurchaseOrders = lazy(() => import('@/pages/PurchaseOrders'));
 const BarcodePrint = lazy(() => import('@/pages/BarcodePrint'));
 const PaymentsReceived = lazy(() => import('@/pages/PaymentsReceived'));
 const PaymentsMade = lazy(() => import('@/pages/PaymentsMade'));
-const VendorLedger = lazy(() => import('@/pages/VendorLedger'));
-const CustomerLedger = lazy(() => import('@/pages/CustomerLedger'));
+const AccountLedger = lazy(() => import('@/pages/AccountLedger'));
 
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode; permission?: string }> = ({
@@ -175,14 +174,15 @@ function App() {
           <Route path="paymentsreceived" element={<PaymentsReceived />} />
           <Route path="paymentsreceived/add" element={<PaymentsReceived />} />
           <Route path="paymentsreceived/edit/:id" element={<PaymentsReceived />} />
-          <Route path="customer-ledger" element={<CustomerLedger />} />
+          <Route path="account-ledger" element={<Navigate to="/account-ledger/customer" replace />} />
+          <Route path="account-ledger/customer" element={<AccountLedger />} />
+          <Route path="account-ledger/vendor" element={<AccountLedger />} />
           <Route path="purchase-orders" element={<PurchaseOrders />} />
           <Route path="purchase-orders/add" element={<PurchaseOrders />} />
           <Route path="purchase-orders/edit/:id" element={<PurchaseOrders />} />
           <Route path="paymentsmade" element={<PaymentsMade />} />
           <Route path="paymentsmade/add" element={<PaymentsMade />} />
           <Route path="paymentsmade/edit/:id" element={<PaymentsMade />} />
-          <Route path="vendor-ledger" element={<VendorLedger />} />
           <Route path="order-dispatch" element={<OrderDispatchPage />} />
           <Route path="order-dispatch/add" element={<OrderDispatchPage />} />
           <Route path="order-dispatch/edit/:id" element={<OrderDispatchPage />} />
