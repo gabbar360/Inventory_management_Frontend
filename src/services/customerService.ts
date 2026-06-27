@@ -23,6 +23,11 @@ export const customerService = {
     };
   },
 
+  async getReferences(): Promise<string[]> {
+    const response = await api.get<ApiResponse<string[]>>('/get-customer-references');
+    return response.data.data!;
+  },
+
   async getById(id: string): Promise<Customer> {
     const response = await api.get<ApiResponse<Customer>>(`/get-customers/${id}`);
     return response.data.data!;

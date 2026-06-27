@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, X } from 'lucide-react';
+import { cn } from '@/utils';
 
 interface SearchableDropdownProps {
   label?: string;
@@ -10,6 +11,7 @@ interface SearchableDropdownProps {
   disabled?: boolean;
   loading?: boolean;
   required?: boolean;
+  className?: string;
 }
 
 export const SearchableDropdown = ({
@@ -21,6 +23,7 @@ export const SearchableDropdown = ({
   disabled = false,
   loading = false,
   required = false,
+  className,
 }: SearchableDropdownProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -32,6 +35,8 @@ export const SearchableDropdown = ({
   );
 
   const selectedOption = options.find(opt => opt.name === value);
+  const hasBg = className?.includes('bg-');
+  const hasRounded = className?.includes('rounded');
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -73,19 +78,24 @@ export const SearchableDropdown = ({
 
       <div
         onClick={() => !disabled && setIsOpen(!isOpen)}
-        className={`w-full px-2.5 h-8.5 border rounded-sm bg-white text-left flex items-center justify-between transition-colors cursor-pointer text-xs ${
-          disabled ? 'bg-gray-100 cursor-not-allowed opacity-60' : 'hover:bg-gray-50'
-        } ${isOpen ? 'border-primary-500 ring-1 ring-primary-500' : 'border-gray-300'}`}
+        className={cn(
+          "w-full px-2.5 h-8.5 border text-left flex items-center justify-between transition-colors cursor-pointer text-xs",
+          !hasRounded && "rounded-sm",
+          !hasBg && "bg-white",
+          disabled ? 'bg-gray-100 cursor-not-allowed opacity-60' : 'hover:bg-gray-50',
+          isOpen ? 'border-primary-500 ring-1 ring-primary-500' : 'border-gray-300',
+          className
+        )}
       >
         {isOpen ? (
           <input
             ref={inputRef}
             type="text"
-            placeholder={label ? `Search ${label.toLowerCase()}...` : 'Search...'}
+            placeholder={selectedOption ? selectedOption.name : placeholder}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             onClick={(e) => e.stopPropagation()}
-            className="flex-1 outline-none bg-transparent text-gray-900 text-xs h-full"
+            className="dropdown-search-input flex-1 outline-none bg-transparent border-none p-0 shadow-none focus:ring-0 text-gray-900 text-xs h-full placeholder:text-gray-400"
           />
         ) : (
           <span className={selectedOption ? 'text-gray-900 font-medium' : 'text-gray-500'}>
@@ -103,10 +113,12 @@ export const SearchableDropdown = ({
               <X size={12} className="text-gray-400" />
             </button>
           )}
-          <ChevronDown
-            size={14}
-            className={`transition-transform text-gray-400 ${isOpen ? 'rotate-180' : ''}`}
-          />
+          {!isOpen && (
+            <ChevronDown
+              size={14}
+              className="transition-transform text-gray-400"
+            />
+          )}
         </div>
       </div>
 

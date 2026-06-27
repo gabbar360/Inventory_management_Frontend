@@ -689,24 +689,6 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
           <span>/</span>
           <span className="font-semibold text-gray-700">{invoice ? 'Edit Inward Invoice' : 'Create Inward Invoice'}</span>
         </div>
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            onClick={handleSubmit(onSubmit)}
-            className="odoo-btn-primary px-4 h-8 text-xs font-semibold"
-            loading={isSubmitting}
-          >
-            Save
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onCancel}
-            className="odoo-btn-secondary px-4 h-8 text-xs"
-          >
-            Discard
-          </Button>
-        </div>
       </div>
 
       {/* Main Form Sheet */}
@@ -1629,6 +1611,25 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
                 <span className="text-lg font-bold text-green-700">{formatCurrency(calculateGrandTotal() + (Number(control._formValues.expense) || 0))}</span>
               </div>
             </div>
+          </div>
+
+          {/* Form Actions */}
+          <div className="flex gap-2 pt-4 border-t border-gray-200">
+            <Button
+              type="submit"
+              className="odoo-btn-primary px-4 h-8 text-xs font-semibold"
+              loading={isSubmitting}
+            >
+              Save
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+              className="odoo-btn-secondary px-4 h-8 text-xs"
+            >
+              Discard
+            </Button>
           </div>
         </form>
       </div>

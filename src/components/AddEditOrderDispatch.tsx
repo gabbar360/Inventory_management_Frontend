@@ -501,14 +501,6 @@ const AddEditOrderDispatch: React.FC<AddEditOrderDispatchProps> = ({ dispatch, o
           <span>/</span>
           <span className="font-semibold text-gray-700">{dispatch ? `Edit ${dispatch.dispatchNo}` : 'New Dispatch'}</span>
         </div>
-        <div className="flex gap-2">
-          <Button type="button" onClick={() => handleSubmit()} className="odoo-btn-primary px-4 h-8 text-xs font-semibold" loading={loading}>
-            Save
-          </Button>
-          <Button type="button" variant="outline" onClick={onCancel} className="odoo-btn-secondary px-4 h-8 text-xs">
-            Discard
-          </Button>
-        </div>
       </div>
 
       {/* Dynamic Odoo Sheet form card */}
@@ -931,6 +923,16 @@ const AddEditOrderDispatch: React.FC<AddEditOrderDispatchProps> = ({ dispatch, o
               className="w-3.5 h-3.5 rounded border-gray-300 focus:ring-1 focus:ring-primary-500 text-primary-600"
             />
             <label className="text-xs font-semibold text-gray-700">Hide Bill To & Ship To (Show "To The Order" instead)</label>
+          </div>
+
+          {/* Form Actions */}
+          <div className="flex gap-2 pt-4 border-t border-gray-200">
+            <Button type="submit" className="odoo-btn-primary px-4 h-8 text-xs font-semibold" loading={loading}>
+              Save
+            </Button>
+            <Button type="button" variant="outline" onClick={onCancel} className="odoo-btn-secondary px-4 h-8 text-xs">
+              Discard
+            </Button>
           </div>
         </form>
       </div>

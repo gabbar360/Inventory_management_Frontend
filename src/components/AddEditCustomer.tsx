@@ -19,22 +19,26 @@ interface AddEditCustomerProps {
 
 interface CustomerFormData {
   name: string;
+  companyName?: string;
   email?: string;
   phone?: string;
   address?: string;
   shippingAddress?: string;
   gstNumber?: string;
   state?: string;
+  reference?: string;
 }
 
 const customerSchema = z.object({
   name: z.string().min(1, 'Customer name is required'),
+  companyName: z.string().optional(),
   email: z.string().email().optional().or(z.literal('')),
   phone: z.string().optional(),
   address: z.string().optional(),
   shippingAddress: z.string().optional(),
   gstNumber: z.string().optional(),
   state: z.string().optional(),
+  reference: z.string().optional(),
 });
 
 const AddEditCustomer: React.FC<AddEditCustomerProps> = ({ customer, onSuccess, onCancel }) => {
@@ -48,12 +52,14 @@ const AddEditCustomer: React.FC<AddEditCustomerProps> = ({ customer, onSuccess, 
     resolver: zodResolver(customerSchema),
     defaultValues: {
       name: '',
+      companyName: '',
       email: '',
       phone: '',
       address: '',
       shippingAddress: '',
       gstNumber: '',
       state: '',
+      reference: '',
     },
   });
 
@@ -107,12 +113,14 @@ const AddEditCustomer: React.FC<AddEditCustomerProps> = ({ customer, onSuccess, 
   useEffect(() => {
     if (customer) {
       setValue('name', customer.name);
+      setValue('companyName', customer.companyName || '');
       setValue('email', customer.email || '');
       setValue('phone', customer.phone || '');
       setValue('address', customer.address || '');
       setValue('shippingAddress', customer.shippingAddress || '');
       setValue('gstNumber', customer.gstNumber || '');
       setValue('state', customer.state || '');
+      setValue('reference', customer.reference || '');
       setStateSearch(customer.state || '');
     }
   }, [customer, setValue]);
@@ -154,10 +162,10 @@ const AddEditCustomer: React.FC<AddEditCustomerProps> = ({ customer, onSuccess, 
       {/* Odoo Sheet Form Card */}
       <div className="odoo-sheet max-w-5xl mx-auto">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-          {/* Row 1: Name and Email */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Row 1: Customer Name and Company Name */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
                 Customer Name <span className="text-red-500">*</span>
               </label>
               <Input
@@ -168,6 +176,19 @@ const AddEditCustomer: React.FC<AddEditCustomerProps> = ({ customer, onSuccess, 
               />
             </div>
 
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Company Name</label>
+              <Input
+                placeholder="Enter company name"
+                error={errors.companyName?.message}
+                {...register('companyName')}
+                className="w-full"
+              />
+            </div>
+          </div>
+
+          {/* Row 2: Email and Phone */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">
                 Email
@@ -180,10 +201,7 @@ const AddEditCustomer: React.FC<AddEditCustomerProps> = ({ customer, onSuccess, 
                 className="w-full"
               />
             </div>
-          </div>
 
-          {/* Row 2: Phone and GST Number */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">
                 Phone
@@ -195,7 +213,10 @@ const AddEditCustomer: React.FC<AddEditCustomerProps> = ({ customer, onSuccess, 
                 className="w-full"
               />
             </div>
+          </div>
 
+          {/* Row 3: GST Number and State */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">
                 GST Number
@@ -207,10 +228,7 @@ const AddEditCustomer: React.FC<AddEditCustomerProps> = ({ customer, onSuccess, 
                 className="w-full"
               />
             </div>
-          </div>
 
-          {/* Row 3: State and Address */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="relative" ref={stateDropdownRef}>
               <label className="block text-xs font-semibold text-gray-600 mb-1">
                 State
@@ -301,7 +319,10 @@ const AddEditCustomer: React.FC<AddEditCustomerProps> = ({ customer, onSuccess, 
                 </div>
               )}
             </div>
+          </div>
 
+          {/* Row 4: Billing Address and Shipping Address */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">
                 Billing Address
@@ -313,20 +334,33 @@ const AddEditCustomer: React.FC<AddEditCustomerProps> = ({ customer, onSuccess, 
                 className="w-full"
               />
             </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">
+                Shipping Address <span className="text-gray-400 font-normal ml-1">(optional)</span>
+              </label>
+              <Input
+                placeholder="Enter shipping address"
+                error={errors.shippingAddress?.message}
+                {...register('shippingAddress')}
+                className="w-full"
+              />
+            </div>
           </div>
 
-          {/* Row 4: Shipping Address (full width) */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">
-              Shipping Address
-              <span className="text-gray-400 font-normal ml-1">(optional – if different from billing)</span>
-            </label>
-            <Input
-              placeholder="Enter shipping address"
-              error={errors.shippingAddress?.message}
-              {...register('shippingAddress')}
-              className="w-full"
-            />
+          {/* Row 5: Reference */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">
+                Reference <span className="text-gray-400 font-normal ml-1">(optional)</span>
+              </label>
+              <Input
+                placeholder="Enter reference details"
+                error={errors.reference?.message}
+                {...register('reference')}
+                className="w-full"
+              />
+            </div>
           </div>
         </form>
       </div>
