@@ -166,10 +166,10 @@ const AddEditCustomer: React.FC<AddEditCustomerProps> = ({ customer, onSuccess, 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Customer Name <span className="text-red-500">*</span>
+               Company Name <span className="text-red-500">*</span>
               </label>
               <Input
-                placeholder="Enter customer name"
+                placeholder="Enter Company Name"
                 error={errors.name?.message}
                 {...register('name')}
                 className="w-full"
@@ -177,9 +177,9 @@ const AddEditCustomer: React.FC<AddEditCustomerProps> = ({ customer, onSuccess, 
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Company Name</label>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Customer Name</label>
               <Input
-                placeholder="Enter company name"
+                placeholder="Enter Customer Name"
                 error={errors.companyName?.message}
                 {...register('companyName')}
                 className="w-full"
