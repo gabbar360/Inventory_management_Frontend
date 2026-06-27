@@ -201,25 +201,25 @@ const AddEditSalesOrder: React.FC<AddEditSalesOrderProps> = ({ order, onSuccess,
   }, [order]);
 
   // ── Calc ──
-  const calcRawTotal = () => {
-    const itemsTotal = items.reduce((sum, item) => {
+  const calcRawTotal = (currentItems = items, shipping = formData.shippingCharge, discount = formData.discount) => {
+    const itemsTotal = currentItems.reduce((sum, item) => {
       const base = item.quantity * item.rate;
       return sum + base + base * (item.taxRate / 100);
     }, 0);
-    const shipping = parseFloat(formData.shippingCharge) || 0;
-    const discount = parseFloat(formData.discount) || 0;
-    const allTaxRates = items.map((i) => i.taxRate || 0);
+    const shippingVal = parseFloat(shipping) || 0;
+    const discountVal = parseFloat(discount) || 0;
+    const allTaxRates = currentItems.map((i) => i.taxRate || 0);
     const shippingGstRate = allTaxRates.includes(18) ? 18 : allTaxRates.includes(5) ? 5 : 0;
-    const shippingGstAmt = shipping > 0 ? shipping * (shippingGstRate / 100) : 0;
-    return itemsTotal + shipping + shippingGstAmt - discount;
+    const shippingGstAmt = shippingVal > 0 ? shippingVal * (shippingGstRate / 100) : 0;
+    return itemsTotal + shippingVal + shippingGstAmt - discountVal;
   };
 
   const calcTotal = () => Math.round(calcRawTotal());
 
   // Auto-calculate rounding adjustment whenever items/shipping/discount change
   useEffect(() => {
-    const raw = calcRawTotal();
-    const rounding = raw - Math.round(raw); // negative = rounded up, positive = rounded down
+    const raw = calcRawTotal(items, formData.shippingCharge, formData.discount);
+    const rounding = raw - Math.round(raw);
     setFormData((prev) => ({ ...prev, adjustment: rounding.toFixed(2) }));
   }, [items, formData.shippingCharge, formData.discount]);
 
