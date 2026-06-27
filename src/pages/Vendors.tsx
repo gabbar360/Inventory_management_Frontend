@@ -41,6 +41,8 @@ import Button from '@/components/Button';
 import BulkUpload from '@/components/BulkUpload';
 import Pagination from '@/components/Pagination';
 import AddEditVendor from '@/components/AddEditVendor';
+import PageHeader from '@/components/PageHeader';
+import Table from '@/components/Table';
 
 const getLocalYYYYMMDD = (date: Date): string => {
   const y = date.getFullYear();
@@ -90,9 +92,7 @@ const Vendors: React.FC = () => {
   // Sorting states
   const [sortBy, setSortBy] = useState<'name' | 'code' | 'email' | 'phone' | 'createdAt'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const [sidebarFilterMenuOpen, setSidebarFilterMenuOpen] = useState(false);
-  const filterDropdownRef = useRef<HTMLDivElement>(null);
   const sidebarFilterDropdownRef = useRef<HTMLDivElement>(null);
 
   const handleSort = (field: 'name' | 'code' | 'email' | 'phone' | 'createdAt') => {
@@ -134,9 +134,6 @@ const Vendors: React.FC = () => {
       }
       if (moreDropdownRef.current && !moreDropdownRef.current.contains(event.target as Node)) {
         setMoreOpen(false);
-      }
-      if (filterDropdownRef.current && !filterDropdownRef.current.contains(event.target as Node)) {
-        setFilterMenuOpen(false);
       }
       if (sidebarFilterDropdownRef.current && !sidebarFilterDropdownRef.current.contains(event.target as Node)) {
         setSidebarFilterMenuOpen(false);
@@ -1196,316 +1193,117 @@ const Vendors: React.FC = () => {
   }
 
   // --- FULL WIDTH LIST VIEW (Default) ---
+  const columns = [
+    {
+      key: 'code',
+      title: 'Name',
+      sortable: true,
+      render: (_: any, record: Vendor) => (
+        <div className="flex flex-col">
+          <Link to={`/vendors/${record.id}`} className="font-bold text-[#0082f4] hover:underline">
+            {record.name}
+          </Link>
+          <span className="text-[10px] text-gray-400 font-semibold">{record.code}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'companyName',
+      title: 'Company Name',
+      sortable: true,
+      render: (_: any, record: Vendor) => record.companyName || '-',
+    },
+    {
+      key: 'email',
+      title: 'Email',
+      sortable: true,
+      render: (value: string) => value || '-',
+    },
+    {
+      key: 'phone',
+      title: 'Work Phone',
+      sortable: true,
+      render: (value: string) => value || '-',
+    },
+
+    {
+      key: 'payables',
+      title: 'Payables (BCY)',
+      align: 'right' as const,
+      render: (_: any, record: Vendor) => formatCurrency((record as any).payables || 0),
+    },
+    {
+      key: 'unusedCredits',
+      title: 'Unused Credits (BCY)',
+      align: 'right' as const,
+      render: (_: any, record: Vendor) => formatCurrency((record as any).unusedCredits || 0),
+    },
+    {
+      key: 'actions',
+      title: 'Actions',
+      align: 'right' as const,
+      render: (_: any, record: Vendor) => (
+        <div className="flex gap-1 justify-end">
+          <Button variant="ghost" size="sm" onClick={() => handleEditVendor(record.id.toString())}>
+            <Edit className="h-3.5 w-3.5" />
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => handleDelete(record)} className="text-red-655 hover:text-red-700">
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
-    <div className="space-y-4 animate-fadeIn">
-      {/* Zoho Books style custom header panel */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between py-3 border-b border-gray-200 bg-white sticky top-0 z-10 gap-3">
-        <div className="relative" ref={filterDropdownRef}>
-          <div
-            onClick={() => setFilterMenuOpen(!filterMenuOpen)}
-            className="flex items-center gap-1.5 cursor-pointer select-none hover:opacity-85"
-          >
-            <h1 className="text-xl font-bold text-gray-800 tracking-tight">Active Vendors</h1>
-            <ChevronDown className="h-4 w-4 text-gray-500 mt-0.5" />
-          </div>
-          {filterMenuOpen && (
-            <div className="absolute left-0 mt-2 w-56 rounded bg-white shadow-lg ring-1 ring-black ring-opacity-5 border border-gray-200 divide-y divide-gray-100 z-50 animate-fadeIn">
-              <div className="py-1">
-                <span className="block px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Sort By</span>
-                
-                <button
-                  onClick={() => { setSortBy('name'); setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc'); setFilterMenuOpen(false); }}
-                  className={cn(
-                    "w-full text-left px-4 py-2 text-xs font-semibold hover:bg-gray-100 transition-colors flex items-center justify-between",
-                    sortBy === 'name' ? "text-[#0082f4]" : "text-gray-700"
-                  )}
-                >
-                  <span>Name</span>
-                  {sortBy === 'name' && (
-                    <span className="text-[10px] font-bold uppercase">{sortOrder}</span>
-                  )}
-                </button>
+    <div className="space-y-4 sm:space-y-6">
+      <PageHeader
+        title="Vendors"
+        searchPlaceholder="Search vendors..."
+        onSearch={(value) => debouncedSearch(value)}
+        actions={[
+          {
+            label: 'Bulk Upload',
+            icon: <Upload className="h-4 w-4" />,
+            onClick: () => setBulkUploadOpen(true),
+          },
+          {
+            label: 'Export',
+            icon: <Download className="h-4 w-4" />,
+            onClick: handleExport,
+          },
+          {
+            label: 'Add Vendor',
+            icon: <Plus className="h-4 w-4" />,
+            onClick: handleAddVendor,
+            variant: 'primary' as const,
+          },
+        ]}
+      />
 
-                <button
-                  onClick={() => { setSortBy('code'); setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc'); setFilterMenuOpen(false); }}
-                  className={cn(
-                    "w-full text-left px-4 py-2 text-xs font-semibold hover:bg-gray-100 transition-colors flex items-center justify-between",
-                    sortBy === 'code' ? "text-[#0082f4]" : "text-gray-700"
-                  )}
-                >
-                  <span>Vendor Code</span>
-                  {sortBy === 'code' && (
-                    <span className="text-[10px] font-bold uppercase">{sortOrder}</span>
-                  )}
-                </button>
+      <div className="card overflow-hidden">
+        <Table
+          data={vendors}
+          columns={columns}
+          loading={loading}
+          sortBy={sortBy}
+          sortOrder={sortOrder}
+          onSort={(key) => handleSort(key as any)}
+        />
 
-                <button
-                  onClick={() => { setSortBy('email'); setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc'); setFilterMenuOpen(false); }}
-                  className={cn(
-                    "w-full text-left px-4 py-2 text-xs font-semibold hover:bg-gray-100 transition-colors flex items-center justify-between",
-                    sortBy === 'email' ? "text-[#0082f4]" : "text-gray-700"
-                  )}
-                >
-                  <span>Email</span>
-                  {sortBy === 'email' && (
-                    <span className="text-[10px] font-bold uppercase">{sortOrder}</span>
-                  )}
-                </button>
-
-                <button
-                  onClick={() => { setSortBy('createdAt'); setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc'); setFilterMenuOpen(false); }}
-                  className={cn(
-                    "w-full text-left px-4 py-2 text-xs font-semibold hover:bg-gray-100 transition-colors flex items-center justify-between",
-                    sortBy === 'createdAt' ? "text-[#0082f4]" : "text-gray-700"
-                  )}
-                >
-                  <span>Created Time</span>
-                  {sortBy === 'createdAt' && (
-                    <span className="text-[10px] font-bold uppercase">{sortOrder}</span>
-                  )}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full md:w-auto">
-          {/* Search Bar */}
-          <div className="relative flex-1 sm:flex-none min-w-[140px]">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search..."
-              className="w-full sm:w-48 md:w-56 pl-8 pr-3 py-1.5 text-xs bg-gray-50 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-              onChange={(e) => debouncedSearch(e.target.value)}
+        {pagination && pagination.totalPages > 1 && (
+          <div className="mt-4">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={pagination?.totalPages || 1}
+              total={pagination?.total || 0}
+              limit={pagination?.limit || 10}
+              onPageChange={setCurrentPage}
+              loading={loading}
             />
-          </div>
-
-          <button
-            onClick={handleAddVendor}
-            className="h-8 text-xs font-bold px-3.5 bg-[#0082f4] hover:bg-[#0073d8] text-white rounded flex items-center gap-1 shadow-2xs transition-colors flex-shrink-0"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span>New</span>
-          </button>
-
-          {/* Divider */}
-          <div className="h-6 w-px bg-gray-200 mx-1 flex-shrink-0"></div>
-
-          {/* Bulk upload and Export triggers */}
-          <div className="flex gap-1.5 flex-shrink-0">
-            <button
-              onClick={() => setBulkUploadOpen(true)}
-              className="p-1.5 border border-gray-300 hover:bg-gray-50 active:bg-gray-100 rounded text-gray-700"
-              title="Bulk Upload"
-            >
-              <Upload className="h-3.5 w-3.5" />
-            </button>
-            <button
-              onClick={handleExport}
-              className="p-1.5 border border-gray-300 hover:bg-gray-50 active:bg-gray-100 rounded text-gray-700"
-              title="Export"
-            >
-              <Download className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Table formatted exactly like Zoho Books active vendor table (Desktop Only) */}
-      <div className="hidden md:block bg-white border border-gray-200 rounded shadow-xs overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 text-xs text-left min-w-[950px]">
-          <thead className="bg-gray-50/75">
-            <tr>
-              <th
-                className="px-4 py-3 font-bold text-gray-555 uppercase tracking-wider cursor-pointer hover:bg-gray-100/75 select-none"
-                onClick={() => handleSort('name')}
-              >
-                <div className="flex items-center gap-1">
-                  <span>Name</span>
-                  {sortBy === 'name' && (sortOrder === 'asc' ? ' ▲' : ' ▼')}
-                </div>
-              </th>
-              <th className="px-4 py-3 font-bold text-gray-555 uppercase tracking-wider">Company Name</th>
-              <th
-                className="px-4 py-3 font-bold text-gray-555 uppercase tracking-wider cursor-pointer hover:bg-gray-100/75 select-none"
-                onClick={() => handleSort('email')}
-              >
-                <div className="flex items-center gap-1">
-                  <span>Email</span>
-                  {sortBy === 'email' && (sortOrder === 'asc' ? ' ▲' : ' ▼')}
-                </div>
-              </th>
-              <th
-                className="px-4 py-3 font-bold text-gray-555 uppercase tracking-wider cursor-pointer hover:bg-gray-100/75 select-none"
-                onClick={() => handleSort('phone')}
-              >
-                <div className="flex items-center gap-1">
-                  <span>Work Phone</span>
-                  {sortBy === 'phone' && (sortOrder === 'asc' ? ' ▲' : ' ▼')}
-                </div>
-              </th>
-              <th className="px-4 py-3 font-bold text-gray-555 uppercase tracking-wider">Place of Supply</th>
-              <th className="px-4 py-3 text-right font-bold text-gray-555 uppercase tracking-wider">Payables (BCY)</th>
-              <th className="px-4 py-3 text-right font-bold text-gray-555 uppercase tracking-wider">Unused Credits (BCY)</th>
-              <th className="px-4 py-3 text-right font-bold text-gray-555 uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200 bg-white font-medium">
-            {loading ? (
-              <tr>
-                <td colSpan={8} className="px-4 py-12 text-center text-gray-400">
-                  <div className="flex items-center justify-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                    <span>Loading vendors...</span>
-                  </div>
-                </td>
-              </tr>
-            ) : vendors.length > 0 ? (
-              vendors.map((v) => (
-                <tr key={v.id} className="hover:bg-gray-50/40 transition-colors">
-                  <td className="px-4 py-3">
-                    <div className="flex flex-col">
-                      <Link to={`/vendors/${v.id}`} className="font-bold text-[#0082f4] hover:underline">
-                        {v.name}
-                      </Link>
-                      <span className="text-[10px] text-gray-400 font-semibold">{v.code}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-gray-800">{v.name}</td>
-                  <td className="px-4 py-3 text-gray-655">{v.email || '-'}</td>
-                  <td className="px-4 py-3 text-gray-655">{v.phone || '-'}</td>
-                  <td className="px-4 py-3 text-gray-655">{v.state || '-'}</td>
-                  <td className="px-4 py-3 text-right font-bold text-gray-805">
-                    {formatCurrency((v as any).payables || 0)}
-                  </td>
-                  <td className="px-4 py-3 text-right font-bold text-blue-600">
-                    {formatCurrency((v as any).unusedCredits || 0)}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex gap-1 justify-end">
-                      <Button variant="ghost" size="sm" onClick={() => handleEditVendor(v.id.toString())}>
-                        <Edit className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleDelete(v)} className="text-red-655 hover:text-red-700">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={8} className="px-4 py-12 text-center text-gray-400">
-                  No vendors found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Mobile Card List View */}
-      <div className="block md:hidden space-y-2.5">
-        {loading && !vendors.length ? (
-          <div className="bg-white border border-gray-200 rounded p-12 text-center text-gray-400">
-            <div className="flex items-center justify-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-              <span>Loading vendors...</span>
-            </div>
-          </div>
-        ) : vendors.length > 0 ? (
-          vendors.map((v) => (
-            <div
-              key={v.id}
-              onClick={() => navigate(`/vendors/${v.id}`)}
-              className="bg-white border border-gray-200 rounded-lg p-3.5 shadow-2xs hover:border-blue-300 active:bg-gray-50/50 transition-all flex flex-col gap-2.5 cursor-pointer"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="min-w-0">
-                    <span className="font-extrabold text-sm text-gray-900 block truncate">
-                      {v.name}
-                    </span>
-                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block mt-0.5">
-                      {v.code}
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="flex flex-col items-end flex-shrink-0 text-right">
-                  <span className="text-xs font-black text-gray-850">
-                    {formatCurrency((v as any).payables || 0)}
-                  </span>
-                  {(v as any).unusedCredits > 0 && (
-                    <span className="text-[10px] text-blue-600 font-bold mt-0.5">
-                      Cr: {formatCurrency((v as any).unusedCredits || 0)}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-gray-500 border-t border-gray-100 pt-2.5">
-                {v.email && (
-                  <span className="flex items-center gap-1.5">
-                    <Mail className="h-3.5 w-3.5 text-gray-400" />
-                    <span className="truncate max-w-[150px]">{v.email}</span>
-                  </span>
-                )}
-                {v.phone && (
-                  <span className="flex items-center gap-1.5 font-semibold">
-                    <Phone className="h-3.5 w-3.5 text-gray-400" />
-                    <span>{v.phone}</span>
-                  </span>
-                )}
-                {v.state && (
-                  <span className="flex items-center gap-1.5">
-                    <MapPin className="h-3.5 w-3.5 text-gray-400" />
-                    <span>{v.state}</span>
-                  </span>
-                )}
-              </div>
-
-              <div className="flex justify-end gap-2 border-t border-gray-50 pt-2" onClick={(e) => e.stopPropagation()}>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs font-semibold px-2 border border-gray-200 hover:bg-gray-50 rounded text-gray-655"
-                  onClick={() => handleEditVendor(v.id.toString())}
-                >
-                  <Edit className="h-3 w-3 mr-1" />
-                  Edit
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs font-semibold px-2 border border-gray-200 hover:bg-red-50 hover:text-red-700 text-red-655 rounded"
-                  onClick={() => handleDelete(v)}
-                >
-                  <Trash2 className="h-3 w-3 mr-1" />
-                  Delete
-                </Button>
-              </div>
-            </div>
-          ))
-        ) : (
-          <div className="bg-white border border-gray-200 rounded p-12 text-center text-gray-400 italic">
-            No vendors found.
           </div>
         )}
       </div>
-
-      {pagination && pagination.totalPages > 1 && (
-        <div className="bg-white px-4 py-2.5 border border-gray-200 rounded shadow-2xs flex justify-between items-center flex-wrap gap-2">
-          <Pagination
-            currentPage={pagination?.page || 1}
-            totalPages={pagination?.totalPages || 1}
-            total={pagination?.total || 0}
-            limit={pagination?.limit || 10}
-            onPageChange={setCurrentPage}
-            loading={loading}
-          />
-        </div>
-      )}
 
       {/* Bulk Upload Modal */}
       <BulkUpload

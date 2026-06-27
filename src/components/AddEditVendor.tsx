@@ -19,6 +19,7 @@ interface AddEditVendorProps {
 
 interface VendorFormData {
   name: string;
+  companyName?: string;
   email?: string;
   phone?: string;
   address?: string;
@@ -28,6 +29,7 @@ interface VendorFormData {
 
 const vendorSchema = z.object({
   name: z.string().min(1, 'Vendor name is required'),
+  companyName: z.string().optional(),
   email: z.string().email().optional().or(z.literal('')),
   phone: z.string().optional(),
   address: z.string().optional(),
@@ -47,6 +49,7 @@ const AddEditVendor: React.FC<AddEditVendorProps> = ({ vendor, onSuccess, onCanc
     resolver: zodResolver(vendorSchema),
     defaultValues: {
       name: '',
+      companyName: '',
       email: '',
       phone: '',
       address: '',
@@ -96,6 +99,7 @@ const AddEditVendor: React.FC<AddEditVendorProps> = ({ vendor, onSuccess, onCanc
   useEffect(() => {
     if (vendor) {
       setValue('name', vendor.name);
+      setValue('companyName', vendor.companyName || '');
       setValue('email', vendor.email || '');
       setValue('phone', vendor.phone || '');
       setValue('address', vendor.address || '');
@@ -142,17 +146,29 @@ const AddEditVendor: React.FC<AddEditVendorProps> = ({ vendor, onSuccess, onCanc
       {/* Odoo Sheet Form Card */}
       <div className="odoo-sheet max-w-5xl mx-auto">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {/* Row 1: Vendor Name */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">
-              Vendor Name <span className="text-red-500">*</span>
-            </label>
-            <Input
-              placeholder="Enter vendor name"
-              error={errors.name?.message}
-              {...register('name')}
-              className="w-full"
-            />
+          {/* Row 1: Vendor Name and Company Name */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Vendor Name <span className="text-red-500">*</span>
+              </label>
+              <Input
+                placeholder="Enter vendor name"
+                error={errors.name?.message}
+                {...register('name')}
+                className="w-full"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Company Name</label>
+              <Input
+                placeholder="Enter company name"
+                error={errors.companyName?.message}
+                {...register('companyName')}
+                className="w-full"
+              />
+            </div>
           </div>
 
           {/* Row 2: Email and Phone */}

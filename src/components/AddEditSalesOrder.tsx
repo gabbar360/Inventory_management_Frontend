@@ -305,14 +305,6 @@ const AddEditSalesOrder: React.FC<AddEditSalesOrderProps> = ({ order, onSuccess,
           <span>/</span>
           <span className="font-semibold text-gray-700">{order ? `${order.orderNo}` : 'New Sales Order'}</span>
         </div>
-        <div className="flex gap-2">
-          <Button type="button" onClick={handleSave} loading={saving} className="odoo-btn-primary px-4 h-8 text-xs font-semibold">
-            {order ? 'Update Order' : 'Save Order'}
-          </Button>
-          <Button type="button" variant="outline" onClick={onCancel} className="odoo-btn-secondary px-4 h-8 text-xs">
-            Discard
-          </Button>
-        </div>
       </div>
 
       {/* Odoo Sheet */}
@@ -557,6 +549,15 @@ const AddEditSalesOrder: React.FC<AddEditSalesOrderProps> = ({ order, onSuccess,
             </div>
           </div>
 
+          {/* Form Actions */}
+          <div className="flex gap-2 pt-4 border-t border-gray-200">
+            <Button type="button" onClick={handleSave} loading={saving} className="odoo-btn-primary px-4 h-8 text-xs font-semibold">
+              {order ? 'Update Order' : 'Save Order'}
+            </Button>
+            <Button type="button" variant="outline" onClick={onCancel} className="odoo-btn-secondary px-4 h-8 text-xs">
+              Discard
+            </Button>
+          </div>
         </div>
       </div>
 
