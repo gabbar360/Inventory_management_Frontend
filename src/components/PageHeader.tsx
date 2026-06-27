@@ -14,6 +14,7 @@ interface PageHeaderProps {
   onSearch?: (value: string) => void;
   searchPlaceholder?: string;
   actions?: PageHeaderAction[];
+  filterNode?: React.ReactNode;
 }
 
 const PageHeader: React.FC<PageHeaderProps> = ({
@@ -21,6 +22,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
   onSearch,
   searchPlaceholder = 'Search...',
   actions = [],
+  filterNode,
 }) => {
   return (
     <div className="bg-white border border-gray-200 rounded px-3 py-2 sm:px-4 sm:py-2.5 shadow-sm mb-3">
@@ -57,17 +59,24 @@ const PageHeader: React.FC<PageHeaderProps> = ({
             </div>
           )}
         </div>
-        {/* Search Bar — full width below */}
-        {onSearch && (
-          <div>
-            <input
-              type="text"
-              placeholder={searchPlaceholder}
-              className="px-3 py-1.5 w-full border border-gray-300 rounded focus:ring-1 focus:ring-primary-500 focus:border-primary-500 outline-none text-xs bg-gray-50/50"
-              onChange={(e) => onSearch(e.target.value)}
-            />
-          </div>
-        )}
+        {/* Search Bar & Custom Filters — full width below */}
+        <div className="flex flex-col gap-2">
+          {filterNode && (
+            <div className="w-full">
+              {filterNode}
+            </div>
+          )}
+          {onSearch && (
+            <div>
+              <input
+                type="text"
+                placeholder={searchPlaceholder}
+                className="px-3 py-1.5 w-full border border-gray-300 rounded focus:ring-1 focus:ring-primary-500 focus:border-primary-500 outline-none text-xs bg-gray-50/50"
+                onChange={(e) => onSearch(e.target.value)}
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Desktop Control Panel (>= 768px) */}
@@ -101,8 +110,12 @@ const PageHeader: React.FC<PageHeaderProps> = ({
           )}
         </div>
 
-        {/* Right: Search + View controls */}
         <div className="flex items-center justify-end gap-2">
+          {filterNode && (
+            <div className="relative flex-1 max-w-[240px] text-left">
+              {filterNode}
+            </div>
+          )}
           {onSearch && (
             <div className="relative flex-1 max-w-[240px]">
               <input

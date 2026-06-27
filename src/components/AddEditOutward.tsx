@@ -363,15 +363,15 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
       totalBase += baseAmount;
       totalGst += gstAmount;
     });
-    const expenseVal = parseFloat(watchedExpense.toString()) || 0;
-    const shippingVal = parseFloat(watchedShipping.toString()) || 0;
-    const discountVal = parseFloat(watchedDiscount.toString()) || 0;
+    const expenseVal = parseFloat((watchedExpense ?? 0).toString()) || 0;
+    const shippingVal = parseFloat((watchedShipping ?? '0').toString()) || 0;
+    const discountVal = parseFloat((watchedDiscount ?? '0').toString()) || 0;
     const allTaxRates = items.map((i) => getPreviewDetails(i).gstRate);
     const shippingGstRate = allTaxRates.includes(18) ? 18 : allTaxRates.includes(5) ? 5 : 0;
     const shippingGstAmt = shippingVal > 0 ? shippingVal * (shippingGstRate / 100) : 0;
     const raw = totalBase + totalGst + shippingGstAmt + expenseVal + shippingVal - discountVal;
     const rounding = raw - Math.round(raw);
-    setValue('adjustment', rounding.toFixed(2));
+    setValue('adjustment', rounding.toFixed(2), { shouldValidate: false, shouldDirty: false });
   }, [items, watchedExpense, watchedShipping, watchedDiscount]);
 
   // ── Load customers & Indian states ──
@@ -713,24 +713,6 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
           <span className="font-semibold text-gray-700">
             {invoice ? invoice.invoiceNo : 'New Invoice'}
           </span>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            onClick={handleSubmit(onSubmit)}
-            className="odoo-btn-primary px-4 h-8 text-xs font-semibold"
-            loading={isSubmitting}
-          >
-            Save
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onCancel}
-            className="odoo-btn-secondary px-4 h-8 text-xs"
-          >
-            Discard
-          </Button>
         </div>
       </div>
 
@@ -1393,6 +1375,25 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
                 );
               })()}
             </div>
+          </div>
+
+          {/* Form Actions */}
+          <div className="flex gap-2 pt-4 border-t border-gray-200">
+            <Button
+              type="submit"
+              className="odoo-btn-primary px-4 h-8 text-xs font-semibold"
+              loading={isSubmitting}
+            >
+              Save
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+              className="odoo-btn-secondary px-4 h-8 text-xs"
+            >
+              Discard
+            </Button>
           </div>
         </form>
       </div>

@@ -495,3 +495,13 @@ input.pr-7 {
   }
 }
 
+/* Strip styles for input elements nested inside a dropdown */
+.dropdown-search-input {
+  height: 100% !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+

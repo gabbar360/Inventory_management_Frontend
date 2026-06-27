@@ -102,14 +102,6 @@ const AddEditSample: React.FC<AddEditSampleProps> = ({ sample, onSuccess, onCanc
           <span>/</span>
           <span className="font-semibold text-gray-700">{sample ? sample.customerName : 'New Sample'}</span>
         </div>
-        <div className="flex gap-2">
-          <Button type="button" onClick={handleSubmit(onSubmit)} className="odoo-btn-primary px-4 h-8 text-xs font-semibold" loading={isSubmitting}>
-            Save
-          </Button>
-          <Button type="button" variant="outline" onClick={onCancel} className="odoo-btn-secondary px-4 h-8 text-xs">
-            Discard
-          </Button>
-        </div>
       </div>
 
       {/* Odoo Sheet Form Card */}
@@ -271,6 +263,16 @@ const AddEditSample: React.FC<AddEditSampleProps> = ({ sample, onSuccess, onCanc
               rows={4}
             />
             {errors.remarks?.message && <p className="text-xs text-red-650 mt-1">{errors.remarks.message}</p>}
+          </div>
+
+          {/* Form Actions */}
+          <div className="flex gap-2 pt-4 border-t border-gray-200">
+            <Button type="submit" className="odoo-btn-primary px-4 h-8 text-xs font-semibold" loading={isSubmitting}>
+              Save
+            </Button>
+            <Button type="button" variant="outline" onClick={onCancel} className="odoo-btn-secondary px-4 h-8 text-xs">
+              Discard
+            </Button>
           </div>
         </form>
       </div>

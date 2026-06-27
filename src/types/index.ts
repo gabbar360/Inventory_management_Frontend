@@ -95,6 +95,7 @@ export interface Vendor {
   id: string;
   code: string;
   name: string;
+  companyName?: string;
   email?: string;
   phone?: string;
   address?: string;
@@ -111,12 +112,14 @@ export interface Customer {
   id: string;
   code: string;
   name: string;
+  companyName?: string;
   email?: string;
   phone?: string;
   address?: string;
   shippingAddress?: string;
   gstNumber?: string;
   state?: string;
+  reference?: string;
   createdAt: string;
   updatedAt: string;
   _count?: {
@@ -488,6 +491,7 @@ export interface PaginationQuery {
   startDate?: string;
   endDate?: string;
   source?: string;
+  reference?: string;
 }
 
 export interface PurchaseOrderItem {
