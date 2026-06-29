@@ -113,10 +113,11 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
 
   // Items State (like Inward)
   const [items, setItems] = useState<POItem[]>([]);
-  const generateDescription = (packingType: 'shrink' | 'loose', packPerBox: number, packPerPiece: number) => {
+  const generateDescription = (packingType: 'shrink' | 'loose', packPerBox: number, packPerPiece: number, color?: string) => {
     const label = packingType === 'shrink' ? 'Shrink' : 'Loose';
     const totalPcsPerBox = packPerBox * packPerPiece;
-    return `${label} | Set of ${packPerPiece} Pcs | ${totalPcsPerBox} Pcs`;
+    const colorPart = color ? ` | ${color}` : '';
+    return `${label} | Set of ${packPerPiece} Pcs${colorPart} | ${totalPcsPerBox} Pcs`;
   };
 
   const [newItem, setNewItem] = useState<POItem>({
@@ -304,7 +305,17 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
   };
 
   const calculateGrandTotal = () => {
-    return items.reduce((total, item) => total + calculateItemTotal(item), 0);
+    let totalBase = 0;
+    let totalGst = 0;
+    items.forEach((item) => {
+      const { baseAmount, gstAmount } = getPreviewDetails(item);
+      totalBase += baseAmount;
+      totalGst += gstAmount;
+    });
+    const rawTotal = totalBase + totalGst;
+    const adjustmentVal = rawTotal - Math.round(rawTotal);
+    const grandTotal = Math.round(rawTotal);
+    return { totalBase, totalGst, adjustmentVal, grandTotal };
   };
 
   const getPreviewDetails = (item: POItem) => {
@@ -409,7 +420,7 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
 
     const selectedProduct = products.find((p) => String(p.id) === String(newItem.productId));
 
-    const desc = generateDescription(newItem.packingType || 'shrink', newItem.packPerBox, newItem.packPerPiece);
+    const desc = newItem.description || generateDescription(newItem.packingType || 'shrink', newItem.packPerBox, newItem.packPerPiece, newItem.color);
     setItems([...items, { ...newItem, description: desc, product: selectedProduct }]);
     setNewItem({
       productId: '',
@@ -457,7 +468,7 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
     }
 
     const selectedProduct = products.find((p) => String(p.id) === String(editingData.productId));
-    const desc = generateDescription(editingData.packingType || 'shrink', editingData.packPerBox, editingData.packPerPiece);
+    const desc = editingData.description || generateDescription(editingData.packingType || 'shrink', editingData.packPerBox, editingData.packPerPiece, editingData.color);
     const updatedItems = [...items];
     updatedItems[index] = {
       ...editingData,
@@ -686,14 +697,7 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
                   type="number"
                   label="Pack/Box *"
                   value={newItem.packPerBox || ''}
-                  onChange={(e) => {
-                    const val = Number(e.target.value) || 0;
-                    setNewItem((prev) => ({
-                      ...prev,
-                      packPerBox: val,
-                      description: generateDescription(prev.packingType || 'shrink', val, prev.packPerPiece),
-                    }));
-                  }}
+                  onChange={(e) => setNewItem((prev) => ({ ...prev, packPerBox: Number(e.target.value) || 0 }))}
                   min="1"
                 />
               </div>
@@ -703,14 +707,7 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
                   type="number"
                   label="Pcs/Pack *"
                   value={newItem.packPerPiece || ''}
-                  onChange={(e) => {
-                    const val = Number(e.target.value) || 0;
-                    setNewItem((prev) => ({
-                      ...prev,
-                      packPerPiece: val,
-                      description: generateDescription(prev.packingType || 'shrink', prev.packPerBox, val),
-                    }));
-                  }}
+                  onChange={(e) => setNewItem((prev) => ({ ...prev, packPerPiece: Number(e.target.value) || 0 }))}
                   min="1"
                 />
 
@@ -738,14 +735,7 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
                 <Select
                   label="Packing Type *"
                   value={newItem.packingType || 'shrink'}
-                  onChange={(e) => {
-                    const val = e.target.value as 'shrink' | 'loose';
-                    setNewItem((prev) => ({
-                      ...prev,
-                      packingType: val,
-                      description: generateDescription(val, prev.packPerBox, prev.packPerPiece),
-                    }));
-                  }}
+                  onChange={(e) => setNewItem((prev) => ({ ...prev, packingType: e.target.value as 'shrink' | 'loose' }))}
                 >
                   <option value="shrink">Shrink</option>
                   <option value="loose">Loose</option>
@@ -753,11 +743,13 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
 
                 <div className="md:col-span-2">
                   <label className="block text-xs font-semibold text-gray-700 mb-1">Description (Auto)</label>
-                  <div className="flex h-8 items-center px-3 rounded border border-gray-200 bg-gray-50 text-xs text-gray-600 font-medium">
-                    {newItem.packingType && newItem.packPerPiece > 0
-                      ? generateDescription(newItem.packingType, newItem.packPerBox, newItem.packPerPiece)
-                      : <span className="text-gray-400 italic">Select packing type and enter Pcs/Pack</span>}
-                  </div>
+                  <input
+                    type="text"
+                    className="w-full h-8 px-3 rounded border border-gray-300 bg-white text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+                    value={newItem.description || (newItem.packingType && newItem.packPerPiece > 0 ? generateDescription(newItem.packingType, newItem.packPerBox, newItem.packPerPiece, newItem.color) : '')}
+                    placeholder="Auto-generated, editable"
+                    onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
+                  />
                 </div>
               </div>
 
@@ -781,7 +773,7 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
                 <Input
                   label="Color"
                   value={newItem.color || ''}
-                  onChange={(e) => setNewItem({ ...newItem, color: e.target.value })}
+                  onChange={(e) => setNewItem((prev) => ({ ...prev, color: e.target.value }))}
                   placeholder="Enter color"
                 />
 
@@ -1232,14 +1224,7 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
                                       type="number"
                                       label="Pack/Box *"
                                       value={editingData.packPerBox || ''}
-                                      onChange={(e) => {
-                                        const val = Number(e.target.value) || 0;
-                                        setEditingData((prev) => prev ? ({
-                                          ...prev,
-                                          packPerBox: val,
-                                          description: generateDescription(prev.packingType || 'shrink', val, prev.packPerPiece),
-                                        }) : prev);
-                                      }}
+                                      onChange={(e) => setEditingData((prev) => prev ? ({ ...prev, packPerBox: Number(e.target.value) || 0 }) : prev)}
                                       min="1"
                                     />
                                   </div>
@@ -1249,14 +1234,7 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
                                       type="number"
                                       label="Pcs/Pack *"
                                       value={editingData.packPerPiece || ''}
-                                      onChange={(e) => {
-                                        const val = Number(e.target.value) || 0;
-                                        setEditingData((prev) => prev ? ({
-                                          ...prev,
-                                          packPerPiece: val,
-                                          description: generateDescription(prev.packingType || 'shrink', prev.packPerBox, val),
-                                        }) : prev);
-                                      }}
+                                      onChange={(e) => setEditingData((prev) => prev ? ({ ...prev, packPerPiece: Number(e.target.value) || 0 }) : prev)}
                                       min="1"
                                     />
 
@@ -1284,14 +1262,7 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
                                     <Select
                                       label="Packing Type *"
                                       value={editingData.packingType || 'shrink'}
-                                      onChange={(e) => {
-                                        const val = e.target.value as 'shrink' | 'loose';
-                                        setEditingData((prev) => prev ? ({
-                                          ...prev,
-                                          packingType: val,
-                                          description: generateDescription(val, prev.packPerBox, prev.packPerPiece),
-                                        }) : prev);
-                                      }}
+                                      onChange={(e) => setEditingData((prev) => prev ? ({ ...prev, packingType: e.target.value as 'shrink' | 'loose' }) : prev)}
                                     >
                                       <option value="shrink">Shrink</option>
                                       <option value="loose">Loose</option>
@@ -1299,11 +1270,13 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
 
                                     <div className="md:col-span-2">
                                       <label className="block text-xs font-semibold text-gray-700 mb-1">Description (Auto)</label>
-                                      <div className="flex h-8 items-center px-3 rounded border border-blue-200 bg-blue-50 text-xs text-blue-800 font-medium">
-                                        {editingData.packingType && editingData.packPerPiece > 0
-                                          ? generateDescription(editingData.packingType, editingData.packPerBox, editingData.packPerPiece)
-                                          : <span className="text-gray-400 italic">Select packing type and enter Pcs/Pack</span>}
-                                      </div>
+                                      <input
+                                        type="text"
+                                        className="w-full h-8 px-3 rounded border border-blue-200 bg-white text-xs text-blue-800 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+                                        value={editingData.description || (editingData.packingType && editingData.packPerPiece > 0 ? generateDescription(editingData.packingType, editingData.packPerBox, editingData.packPerPiece, editingData.color) : '')}
+                                        placeholder="Auto-generated, editable"
+                                        onChange={(e) => setEditingData({ ...editingData, description: e.target.value })}
+                                      />
                                     </div>
                                   </div>
 
@@ -1327,7 +1300,7 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
                                     <Input
                                       label="Color"
                                       value={editingData.color || ''}
-                                      onChange={(e) => setEditingData({ ...editingData, color: e.target.value })}
+                                      onChange={(e) => setEditingData((prev) => prev ? ({ ...prev, color: e.target.value }) : prev)}
                                       placeholder="Enter color"
                                     />
 
@@ -1522,11 +1495,36 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
                 </table>
 
                 {/* Grand Total Bar */}
-                <div className="bg-gray-50 border-t border-gray-150 p-3 flex justify-end font-bold text-xs sm:text-sm text-gray-800">
-                  <div className="flex gap-4">
-                    <span>Grand Total (incl. GST):</span>
-                    <span className="text-primary-650">{formatCurrency(calculateGrandTotal())}</span>
-                  </div>
+                <div className="bg-gray-50 border-t border-gray-150 p-3 flex justify-end">
+                  {(() => {
+                    const { totalBase, totalGst, adjustmentVal, grandTotal } = calculateGrandTotal();
+                    return (
+                      <div className="w-full sm:w-auto sm:min-w-[300px] bg-green-50 border border-green-200 p-4 rounded space-y-2">
+                        <div className="flex justify-between text-xs text-gray-600">
+                          <span>Subtotal:</span>
+                          <span className="font-semibold text-gray-900">{formatCurrency(totalBase)}</span>
+                        </div>
+                        <div className="flex justify-between text-xs text-gray-600">
+                          <span>Total Tax (GST):</span>
+                          <span className="font-semibold text-gray-900">+{formatCurrency(totalGst)}</span>
+                        </div>
+                        {adjustmentVal !== 0 && (
+                          <div className="flex justify-between text-xs text-gray-600">
+                            <span>Round Off:</span>
+                            <span className="font-semibold">
+                              {adjustmentVal < 0 ? '+' : '-'}{formatCurrency(Math.abs(adjustmentVal))}
+                            </span>
+                          </div>
+                        )}
+                        <div className="border-t border-green-200 pt-2">
+                          <div className="flex justify-between">
+                            <span className="text-sm font-semibold text-gray-700">Grand Total:</span>
+                            <span className="text-lg font-bold text-green-700">{formatCurrency(grandTotal)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             ) : (
