@@ -198,6 +198,8 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const watchedExpense = watch('expense');
+
   // Sync local items with react-hook-form
   useEffect(() => {
     setValue('items', items, { shouldValidate: true });
@@ -467,7 +469,18 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
   };
 
   const calculateGrandTotal = () => {
-    return items.reduce((total, item) => total + calculateItemTotal(item), 0);
+    let totalBase = 0;
+    let totalGst = 0;
+    items.forEach((item) => {
+      const { baseAmount, gstAmount } = getPreviewDetails(item);
+      totalBase += baseAmount;
+      totalGst += gstAmount;
+    });
+    const expenseVal = Number(watchedExpense) || 0;
+    const rawTotal = totalBase + totalGst + expenseVal;
+    const adjustmentVal = rawTotal - Math.round(rawTotal);
+    const grandTotal = Math.round(rawTotal);
+    return { totalBase, totalGst, expenseVal, adjustmentVal, grandTotal };
   };
 
   const getPreviewDetails = (item: InwardItem) => {
@@ -1605,12 +1618,41 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
 
           {/* Grand Total Summary Card */}
           <div className="border-t pt-4 flex justify-end">
-            <div className="w-full sm:w-auto sm:min-w-[300px] bg-green-50 border border-green-200 p-4 rounded space-y-1.5">
-              <div className="flex justify-between text-xs text-gray-600">
-                <span>Grand Total (incl. GST):</span>
-                <span className="text-lg font-bold text-green-700">{formatCurrency(calculateGrandTotal() + (Number(control._formValues.expense) || 0))}</span>
-              </div>
-            </div>
+            {(() => {
+              const { totalBase, totalGst, expenseVal, adjustmentVal, grandTotal } = calculateGrandTotal();
+              return (
+                <div className="w-full sm:w-auto sm:min-w-[300px] bg-green-50 border border-green-200 p-4 rounded space-y-2">
+                  <div className="flex justify-between text-xs text-gray-600">
+                    <span>Subtotal:</span>
+                    <span className="font-semibold text-gray-900">{formatCurrency(totalBase)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-600">
+                    <span>Total Tax (GST):</span>
+                    <span className="font-semibold text-gray-900">+{formatCurrency(totalGst)}</span>
+                  </div>
+                  {expenseVal > 0 && (
+                    <div className="flex justify-between text-xs text-gray-600">
+                      <span>Additional Expense:</span>
+                      <span className="font-semibold">{formatCurrency(expenseVal)}</span>
+                    </div>
+                  )}
+                  {adjustmentVal !== 0 && (
+                    <div className="flex justify-between text-xs text-gray-600">
+                      <span>Round Off:</span>
+                      <span className="font-semibold">
+                        {adjustmentVal < 0 ? '+' : '-'}{formatCurrency(Math.abs(adjustmentVal))}
+                      </span>
+                    </div>
+                  )}
+                  <div className="border-t border-green-200 pt-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm font-semibold text-gray-700">Grand Total:</span>
+                      <span className="text-lg font-bold text-green-700">{formatCurrency(grandTotal)}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Form Actions */}

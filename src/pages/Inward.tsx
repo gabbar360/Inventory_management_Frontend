@@ -8,7 +8,7 @@ import {
   Download,
   Edit,
   Printer,
-  
+  FileDown,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
@@ -145,6 +145,26 @@ const Inward: React.FC = () => {
     }
   };
 
+  const handleDownloadPDF = async (invoice: InwardInvoice) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`/api/v1/inward-pdf/${invoice.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        responseType: 'blob',
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Inward-${invoice.invoiceNo}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error: any) {
+      toast.error('Failed to download PDF');
+    }
+  };
+
   const handleExport = async () => {
     try {
       const blob = await bulkUploadService.exportData('inward');
@@ -235,6 +255,9 @@ const Inward: React.FC = () => {
       title: 'Actions',
       render: (_: any, record: InwardInvoice) => (
         <div className="flex gap-1 sm:gap-2">
+          <Button variant="ghost" size="sm" onClick={() => handleDownloadPDF(record)} title="Download PDF">
+            <FileDown className="h-4 w-4" />
+          </Button>
           <Button variant="ghost" size="sm" onClick={() => viewInvoice(record)}>
             <Eye className="h-4 w-4" />
           </Button>
@@ -467,6 +490,13 @@ const Inward: React.FC = () => {
             </div>
 
             <div className="flex justify-end gap-2 pt-4 border-t">
+              <Button
+                type="button"
+                onClick={() => handleDownloadPDF(selectedInvoice!)}
+                className="odoo-btn-primary px-4 h-8 text-xs font-semibold"
+              >
+                <FileDown className="h-3.5 w-3.5 mr-1" /> Download PDF
+              </Button>
               <Button
                 type="button"
                 onClick={() => {
