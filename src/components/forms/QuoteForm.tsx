@@ -89,12 +89,10 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
         await Promise.all(
           idsToFetch.map(async (id) => {
             try {
-              const batches = await inventoryService.getAvailableStock(id.toString());
+              // getCostHistory returns ALL batches (incl. exhausted ones), newest-first
+              const batches = await inventoryService.getCostHistory(id.toString());
               if (batches && batches.length > 0) {
-                const sorted = [...batches].sort(
-                  (a, b) => new Date(b.inwardDate).getTime() - new Date(a.inwardDate).getTime()
-                );
-                const latest = sorted[0];
+                const latest = batches[0]; // already newest-first from API
                 newCosts[id] = {
                   costPerBox: Number(latest.costPerBox) || 0,
                   costPerPack: Number(latest.costPerPack) || (Number(latest.costPerBox) / (latest.packPerBox || 1)) || 0,

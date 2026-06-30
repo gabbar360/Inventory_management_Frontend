@@ -50,6 +50,19 @@ export const inventoryService = {
     return response.data.data!;
   },
 
+  /**
+   * Returns ALL stock batches for a product (including exhausted/consumed ones),
+   * sorted newest-first. Used for P&L cost-price lookups so historical
+   * purchase costs remain accessible even after stock runs out.
+   */
+  async getCostHistory(productId: string): Promise<Pick<StockBatch, 'id' | 'productId' | 'inwardDate' | 'costPerBox' | 'costPerPack' | 'costPerPcs' | 'packPerBox' | 'packPerPiece' | 'batchCode'>[]> {
+    const response = await api.get<ApiResponse<StockBatch[]>>(
+      '/inventory/cost-history',
+      { params: { productId } }
+    );
+    return response.data.data!;
+  },
+
   async downloadStockReportPDF(locationId?: string, reportType: 'location' | 'all' = 'all'): Promise<Blob> {
     const params: any = { reportType };
     if (locationId) {
