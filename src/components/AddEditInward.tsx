@@ -220,6 +220,23 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
         purchaseOrderId: invoice.purchaseOrderId ? String(invoice.purchaseOrderId) : undefined,
       });
 
+      // Fetch existing scanned barcodes for this invoice
+      const fetchInvoiceBarcodes = async () => {
+        try {
+          const token = localStorage.getItem('token');
+          const res = await axios.get(`/api/v1/barcodes/print/inward/${invoice.id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (res.data?.success && Array.isArray(res.data?.data)) {
+            const codes = res.data.data.map((box: any) => box.barcode);
+            setScannedBarcodes(codes);
+          }
+        } catch (err) {
+          console.error("Failed to load invoice barcodes:", err);
+        }
+      };
+      fetchInvoiceBarcodes();
+
       const mappedItems = invoice.items?.map((item) => {
         let actualRate = item.ratePerBox;
         if (item.unit === 'pack') {
@@ -273,6 +290,7 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
         purchaseOrderId: undefined,
       });
       setItems([]);
+      setScannedBarcodes([]);
     }
   }, [invoice, vendors, reset]);
 
@@ -355,6 +373,20 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
       });
       if (response.data?.success && response.data?.data) {
         const box = response.data.data;
+        
+        // Check if already inwarded or outwarded
+        if (box.status === 'inwarded') {
+          if (!invoice || box.inwardInvoiceId !== invoice.id) {
+            playErrorSound();
+            toast.error('This box/barcode has already been inwarded.');
+            return;
+          }
+        }
+        if (box.status === 'outwarded') {
+          playErrorSound();
+          toast.error('This box/barcode is already outwarded.');
+          return;
+        }
         
         // Track individual barcode scan
         setScannedBarcodes((prev) => [...prev, barcode]);
