@@ -24,6 +24,7 @@ import Modal from '@/components/Modal';
 import Table from '@/components/Table';
 import QuoteForm from '@/components/forms/QuoteForm';
 import ShareDocumentModal from '@/components/ShareDocumentModal';
+import { inventoryService } from '@/services/inventoryService';
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 
@@ -136,8 +137,12 @@ const Quotes: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [shareQuote, setShareQuote] = useState<Quote | null>(null);
-  
   const [salesModalQuote, setSalesModalQuote] = useState<Quote | null>(null);
+
+  // Tab & cost cache states for quote details view panel
+  const [activeDetailTab, setActiveDetailTab] = useState<'preview' | 'pl'>('preview');
+  const [costCache, setCostCache] = useState<Record<number, { costPerBox: number; costPerPack: number; costPerPcs: number }>>({});
+  const [costLoading, setCostLoading] = useState(false);
 
   const isEditMode = window.location.pathname.includes('/edit');
   const isAddMode = window.location.pathname.includes('/add');
@@ -194,6 +199,60 @@ const Quotes: React.FC = () => {
   useEffect(() => {
     if (error) toast.error(error);
   }, [error]);
+
+  // Reset tab to preview when viewing a different quote
+  useEffect(() => {
+    setActiveDetailTab('preview');
+  }, [id]);
+
+  // Fetch cost prices when activeQuote is loaded in view mode
+  useEffect(() => {
+    const activeQuote = currentQuote;
+    if (!activeQuote?.items) return;
+
+    const fetchCosts = async () => {
+      const neededIds = activeQuote.items!
+        .map((item) => Number(item.productId))
+        .filter((id) => id > 0 && !costCache[id]);
+
+      if (neededIds.length === 0) return;
+
+      setCostLoading(true);
+      const newCosts = { ...costCache };
+      try {
+        await Promise.all(
+          neededIds.map(async (id) => {
+            try {
+              const batches = await inventoryService.getAvailableStock(id.toString());
+              if (batches && batches.length > 0) {
+                const sorted = [...batches].sort(
+                  (a, b) => new Date(b.inwardDate).getTime() - new Date(a.inwardDate).getTime()
+                );
+                const latest = sorted[0];
+                newCosts[id] = {
+                  costPerBox: Number(latest.costPerBox) || 0,
+                  costPerPack: Number(latest.costPerPack) || (Number(latest.costPerBox) / (latest.packPerBox || 1)) || 0,
+                  costPerPcs: Number(latest.costPerPcs) || 0,
+                };
+              } else {
+                newCosts[id] = { costPerBox: 0, costPerPack: 0, costPerPcs: 0 };
+              }
+            } catch (error) {
+              console.error(`Error fetching stock for product ${id}:`, error);
+              newCosts[id] = { costPerBox: 0, costPerPack: 0, costPerPcs: 0 };
+            }
+          })
+        );
+        setCostCache(newCosts);
+      } catch (err) {
+        console.error('Error fetching costs in view mode:', err);
+      } finally {
+        setCostLoading(false);
+      }
+    };
+
+    fetchCosts();
+  }, [currentQuote, costCache]);
 
   const debouncedSearch = debounce((value: string) => {
     setSearch(value);
@@ -343,6 +402,61 @@ const Quotes: React.FC = () => {
   if (isViewMode) {
     const activeQuote = currentQuote;
     const itemsSubtotal = activeQuote?.items ? activeQuote.items.reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.rate) || 0), 0) : 0;
+
+    // Compute P&L Summary for View Mode
+    const plSummary = (() => {
+      if (!activeQuote?.items) return null;
+      let totalSales = 0;
+      let totalCOGS = 0;
+
+      const itemsPL = activeQuote.items.map((item) => {
+        const qty = Number(item.quantity) || 0;
+        const rate = Number(item.rate) || 0;
+        const costInfo = costCache[Number(item.productId)];
+        const unit = item.unit;
+
+        let costPerUnit = 0;
+        if (costInfo) {
+          if (unit === 'box') costPerUnit = costInfo.costPerBox;
+          else if (unit === 'pack') costPerUnit = costInfo.costPerPack;
+          else costPerUnit = costInfo.costPerPcs;
+        }
+
+        const itemSales = qty * rate;
+        const itemCOGS = qty * costPerUnit;
+        const itemProfit = itemSales - itemCOGS;
+        // If no stock data (costPerUnit is 0), margin is unknown — show 0 instead of misleading 100%
+        const itemMargin = (costPerUnit === 0 || itemSales === 0) ? 0 : (itemProfit / itemSales) * 100;
+
+        totalSales += itemSales;
+        totalCOGS += itemCOGS;
+
+        return {
+          ...item,
+          costPerUnit,
+          itemSales,
+          itemCOGS,
+          itemProfit,
+          itemMargin,
+        };
+      });
+
+      const discount = Number(activeQuote.discount) || 0;
+      const netRevenue = totalSales - discount;
+      const netProfit = netRevenue - totalCOGS;
+      // If COGS is entirely zero (no stock for any product), overall margin is unknown — show 0
+      const netMargin = (totalCOGS === 0 || netRevenue === 0) ? 0 : (netProfit / netRevenue) * 100;
+
+      return {
+        itemsPL,
+        totalSales,
+        totalCOGS,
+        discount,
+        netRevenue,
+        netProfit,
+        netMargin,
+      };
+    })();
 
     return (
       <div className="flex h-[calc(100vh-80px)] border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm -mt-2">
@@ -584,8 +698,35 @@ const Quotes: React.FC = () => {
                 {renderTimeline(activeQuote.status)}
               </div>
 
-              {/* Document Paper Preview Area */}
-              <div className="flex-1 p-2 sm:p-5 overflow-y-auto">
+              {/* View Tabs */}
+              <div className="bg-white border-b border-gray-200 flex px-4 flex-shrink-0">
+                <button
+                  type="button"
+                  className={`py-2 px-4 font-semibold text-xs border-b-2 transition-all ${
+                    activeDetailTab === 'preview'
+                      ? 'border-blue-500 text-blue-600 font-bold'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                  onClick={() => setActiveDetailTab('preview')}
+                >
+                  📄 Quotation Preview
+                </button>
+                <button
+                  type="button"
+                  className={`py-2 px-4 font-semibold text-xs border-b-2 transition-all flex items-center gap-1.5 ${
+                    activeDetailTab === 'pl'
+                      ? 'border-blue-500 text-blue-600 font-bold'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                  onClick={() => setActiveDetailTab('pl')}
+                >
+                  📈 P&L Analysis
+                </button>
+              </div>
+
+              {activeDetailTab === 'preview' ? (
+                /* Document Paper Preview Area */
+                <div className="flex-1 p-2 sm:p-5 overflow-y-auto">
                 <div className="bg-white border border-gray-250/70 rounded-lg shadow-md p-4 sm:p-6 md:p-10 max-w-4xl mx-auto my-3 min-h-[900px] flex flex-col justify-between">
                   <div>
                     {/* Header */}
@@ -787,6 +928,149 @@ const Quotes: React.FC = () => {
                   </div>
                 </div>
               </div>
+              ) : (
+                /* P&L tab content */
+                <div className="flex-1 p-4 sm:p-5 overflow-y-auto bg-gray-50/20">
+                  <div className="max-w-4xl mx-auto space-y-4 animate-fadeIn">
+
+                    {/* Cost loading indicator */}
+                    {costLoading && (
+                      <div className="flex items-center gap-2 text-xs text-blue-600 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+                        <svg className="animate-spin h-3.5 w-3.5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                        </svg>
+                        Fetching latest stock cost prices…
+                      </div>
+                    )}
+
+                    {/* No items */}
+                    {(!plSummary || plSummary.itemsPL.length === 0) && !costLoading && (
+                      <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-4 justify-center italic">
+                        No items in this quote.
+                      </div>
+                    )}
+
+                    {/* No-stock warning */}
+                    {!costLoading && plSummary && plSummary.itemsPL.some(i => i.costPerUnit === 0) && plSummary.itemsPL.length > 0 && (
+                      <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">
+                        <span className="text-base leading-none mt-0.5">⚠️</span>
+                        <div>
+                          <span className="font-bold">Missing stock cost data</span> – one or more products have no inward stock batches recorded, so their purchase cost could not be estimated. P&L figures marked <span className="font-bold text-amber-800">No Stock Data</span> may be inaccurate.
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Summary cards */}
+                    {plSummary && plSummary.itemsPL.length > 0 && (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+                        <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-3xs">
+                          <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Gross Sales</span>
+                          <span className="block text-sm font-black text-gray-905 mt-1">₹{plSummary.totalSales.toFixed(2)}</span>
+                        </div>
+                        <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-3xs">
+                          <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Discount</span>
+                          <span className="block text-sm font-black text-orange-600 mt-1">– ₹{plSummary.discount.toFixed(2)}</span>
+                        </div>
+                        <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-3xs">
+                          <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Net Revenue</span>
+                          <span className="block text-sm font-black text-blue-700 mt-1">₹{plSummary.netRevenue.toFixed(2)}</span>
+                        </div>
+                        <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-3xs">
+                          <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                            Est. COGS
+                            {plSummary.itemsPL.some(i => i.costPerUnit === 0) && (
+                              <span className="ml-1 text-[9px] font-bold text-amber-600">⚠ partial</span>
+                            )}
+                          </span>
+                          <span className="block text-sm font-black text-gray-905 mt-1">₹{plSummary.totalCOGS.toFixed(2)}</span>
+                        </div>
+                        <div className={`border rounded-lg p-3 shadow-3xs ${plSummary.netProfit >= 0 ? 'bg-emerald-50/40 border-emerald-200 text-emerald-900' : 'bg-red-50/40 border-red-200 text-red-900'}`}>
+                          <span className="block text-[10px] font-bold uppercase tracking-wider opacity-75">Est. Net Profit</span>
+                          <span className="block text-sm font-black mt-1">₹{plSummary.netProfit.toFixed(2)}</span>
+                        </div>
+                        <div className={`border rounded-lg p-3 shadow-3xs ${plSummary.netMargin >= 0 ? 'bg-emerald-50/40 border-emerald-200 text-emerald-900' : 'bg-red-50/40 border-red-200 text-red-900'}`}>
+                          <span className="block text-[10px] font-bold uppercase tracking-wider opacity-75">Gross Margin</span>
+                          <span className="block text-sm font-black mt-1">{plSummary.netMargin >= 0 ? '📈' : '📉'} {plSummary.netMargin.toFixed(2)}%</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Product wise breakdown */}
+                    {plSummary && plSummary.itemsPL.length > 0 && (
+                    <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-x-auto">
+                      <div className="px-3.5 py-2.5 border-b border-gray-200 bg-gray-50/70 font-bold text-xs text-gray-705">
+                        Product-Wise P&L Breakdown
+                      </div>
+                      <table className="w-full text-xs text-left border-collapse">
+                        <thead>
+                          <tr className="bg-gray-100/80 border-b border-gray-200 text-gray-600 font-bold uppercase tracking-wider text-[10px]">
+                            <th className="p-2.5">Product & SKU</th>
+                            <th className="p-2.5 text-right w-16">Qty</th>
+                            <th className="p-2.5 text-left w-16">Unit</th>
+                            <th className="p-2.5 text-right w-24">Est. Cost/Unit</th>
+                            <th className="p-2.5 text-right w-24">Sales Rate</th>
+                            <th className="p-2.5 text-right w-28">Total Cost</th>
+                            <th className="p-2.5 text-right w-28">Total Revenue</th>
+                            <th className="p-2.5 text-right w-24">Profit</th>
+                            <th className="p-2.5 text-right w-20">Margin</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200 bg-white">
+                          {plSummary.itemsPL.map((item, idx) => {
+                            const hasNoStock = item.costPerUnit === 0;
+                            return (
+                              <tr key={idx} className={`hover:bg-gray-50/30 ${hasNoStock ? 'bg-amber-50/10' : ''}`}>
+                                <td className="p-2.5">
+                                  <div className="font-bold text-gray-800">
+                                    {item.product?.name || `Product #${item.productId}`}
+                                  </div>
+                                  <div className="text-[10px] text-gray-400 mt-0.5">
+                                    SKU: {item.product?.sku || '-'}
+                                  </div>
+                                  {hasNoStock && (
+                                    <span className="inline-flex items-center gap-0.5 mt-0.5 text-[9px] font-bold text-amber-700 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded-full">
+                                      ⚠ No Stock Data
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="p-2.5 text-right font-semibold">{item.quantity}</td>
+                                <td className="p-2.5 text-left capitalize text-gray-500">{item.unit}</td>
+                                <td className={`p-2.5 text-right ${hasNoStock ? 'text-amber-500' : 'text-gray-500'}`}>
+                                  ₹{item.costPerUnit.toFixed(2)}
+                                </td>
+                                <td className="p-2.5 text-right">₹{Number(item.rate || 0).toFixed(2)}</td>
+                                <td className={`p-2.5 text-right font-medium ${hasNoStock ? 'text-amber-500' : 'text-gray-500'}`}>
+                                  ₹{item.itemCOGS.toFixed(2)}
+                                </td>
+                                <td className="p-2.5 text-right font-medium">₹{item.itemSales.toFixed(2)}</td>
+                                <td className={`p-2.5 text-right font-bold ${item.itemProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                  ₹{item.itemProfit.toFixed(2)}
+                                </td>
+                                <td className="p-2.5 text-right">
+                                  <span className={`inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                    hasNoStock
+                                      ? 'bg-amber-50 text-amber-600 border border-amber-200'
+                                      : item.itemMargin >= 0
+                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                                      : 'bg-red-50 text-red-600 border border-red-100'
+                                  }`}>
+                                    {item.itemMargin.toFixed(1)}%
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    )}
+                    <div className="text-[9px] text-gray-400 italic leading-normal px-1">
+                      * P&L calculations are estimates. Products with no stock history have COGS = ₹0.00 and Margin = 0% — indicated by ⚠ No Stock Data badge.
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>
