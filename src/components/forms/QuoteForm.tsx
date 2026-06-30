@@ -12,6 +12,7 @@ import Button from '@/components/Button';
 import ProductSearch from '@/components/ProductSearch';
 import AddEditCustomer from '@/components/AddEditCustomer';
 import StockAvailabilityPanel from '@/components/StockAvailabilityPanel';
+import { inventoryService } from '@/services/inventoryService';
 
 interface QuoteItem {
   id?: number;
@@ -60,10 +61,64 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
   });
   const [editingItem, setEditingItem] = useState<number | null>(null);
   const [editingData, setEditingData] = useState<QuoteItem | null>(null);
+
+  // Tab & cost cache states
+  const [activeTab, setActiveTab] = useState<'details' | 'pl'>('details');
+  const [costCache, setCostCache] = useState<Record<number, { costPerBox: number; costPerPack: number; costPerPcs: number }>>({});
+  const [costLoading, setCostLoading] = useState(false);
+
   useEffect(() => {
     dispatch(fetchCustomers({ limit: 1000 }));
     dispatch(fetchProducts());
   }, [dispatch]);
+
+  // Fetch costs when items, newItem, or editingData change
+  useEffect(() => {
+    const fetchCosts = async () => {
+      const idsToFetch = [
+        ...items.map(item => Number(item.productId)),
+        Number(newItem.productId),
+        editingData ? Number(editingData.productId) : 0
+      ].filter(id => id > 0 && !costCache[id]);
+
+      if (idsToFetch.length === 0) return;
+
+      setCostLoading(true);
+      const newCosts = { ...costCache };
+      try {
+        await Promise.all(
+          idsToFetch.map(async (id) => {
+            try {
+              const batches = await inventoryService.getAvailableStock(id.toString());
+              if (batches && batches.length > 0) {
+                const sorted = [...batches].sort(
+                  (a, b) => new Date(b.inwardDate).getTime() - new Date(a.inwardDate).getTime()
+                );
+                const latest = sorted[0];
+                newCosts[id] = {
+                  costPerBox: Number(latest.costPerBox) || 0,
+                  costPerPack: Number(latest.costPerPack) || (Number(latest.costPerBox) / (latest.packPerBox || 1)) || 0,
+                  costPerPcs: Number(latest.costPerPcs) || 0,
+                };
+              } else {
+                newCosts[id] = { costPerBox: 0, costPerPack: 0, costPerPcs: 0 };
+              }
+            } catch (error) {
+              console.error(`Error fetching stock for product ${id}:`, error);
+              newCosts[id] = { costPerBox: 0, costPerPack: 0, costPerPcs: 0 };
+            }
+          })
+        );
+        setCostCache(newCosts);
+      } catch (err) {
+        console.error('Error fetching costs:', err);
+      } finally {
+        setCostLoading(false);
+      }
+    };
+
+    fetchCosts();
+  }, [items, newItem.productId, editingData?.productId, costCache]);
 
   // Clear currentQuote when form opens for creating new quote
   useEffect(() => {
@@ -172,6 +227,60 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
   const roundingAdjustment = rawFinalAmount - Math.round(rawFinalAmount);
   const finalAmount = Math.round(rawFinalAmount);
 
+  // Compute P&L Summary
+  const plSummary = (() => {
+    let totalSales = 0;
+    let totalCOGS = 0;
+
+    const itemsPL = items.map((item) => {
+      const qty = Number(item.quantity) || 0;
+      const rate = Number(item.rate) || 0;
+      const costInfo = costCache[item.productId];
+      const unit = item.unit;
+
+      let costPerUnit = 0;
+      if (costInfo) {
+        if (unit === 'box') costPerUnit = costInfo.costPerBox;
+        else if (unit === 'pack') costPerUnit = costInfo.costPerPack;
+        else costPerUnit = costInfo.costPerPcs;
+      }
+
+      const itemSales = qty * rate;
+      const itemCOGS = qty * costPerUnit;
+      const itemProfit = itemSales - itemCOGS;
+      // If no stock data (costPerUnit is 0), margin is unknown — show 0 instead of misleading 100%
+      const itemMargin = (costPerUnit === 0 || itemSales === 0) ? 0 : (itemProfit / itemSales) * 100;
+
+      totalSales += itemSales;
+      totalCOGS += itemCOGS;
+
+      return {
+        ...item,
+        costPerUnit,
+        itemSales,
+        itemCOGS,
+        itemProfit,
+        itemMargin,
+      };
+    });
+
+    const discount = Number(formData.discount) || 0;
+    const netRevenue = totalSales - discount;
+    const netProfit = netRevenue - totalCOGS;
+    // If COGS is entirely zero (no stock for any product), overall margin is unknown — show 0
+    const netMargin = (totalCOGS === 0 || netRevenue === 0) ? 0 : (netProfit / netRevenue) * 100;
+
+    return {
+      itemsPL,
+      totalSales,
+      totalCOGS,
+      discount,
+      netRevenue,
+      netProfit,
+      netMargin,
+    };
+  })();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -238,7 +347,36 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
 
   return (
     <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} className="space-y-4">
-      <h2 className="text-xl font-bold">{quote ? 'Edit Quote' : 'Create Quote'}</h2>
+      <div className="flex items-center justify-between border-b border-gray-255 pb-2">
+        <h2 className="text-xl font-bold text-gray-800">{quote ? 'Edit Quote' : 'Create Quote'}</h2>
+        <div className="flex bg-gray-150 p-0.5 rounded border border-gray-200">
+          <button
+            type="button"
+            className={`px-3 py-1 text-xs font-semibold rounded transition-all ${
+              activeTab === 'details'
+                ? 'bg-white text-gray-800 shadow-xs font-bold'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+            onClick={() => setActiveTab('details')}
+          >
+            📋 Quote Form
+          </button>
+          <button
+            type="button"
+            className={`px-3 py-1 text-xs font-semibold rounded transition-all flex items-center gap-1 ${
+              activeTab === 'pl'
+                ? 'bg-white text-gray-800 shadow-xs font-bold'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+            onClick={() => setActiveTab('pl')}
+          >
+            📈 P&L Analysis
+          </button>
+        </div>
+      </div>
+
+      {activeTab === 'details' ? (
+        <>
       
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <div className="relative">
@@ -630,6 +768,143 @@ export default function QuoteForm({ quote, onClose }: { quote?: Quote; onClose: 
           />
         </div>
       </div>
+      </>
+      ) : (
+        /* P&L tab content */
+        <div className="space-y-4 animate-fadeIn">
+
+          {/* Loading overlay */}
+          {costLoading && (
+            <div className="flex items-center gap-2 text-xs text-blue-600 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+              <svg className="animate-spin h-3.5 w-3.5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+              </svg>
+              Fetching latest stock cost prices…
+            </div>
+          )}
+
+          {/* No-items notice */}
+          {plSummary.itemsPL.length === 0 && !costLoading && (
+            <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-4 justify-center italic">
+              No items added to the quote yet. Add items from the Details tab to see P&L analysis.
+            </div>
+          )}
+
+          {/* No-stock warning – shown when any product has cost = 0 */}
+          {!costLoading && plSummary.itemsPL.some(i => i.costPerUnit === 0) && plSummary.itemsPL.length > 0 && (
+            <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">
+              <span className="text-base leading-none mt-0.5">⚠️</span>
+              <div>
+                <span className="font-bold">Missing stock cost data</span> – one or more products have no inward stock batches recorded, so their purchase cost could not be estimated. P&L figures marked <span className="font-bold text-amber-800">No Stock Data</span> may be inaccurate. Please inward a purchase for those products first.
+              </div>
+            </div>
+          )}
+
+          {plSummary.itemsPL.length > 0 && (
+            <>
+              {/* Summary cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+                <div className="bg-gray-50/50 border border-gray-250 rounded-lg p-3">
+                  <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Gross Sales</span>
+                  <span className="block text-sm font-black text-gray-900 mt-1">₹{plSummary.totalSales.toFixed(2)}</span>
+                </div>
+                <div className="bg-gray-50/50 border border-gray-250 rounded-lg p-3">
+                  <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Discount</span>
+                  <span className="block text-sm font-black text-orange-600 mt-1">– ₹{plSummary.discount.toFixed(2)}</span>
+                </div>
+                <div className="bg-gray-50/50 border border-gray-250 rounded-lg p-3">
+                  <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Net Revenue</span>
+                  <span className="block text-sm font-black text-blue-700 mt-1">₹{plSummary.netRevenue.toFixed(2)}</span>
+                </div>
+                <div className="bg-gray-50/50 border border-gray-250 rounded-lg p-3">
+                  <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    Est. COGS
+                    {plSummary.itemsPL.some(i => i.costPerUnit === 0) && (
+                      <span className="ml-1 text-[9px] font-bold text-amber-600">⚠ partial</span>
+                    )}
+                  </span>
+                  <span className="block text-sm font-black text-gray-900 mt-1">₹{plSummary.totalCOGS.toFixed(2)}</span>
+                </div>
+                <div className={`border rounded-lg p-3 ${plSummary.netProfit >= 0 ? 'bg-emerald-50/40 border-emerald-200 text-emerald-900' : 'bg-red-50/40 border-red-200 text-red-900'}`}>
+                  <span className="block text-[10px] font-bold uppercase tracking-wider opacity-75">Est. Net Profit</span>
+                  <span className="block text-sm font-black mt-1">₹{plSummary.netProfit.toFixed(2)}</span>
+                </div>
+                <div className={`border rounded-lg p-3 ${plSummary.netMargin >= 0 ? 'bg-emerald-50/40 border-emerald-200 text-emerald-900' : 'bg-red-50/40 border-red-200 text-red-900'}`}>
+                  <span className="block text-[10px] font-bold uppercase tracking-wider opacity-75">Gross Margin</span>
+                  <span className="block text-sm font-black mt-1">
+                    {plSummary.netMargin >= 0 ? '📈' : '📉'} {plSummary.netMargin.toFixed(2)}%
+                  </span>
+                </div>
+              </div>
+
+              {/* Product wise breakdown */}
+              <div className="border border-gray-250 rounded-lg overflow-x-auto">
+                <table className="w-full text-xs text-left border-collapse">
+                  <thead>
+                    <tr className="bg-gray-100 border-b border-gray-250 text-gray-600 font-bold uppercase tracking-wider text-[10px]">
+                      <th className="p-2.5">Product & SKU</th>
+                      <th className="p-2.5 text-right w-16">Qty</th>
+                      <th className="p-2.5 text-left w-16">Unit</th>
+                      <th className="p-2.5 text-right w-24">Est. Cost/Unit</th>
+                      <th className="p-2.5 text-right w-24">Sales Rate</th>
+                      <th className="p-2.5 text-right w-28">Total Cost</th>
+                      <th className="p-2.5 text-right w-28">Total Revenue</th>
+                      <th className="p-2.5 text-right w-24">Profit</th>
+                      <th className="p-2.5 text-right w-20">Margin</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
+                  {plSummary.itemsPL.map((item, idx) => {
+                      const hasNoStock = item.costPerUnit === 0;
+                      return (
+                        <tr key={idx} className={`hover:bg-gray-50/30 ${hasNoStock ? 'bg-amber-50/10' : ''}`}>
+                          <td className="p-2.5">
+                            <div className="font-bold text-gray-800">{getProductName(item)}</div>
+                            <div className="text-[10px] text-gray-400 mt-0.5">SKU: {item.product?.sku || products.find((p: any) => p.id === item.productId)?.sku || '-'}</div>
+                            {hasNoStock && (
+                              <span className="inline-flex items-center gap-0.5 mt-0.5 text-[9px] font-bold text-amber-700 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded-full">
+                                ⚠ No Stock Data
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-2.5 text-right font-semibold">{item.quantity}</td>
+                          <td className="p-2.5 text-left capitalize text-gray-500">{item.unit}</td>
+                          <td className={`p-2.5 text-right ${hasNoStock ? 'text-amber-500' : 'text-gray-500'}`}>
+                            ₹{item.costPerUnit.toFixed(2)}
+                          </td>
+                          <td className="p-2.5 text-right">₹{Number(item.rate || 0).toFixed(2)}</td>
+                          <td className={`p-2.5 text-right font-medium ${hasNoStock ? 'text-amber-500' : 'text-gray-500'}`}>
+                            ₹{item.itemCOGS.toFixed(2)}
+                          </td>
+                          <td className="p-2.5 text-right font-medium">₹{item.itemSales.toFixed(2)}</td>
+                          <td className={`p-2.5 text-right font-bold ${item.itemProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                            ₹{item.itemProfit.toFixed(2)}
+                          </td>
+                          <td className="p-2.5 text-right">
+                            <span className={`inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                              hasNoStock
+                                ? 'bg-amber-50 text-amber-600 border border-amber-200'
+                                : item.itemMargin >= 0
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                                : 'bg-red-50 text-red-600 border border-red-100'
+                            }`}>
+                              {item.itemMargin.toFixed(1)}%
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                  })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="text-[9px] text-gray-400 italic leading-normal px-1 pb-2">
+                * P&L calculations are estimates. Products with no stock history have COGS = ₹0.00 and Margin = 0% — indicated by ⚠ No Stock Data badge.
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       <div className="flex gap-2 justify-end">
         <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
