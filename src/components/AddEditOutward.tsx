@@ -250,9 +250,11 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
           return;
         }
         if (box.status === 'outwarded') {
-          playErrorSound();
-          toast.error("This box has already been outwarded.");
-          return;
+          if (!invoice || box.outwardInvoiceId !== invoice.id) {
+            playErrorSound();
+            toast.error("This box has already been outwarded.");
+            return;
+          }
         }
         if (!box.stockBatchId) {
           playErrorSound();

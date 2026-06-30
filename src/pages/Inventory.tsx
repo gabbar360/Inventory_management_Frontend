@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Package,
   MapPin,
@@ -14,6 +15,7 @@ import {
   Warehouse,
   ChevronRight,
   Clock,
+  Printer,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
@@ -123,6 +125,7 @@ const LocationsPopover: React.FC<{ locations: any[] }> = ({ locations }) => {
 
 const Inventory: React.FC = () => {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const {
     stockSummary = [],
     availableStock = [],
@@ -797,6 +800,16 @@ const Inventory: React.FC = () => {
                                 >
                                   <ArrowRightLeft className="w-3.5 h-3.5" />
                                   Transfer
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    navigate(`/print-barcodes/batch/${batch.id}`);
+                                  }}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 border-0 rounded-lg transition-all duration-200 shadow-sm hover:shadow"
+                                  title="Generate / Print Barcode"
+                                >
+                                  <Printer className="w-3.5 h-3.5" />
+                                  Barcode
                                 </button>
                               </div>
                             </div>
