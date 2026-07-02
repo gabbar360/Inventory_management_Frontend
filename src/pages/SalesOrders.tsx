@@ -19,12 +19,12 @@ import ShareDocumentModal from '@/components/ShareDocumentModal';
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
-  pending:    { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Pending' },
-  confirmed:  { bg: 'bg-blue-100',   text: 'text-blue-800',   label: 'Confirmed' },
+  pending: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Pending' },
+  confirmed: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Confirmed' },
   processing: { bg: 'bg-purple-100', text: 'text-purple-800', label: 'Processing' },
-  shipped:    { bg: 'bg-indigo-100', text: 'text-indigo-800', label: 'Shipped' },
-  delivered:  { bg: 'bg-green-100',  text: 'text-green-800',  label: 'Delivered' },
-  cancelled:  { bg: 'bg-red-100',    text: 'text-red-800',    label: 'Cancelled' },
+  shipped: { bg: 'bg-indigo-100', text: 'text-indigo-800', label: 'Shipped' },
+  delivered: { bg: 'bg-green-100', text: 'text-green-800', label: 'Delivered' },
+  cancelled: { bg: 'bg-red-100', text: 'text-red-800', label: 'Cancelled' },
 };
 
 const StatusBadge = ({ status }: { status: string }) => {
@@ -52,10 +52,6 @@ const SalesOrders: React.FC = () => {
   const [editOrderData, setEditOrderData] = useState<SalesOrder | undefined>(undefined);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [actionModalOrder, setActionModalOrder] = useState<SalesOrder | null>(null);
-  const [invoiceModalOrder, setInvoiceModalOrder] = useState<SalesOrder | null>(null);
-  const [batchSelections, setBatchSelections] = useState<Record<string, { stockBatchId: string; saleUnit: string }>>({});
-  const [stockCache, setStockCache] = useState<Record<string, StockBatch[]>>({});
-  const [stockLoading, setStockLoading] = useState(false);
   const [submittingInvoice, setSubmittingInvoice] = useState(false);
   const [shareOrder, setShareOrder] = useState<SalesOrder | null>(null);
 
@@ -120,41 +116,23 @@ const SalesOrders: React.FC = () => {
     }
   };
 
-  const openInvoiceModal = async (order: SalesOrder) => {
-    setInvoiceModalOrder(order);
-    setBatchSelections({});
-    setStockCache({});
-    setStockLoading(true);
+  const handleDirectInvoiceConversion = async (order: SalesOrder) => {
     const items = order.items || [];
-    const uniqueProductIds = [...new Set(items.map((i: SalesOrderItem) => i.productId.toString()))];
-    const results = await Promise.all(
-      uniqueProductIds.map((pid) => dispatch(fetchAvailableStock({ productId: pid })).unwrap())
-    );
-    const cache: Record<string, StockBatch[]> = {};
-    uniqueProductIds.forEach((pid, idx) => { cache[pid] = results[idx]; });
-    setStockCache(cache);
-    setStockLoading(false);
-  };
-
-  const handleInvoiceSubmit = async () => {
-    if (!invoiceModalOrder) return;
-    const items = invoiceModalOrder.items || [];
-    for (const item of items) {
-      if (!batchSelections[item.id]?.stockBatchId) {
-        toast.error(`Please select stock batch for: ${item.product?.name || item.productId}`);
-        return;
-      }
+    const missingBatch = items.some((item: SalesOrderItem) => !item.stockBatchId);
+    
+    if (missingBatch) {
+      toast.error("Some items in this order do not have a booked stock batch. Cannot convert directly.");
+      return;
     }
-    const itemsPayload = items.map((item: SalesOrderItem) => ({
-      salesOrderItemId: item.id,
-      stockBatchId: batchSelections[item.id].stockBatchId,
-      saleUnit: batchSelections[item.id].saleUnit,
-    }));
+
+    if (!window.confirm(`Are you sure you want to convert Sales Order ${order.orderNo} to an Outward Invoice?`)) {
+      return;
+    }
+
     setSubmittingInvoice(true);
     try {
-      await dispatch(convertSalesOrderToInvoice({ id: invoiceModalOrder.id, items: itemsPayload })).unwrap();
-      toast.success(`Invoice created from ${invoiceModalOrder.orderNo}`);
-      setInvoiceModalOrder(null);
+      await dispatch(convertSalesOrderToInvoice({ id: order.id, items: [] })).unwrap();
+      toast.success(`Invoice created from ${order.orderNo}`);
       navigate('/outward');
     } catch (e: any) {
       toast.error(e?.message || e || 'Failed to convert to invoice');
@@ -243,68 +221,7 @@ const SalesOrders: React.FC = () => {
         />
       )}
 
-      {/* Convert to Invoice Modal */}
-      <Modal isOpen={!!invoiceModalOrder} onClose={() => setInvoiceModalOrder(null)}
-        title={`Convert to Invoice - ${invoiceModalOrder?.orderNo}`} size="lg">
-        {invoiceModalOrder && (
-          <div className="space-y-4">
-            {stockLoading ? (
-              <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-blue-500" /></div>
-            ) : (
-              <>
-                <p className="text-sm text-gray-600">Select stock batch and sale unit for each item to create an outward invoice.</p>
-                <div className="space-y-3">
-                  {(invoiceModalOrder.items || []).map((item: SalesOrderItem) => {
-                    const batches = stockCache[item.productId.toString()] || [];
-                    const sel = batchSelections[item.id] || { stockBatchId: '', saleUnit: item.unit || 'box' };
-                    return (
-                      <div key={item.id} className="border rounded p-3 bg-gray-50">
-                        <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <span className="font-medium text-sm">{item.product?.name || `Product #${item.productId}`}</span>
-                            {item.description && <p className="text-xs text-gray-500">{item.description}</p>}
-                          </div>
-                          <span className="text-sm text-gray-600">Qty: {item.quantity} {item.unit}</span>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-1">Stock Batch *</label>
-                            <select className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500"
-                              value={sel.stockBatchId}
-                              onChange={(e) => setBatchSelections((prev) => ({ ...prev, [item.id]: { ...sel, stockBatchId: e.target.value } }))}>
-                              <option value="">Select batch...</option>
-                              {batches.map((b: StockBatch) => (
-                                <option key={b.id} value={b.id}>
-                                  [{b.location?.name}] {b.vendor?.name} - {formatDate(b.inwardDate)} | {b.remainingBoxes} boxes, {b.remainingPacks} packs, {b.remainingPcs} pcs
-                                </option>
-                              ))}
-                            </select>
-                            {batches.length === 0 && <p className="text-xs text-red-500 mt-1">No stock available</p>}
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-1">Sale Unit *</label>
-                            <select className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500"
-                              value={sel.saleUnit}
-                              onChange={(e) => setBatchSelections((prev) => ({ ...prev, [item.id]: { ...sel, saleUnit: e.target.value } }))}>
-                              {unitOptions.map((u) => <option key={u} value={u}>{u}</option>)}
-                            </select>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="flex justify-end gap-2 pt-2 border-t">
-                  <Button variant="outline" onClick={() => setInvoiceModalOrder(null)}>Cancel</Button>
-                  <Button onClick={handleInvoiceSubmit} disabled={submittingInvoice}>
-                    {submittingInvoice ? <><Loader2 className="h-4 w-4 animate-spin mr-1" />Creating...</> : <><Package className="h-4 w-4 mr-1" />Create Invoice</>}
-                  </Button>
-                </div>
-              </>
-            )}
-          </div>
-        )}
-      </Modal>
+
 
       {/* View Modal */}
       <Modal isOpen={!!viewOrder} onClose={() => setViewOrder(null)} title={`Sales Order - ${viewOrder?.orderNo}`} size="lg">
@@ -388,7 +305,7 @@ const SalesOrders: React.FC = () => {
               onClick={() => {
                 const o = actionModalOrder;
                 setActionModalOrder(null);
-                openInvoiceModal(o);
+                handleDirectInvoiceConversion(o);
               }}
             >
               <FileText className="h-5 w-5 text-blue-600 flex-shrink-0" />

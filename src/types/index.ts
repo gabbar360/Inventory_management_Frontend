@@ -246,6 +246,9 @@ export interface StockBatch {
   remainingBoxes: number;
   remainingPacks: number;
   remainingPcs: number;
+  bookedBoxes?: number;
+  bookedPacks?: number;
+  bookedPcs?: number;
   costPerBox: number;
   costPerPack: number;
   costPerPcs: number;
@@ -301,6 +304,9 @@ export interface StockSummary {
   totalBoxes: number;
   totalPacks: number;
   totalPcs: number;
+  totalBookedBoxes?: number;
+  totalBookedPacks?: number;
+  totalBookedPcs?: number;
   stockValue: number;
   lastInwardDate?: string;
 }
@@ -386,6 +392,8 @@ export interface SalesOrderItem {
   taxRate: number;
   amount: number;
   description?: string;
+  stockBatchId?: string | null;
+  stockBatch?: StockBatch | null;
 }
 
 export interface SalesOrder {

@@ -238,23 +238,47 @@ const Inventory: React.FC = () => {
     {
       key: 'totalBoxes',
       title: 'Boxes',
-      render: (value: number) => (
-        <span className="font-semibold text-gray-950 text-xs sm:text-sm">{formatNumber(value)}</span>
-      ),
+      render: (value: number, record: StockSummary) => {
+        const booked = record.totalBookedBoxes || 0;
+        const avail = value - booked;
+        return (
+          <div className="flex flex-col text-xs">
+            <span className="font-bold text-gray-900">Total: {formatNumber(value)}</span>
+            {booked > 0 && <span className="text-[10px] text-amber-600 font-semibold">Booked: {formatNumber(booked)}</span>}
+            <span className="text-[10px] text-blue-600 font-bold">Avail: {formatNumber(avail)}</span>
+          </div>
+        );
+      },
     },
     {
       key: 'totalPacks',
       title: 'Packs',
-      render: (_: any, record: StockSummary) => (
-        <span className="text-gray-600 text-xs sm:text-sm font-medium">{formatNumber(record.totalPacks || 0)}</span>
-      ),
+      render: (_: any, record: StockSummary) => {
+        const booked = record.totalBookedPacks || 0;
+        const avail = (record.totalPacks || 0) - booked;
+        return (
+          <div className="flex flex-col text-xs">
+            <span className="font-medium text-gray-700">Total: {formatNumber(record.totalPacks || 0)}</span>
+            {booked > 0 && <span className="text-[10px] text-amber-600 font-semibold">Booked: {formatNumber(booked)}</span>}
+            <span className="text-[10px] text-blue-600 font-bold">Avail: {formatNumber(avail)}</span>
+          </div>
+        );
+      },
     },
     {
       key: 'totalPcs',
       title: 'Pieces',
-      render: (value: number) => (
-        <span className="text-gray-600 text-xs sm:text-sm font-medium">{formatNumber(value)}</span>
-      ),
+      render: (value: number, record: StockSummary) => {
+        const booked = record.totalBookedPcs || 0;
+        const avail = value - booked;
+        return (
+          <div className="flex flex-col text-xs">
+            <span className="font-bold text-gray-900">Total: {formatNumber(value)}</span>
+            {booked > 0 && <span className="text-[10px] text-amber-605 font-semibold">Booked: {formatNumber(booked)}</span>}
+            <span className="text-xs font-extrabold text-primary-700">Avail: {formatNumber(avail)}</span>
+          </div>
+        );
+      },
     },
     {
       key: 'totalValue',
@@ -295,15 +319,13 @@ const Inventory: React.FC = () => {
         const isLowStock = record.totalPcs < 100;
         return (
           <span
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-              isLowStock
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${isLowStock
                 ? 'bg-rose-50 text-rose-700 border border-rose-200/50'
                 : 'bg-emerald-50 text-emerald-700 border border-emerald-200/50'
-            }`}
+              }`}
           >
-            <span className={`w-1.5 h-1.5 rounded-full ${
-              isLowStock ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'
-            }`} />
+            <span className={`w-1.5 h-1.5 rounded-full ${isLowStock ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'
+              }`} />
             {isLowStock ? 'Low Stock' : 'In Stock'}
           </span>
         );
@@ -431,44 +453,39 @@ const Inventory: React.FC = () => {
         </div>
 
         {/* Low Stock Items Card */}
-        <div 
+        <div
           onClick={() => {
             if (lowStockItemsCount > 0) {
               setLowStockOpen(true);
               document.getElementById('low-stock-alert-section')?.scrollIntoView({ behavior: 'smooth' });
             }
           }}
-          className={`group relative overflow-hidden bg-white rounded-xl border p-5 shadow-sm hover:shadow-[0_0_25px_rgba(244,63,94,0.12)] transition-all duration-300 cursor-pointer ${
-            lowStockItemsCount > 0 
-              ? 'border-rose-200 bg-rose-50/5' 
+          className={`group relative overflow-hidden bg-white rounded-xl border p-5 shadow-sm hover:shadow-[0_0_25px_rgba(244,63,94,0.12)] transition-all duration-300 cursor-pointer ${lowStockItemsCount > 0
+              ? 'border-rose-200 bg-rose-50/5'
               : 'border-gray-200/80 hover:border-gray-300'
-          }`}
+            }`}
         >
-          <div className={`absolute top-0 right-0 w-32 h-32 rounded-full -mr-16 -mt-16 opacity-40 group-hover:scale-110 transition-transform duration-500 ${
-            lowStockItemsCount > 0 ? 'bg-rose-50' : 'bg-gray-50'
-          }`}></div>
+          <div className={`absolute top-0 right-0 w-32 h-32 rounded-full -mr-16 -mt-16 opacity-40 group-hover:scale-110 transition-transform duration-500 ${lowStockItemsCount > 0 ? 'bg-rose-50' : 'bg-gray-50'
+            }`}></div>
           <div className="relative flex items-center justify-between">
             <div className="space-y-1">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
                 Low Stock Items
               </p>
-              <h3 className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${
-                lowStockItemsCount > 0 ? 'text-rose-600' : 'text-gray-900'
-              }`}>
+              <h3 className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${lowStockItemsCount > 0 ? 'text-rose-600' : 'text-gray-900'
+                }`}>
                 {lowStockItemsCount}
               </h3>
               <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
-                <span className={`w-1.5 h-1.5 rounded-full ${
-                  lowStockItemsCount > 0 ? 'bg-rose-500 animate-pulse' : 'bg-gray-400'
-                }`}></span>
+                <span className={`w-1.5 h-1.5 rounded-full ${lowStockItemsCount > 0 ? 'bg-rose-500 animate-pulse' : 'bg-gray-400'
+                  }`}></span>
                 {lowStockItemsCount > 0 ? 'Replenishment needed' : 'All items well-stocked'}
               </p>
             </div>
-            <div className={`p-3 rounded-xl transition-all duration-300 shadow-inner ${
-              lowStockItemsCount > 0 
-                ? 'bg-rose-50 text-rose-600 group-hover:bg-rose-600 group-hover:text-white' 
+            <div className={`p-3 rounded-xl transition-all duration-300 shadow-inner ${lowStockItemsCount > 0
+                ? 'bg-rose-50 text-rose-600 group-hover:bg-rose-600 group-hover:text-white'
                 : 'bg-gray-50 text-gray-500 group-hover:bg-gray-600 group-hover:text-white'
-            }`}>
+              }`}>
               <AlertTriangle className="w-6 h-6" />
             </div>
           </div>
@@ -522,8 +539,8 @@ const Inventory: React.FC = () => {
               {stockSummary.map((item, index) => {
                 const isLowStock = item.totalPcs < 100;
                 return (
-                  <div 
-                    key={index} 
+                  <div
+                    key={index}
                     className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 space-y-3 hover:border-primary-200 transition-colors"
                   >
                     {/* Header: Name, Category, Status */}
@@ -537,11 +554,10 @@ const Inventory: React.FC = () => {
                         </div>
                       </div>
                       <span
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider ${
-                          isLowStock
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider ${isLowStock
                             ? 'bg-rose-50 text-rose-700 border border-rose-200/50'
                             : 'bg-emerald-50 text-emerald-700 border border-emerald-200/50'
-                        }`}
+                          }`}
                       >
                         <span className={`w-1.5 h-1.5 rounded-full ${isLowStock ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`} />
                         {isLowStock ? 'Low' : 'In Stock'}
@@ -617,14 +633,12 @@ const Inventory: React.FC = () => {
       </div>
 
       {/* Slide-over Side Drawer for Batches */}
-      <div className={`fixed top-12 inset-x-0 bottom-0 z-50 overflow-hidden transition-all duration-300 ${
-        drawerOpen ? 'visible' : 'invisible pointer-events-none'
-      }`}>
+      <div className={`fixed top-12 inset-x-0 bottom-0 z-50 overflow-hidden transition-all duration-300 ${drawerOpen ? 'visible' : 'invisible pointer-events-none'
+        }`}>
         {/* Blurred Backdrop */}
-        <div 
-          className={`absolute inset-0 bg-black/45 backdrop-blur-xs transition-opacity duration-300 ${
-            drawerOpen ? 'opacity-100' : 'opacity-0'
-          }`}
+        <div
+          className={`absolute inset-0 bg-black/45 backdrop-blur-xs transition-opacity duration-300 ${drawerOpen ? 'opacity-100' : 'opacity-0'
+            }`}
           onClick={() => {
             setDrawerOpen(false);
             setSelectedProduct('');
@@ -633,9 +647,8 @@ const Inventory: React.FC = () => {
         />
 
         {/* Drawer Container Panel */}
-        <div className={`absolute right-0 top-0 h-full w-full max-w-lg sm:max-w-xl md:max-w-2xl bg-gray-50 shadow-2xl border-l border-gray-200/80 flex flex-col transform transition-transform duration-300 ease-out z-50 ${
-          drawerOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}>
+        <div className={`absolute right-0 top-0 h-full w-full max-w-lg sm:max-w-xl md:max-w-2xl bg-gray-50 shadow-2xl border-l border-gray-200/80 flex flex-col transform transition-transform duration-300 ease-out z-50 ${drawerOpen ? 'translate-x-0' : 'translate-x-full'
+          }`}>
           {/* Drawer Header */}
           <div className="px-5 py-4.5 border-b border-gray-200 bg-white flex items-center justify-between shadow-xs">
             <div className="flex items-center gap-3">
@@ -730,8 +743,8 @@ const Inventory: React.FC = () => {
                   <div className="space-y-3">
                     {availableStock.map((batch) => {
                       return (
-                        <div 
-                          key={batch.id} 
+                        <div
+                          key={batch.id}
                           className="relative p-4 rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow transition-all duration-300"
                         >
 
@@ -761,17 +774,29 @@ const Inventory: React.FC = () => {
                               <div className="grid grid-cols-3 gap-5 pt-1">
                                 <div>
                                   <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Boxes</span>
-                                  <span className="text-xs font-bold text-gray-900">{formatNumber(batch.remainingBoxes)}</span>
-                                  <span className="text-[9px] text-gray-400 block font-normal">({batch.packPerBox || 1} p/b)</span>
+                                  <div className="flex flex-col">
+                                    <span className="text-xs font-bold text-gray-900">Total: {formatNumber(batch.remainingBoxes)}</span>
+                                    <span className="text-[10px] text-amber-600 font-semibold">Booked: {formatNumber(batch.bookedBoxes || 0)}</span>
+                                    <span className="text-[10px] text-blue-600 font-bold">Avail: {formatNumber(batch.remainingBoxes - (batch.bookedBoxes || 0))}</span>
+                                  </div>
+                                  <span className="text-[9px] text-gray-400 block font-normal mt-1">({batch.packPerBox || 1} p/b)</span>
                                 </div>
                                 <div>
                                   <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Packs</span>
-                                  <span className="text-xs font-bold text-gray-900">{formatNumber(batch.remainingPacks || 0)}</span>
-                                  <span className="text-[9px] text-gray-400 block font-normal">({batch.packPerPiece || 1} p/p)</span>
+                                  <div className="flex flex-col">
+                                    <span className="text-xs font-bold text-gray-900">Total: {formatNumber(batch.remainingPacks || 0)}</span>
+                                    <span className="text-[10px] text-amber-600 font-semibold">Booked: {formatNumber(batch.bookedPacks || 0)}</span>
+                                    <span className="text-[10px] text-blue-600 font-bold">Avail: {formatNumber((batch.remainingPacks || 0) - (batch.bookedPacks || 0))}</span>
+                                  </div>
+                                  <span className="text-[9px] text-gray-400 block font-normal mt-1">({batch.packPerPiece || 1} p/p)</span>
                                 </div>
                                 <div>
                                   <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Total Pieces</span>
-                                  <span className="text-xs font-extrabold text-primary-700">{formatNumber(batch.remainingPcs)}</span>
+                                  <div className="flex flex-col">
+                                    <span className="text-xs font-bold text-gray-900">Total: {formatNumber(batch.remainingPcs)}</span>
+                                    <span className="text-[10px] text-amber-650 font-semibold">Booked: {formatNumber(batch.bookedPcs || 0)}</span>
+                                    <span className="text-xs font-extrabold text-primary-700">Avail: {formatNumber(batch.remainingPcs - (batch.bookedPcs || 0))}</span>
+                                  </div>
                                 </div>
                               </div>
 
@@ -789,7 +814,7 @@ const Inventory: React.FC = () => {
                                 <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Lot Valuation</span>
                                 <span className="text-sm font-extrabold text-emerald-600">{formatCurrency(batch.remainingPcs * batch.costPerPcs)}</span>
                               </div>
-                              
+
                               <div className="flex gap-2">
                                 <button
                                   onClick={() => {
@@ -839,18 +864,16 @@ const Inventory: React.FC = () => {
 
       {/* Collapsible Low Stock Alert Accordion */}
       {lowStockItems.length > 0 && (
-        <div 
+        <div
           id="low-stock-alert-section"
-          className={`bg-white rounded-xl border transition-all duration-300 ${
-            lowStockOpen ? 'shadow-md border-rose-200' : 'shadow-sm border-gray-200'
-          }`}
+          className={`bg-white rounded-xl border transition-all duration-300 ${lowStockOpen ? 'shadow-md border-rose-200' : 'shadow-sm border-gray-200'
+            }`}
         >
           {/* Widget Trigger Header */}
           <button
             onClick={() => setLowStockOpen(!lowStockOpen)}
-            className={`w-full flex items-center justify-between px-5 py-4 rounded-xl focus:outline-none transition-colors ${
-              lowStockOpen ? 'bg-rose-50/50 border-b border-rose-100' : 'bg-white'
-            }`}
+            className={`w-full flex items-center justify-between px-5 py-4 rounded-xl focus:outline-none transition-colors ${lowStockOpen ? 'bg-rose-50/50 border-b border-rose-100' : 'bg-white'
+              }`}
           >
             <div className="flex items-center gap-2">
               <div className="p-1 rounded bg-rose-100 text-rose-700 animate-pulse">
@@ -876,7 +899,7 @@ const Inventory: React.FC = () => {
               {lowStockItems.slice(0, 8).map((item, index) => {
                 const safetyThreshold = 100;
                 const percent = Math.min(100, Math.max(0, (item.totalPcs / safetyThreshold) * 100));
-                
+
                 return (
                   <div
                     key={index}
@@ -903,9 +926,8 @@ const Inventory: React.FC = () => {
                       </div>
                       <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden border border-gray-200/50">
                         <div
-                          className={`h-full rounded-full transition-all duration-500 ${
-                            percent < 30 ? 'bg-red-500 shadow-[0_0_10px_#f43f5e]' : percent < 70 ? 'bg-orange-500' : 'bg-amber-500'
-                          }`}
+                          className={`h-full rounded-full transition-all duration-500 ${percent < 30 ? 'bg-red-500 shadow-[0_0_10px_#f43f5e]' : percent < 70 ? 'bg-orange-500' : 'bg-amber-500'
+                            }`}
                           style={{ width: `${percent}%` }}
                         ></div>
                       </div>
