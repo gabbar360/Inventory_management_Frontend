@@ -33,9 +33,16 @@ export const deleteSalesOrder = createAsyncThunk('salesOrders/delete', async (id
   return id;
 });
 
-export const convertQuoteToSalesOrder = createAsyncThunk('salesOrders/convertFromQuote', async (quoteId: string | number) => {
-  return await salesOrderService.convertFromQuote(quoteId);
-});
+export const convertQuoteToSalesOrder = createAsyncThunk(
+  'salesOrders/convertFromQuote',
+  async ({ quoteId, items }: { quoteId: string | number; items: { productId: number | string; stockBatchId: string | number; saleUnit: string }[] }, { rejectWithValue }) => {
+    try {
+      return await salesOrderService.convertFromQuote(quoteId, items);
+    } catch (e: any) {
+      return rejectWithValue(e?.response?.data?.error || e.message || 'Failed to convert');
+    }
+  }
+);
 
 export const convertSalesOrderToInvoice = createAsyncThunk(
   'salesOrders/convertToInvoice',

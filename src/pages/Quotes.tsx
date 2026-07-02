@@ -30,11 +30,11 @@ import { inventoryService } from '@/services/inventoryService';
 
 const getStatusBadge = (status: string) => {
   const statusConfig = {
-    draft:    { bg: 'bg-gray-100 border-gray-200',   text: 'text-gray-800',  label: 'Draft' },
-    sent:     { bg: 'bg-blue-50 border-blue-200',   text: 'text-blue-700',  label: 'Sent' },
-    accepted: { bg: 'bg-emerald-50 border-emerald-200',  text: 'text-emerald-700', label: 'Accepted' },
-    rejected: { bg: 'bg-red-50 border-red-200',    text: 'text-red-700',   label: 'Rejected' },
-    expired:  { bg: 'bg-amber-50 border-amber-200', text: 'text-amber-700',label: 'Expired' },
+    draft: { bg: 'bg-gray-100 border-gray-200', text: 'text-gray-800', label: 'Draft' },
+    sent: { bg: 'bg-blue-50 border-blue-200', text: 'text-blue-700', label: 'Sent' },
+    accepted: { bg: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700', label: 'Accepted' },
+    rejected: { bg: 'bg-red-50 border-red-200', text: 'text-red-700', label: 'Rejected' },
+    expired: { bg: 'bg-amber-50 border-amber-200', text: 'text-amber-700', label: 'Expired' },
   };
   const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.draft;
   return (
@@ -65,31 +65,28 @@ const renderTimeline = (status: string) => {
       {steps.map((step, idx) => (
         <React.Fragment key={step.label}>
           {idx > 0 && (
-            <div className={`flex-1 h-0.5 mx-2 transition-colors duration-300 ${
-              step.active || step.done ? 'bg-blue-500' : 'bg-gray-250'
-            }`} />
+            <div className={`flex-1 h-0.5 mx-2 transition-colors duration-300 ${step.active || step.done ? 'bg-blue-500' : 'bg-gray-250'
+              }`} />
           )}
           <div className="flex flex-col items-center relative">
-            <div className={`w-7 h-7 rounded-full flex items-center justify-center border-2 transition-all ${
-              step.done
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center border-2 transition-all ${step.done
                 ? 'bg-emerald-500 border-emerald-500 text-white'
                 : step.active
-                ? step.color === 'red'
-                  ? 'bg-red-500 border-red-500 text-white animate-pulse'
-                  : step.color === 'amber'
-                  ? 'bg-amber-500 border-amber-500 text-white'
-                  : 'bg-blue-500 border-blue-500 text-white'
-                : 'bg-white border-gray-300 text-gray-400'
-            }`}>
+                  ? step.color === 'red'
+                    ? 'bg-red-500 border-red-500 text-white animate-pulse'
+                    : step.color === 'amber'
+                      ? 'bg-amber-500 border-amber-500 text-white'
+                      : 'bg-blue-500 border-blue-500 text-white'
+                  : 'bg-white border-gray-300 text-gray-400'
+              }`}>
               {step.done ? (
                 <Check className="w-4 h-4" />
               ) : (
                 <span className="text-xs font-bold">{idx + 1}</span>
               )}
             </div>
-            <span className={`text-[10px] font-bold uppercase mt-2 tracking-wider whitespace-nowrap absolute top-7 ${
-              step.done ? 'text-emerald-600' : step.active ? 'text-blue-500' : 'text-gray-400'
-            }`}>
+            <span className={`text-[10px] font-bold uppercase mt-2 tracking-wider whitespace-nowrap absolute top-7 ${step.done ? 'text-emerald-600' : step.active ? 'text-blue-500' : 'text-gray-400'
+              }`}>
               {step.label}
             </span>
           </div>
@@ -116,12 +113,12 @@ const Quotes: React.FC = () => {
   const [search, setSearch] = useState('');
   const [sidebarSearch, setSidebarSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  
+
   // Dropdown states
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const [sidebarFilterMenuOpen, setSidebarFilterMenuOpen] = useState(false);
   const [convertMenuOpen, setConvertMenuOpen] = useState(false);
-  
+
   const filterDropdownRef = useRef<HTMLDivElement>(null);
   const sidebarFilterDropdownRef = useRef<HTMLDivElement>(null);
   const convertDropdownRef = useRef<HTMLDivElement>(null);
@@ -138,6 +135,9 @@ const Quotes: React.FC = () => {
   const [pageSize, setPageSize] = useState(10);
   const [shareQuote, setShareQuote] = useState<Quote | null>(null);
   const [salesModalQuote, setSalesModalQuote] = useState<Quote | null>(null);
+  const [salesOrderBatchSelections, setSalesOrderBatchSelections] = useState<Record<string, { stockBatchId: string; saleUnit: string }>>({});
+  const [salesOrderStockCache, setSalesOrderStockCache] = useState<Record<string, StockBatch[]>>({});
+  const [salesOrderStockLoading, setSalesOrderStockLoading] = useState(false);
 
   // Tab & cost cache states for quote details view panel
   const [activeDetailTab, setActiveDetailTab] = useState<'preview' | 'pl'>('preview');
@@ -263,7 +263,7 @@ const Quotes: React.FC = () => {
 
   // Navigation handlers
   const handleAddQuote = () => navigate('/quotes/add');
-  
+
   const handleEditQuote = (quote: Quote) => {
     setEditingQuote(quote);
     navigate(`/quotes/edit/${quote.id}`);
@@ -291,8 +291,44 @@ const Quotes: React.FC = () => {
     }
   };
 
-  const openSalesModal = (quote: Quote) => {
+  const openSalesModal = async (quote: Quote) => {
     setSalesModalQuote(quote);
+    setSalesOrderBatchSelections({});
+    setSalesOrderStockCache({});
+    setSalesOrderStockLoading(true);
+    try {
+      const items = quote.items || [];
+      const uniqueProductIds = [...new Set(items.map((i: QuoteItem) => i.productId.toString()))];
+      const results = await Promise.all(
+        uniqueProductIds.map((pid) => dispatch(fetchAvailableStock({ productId: pid })).unwrap())
+      );
+      const cache: Record<string, StockBatch[]> = {};
+      uniqueProductIds.forEach((pid, idx) => { cache[pid] = results[idx]; });
+      setSalesOrderStockCache(cache);
+
+      // Pre-select first batch with sufficient stock if available, and set default unit
+      const initialSelections: Record<string, { stockBatchId: string; saleUnit: string }> = {};
+      items.forEach((item) => {
+        const batches = cache[item.productId.toString()] || [];
+        const defaultUnit = item.unit || 'box';
+        // Try to find a batch that can fulfill item.quantity
+        const matchingBatch = batches.find((b) => {
+          if (defaultUnit === 'box') return b.remainingBoxes >= item.quantity;
+          if (defaultUnit === 'pack') return b.remainingPacks >= item.quantity;
+          return b.remainingPcs >= item.quantity;
+        }) || batches[0];
+
+        initialSelections[item.id] = {
+          stockBatchId: matchingBatch ? matchingBatch.id.toString() : '',
+          saleUnit: defaultUnit,
+        };
+      });
+      setSalesOrderBatchSelections(initialSelections);
+    } catch (err: any) {
+      toast.error('Failed to load available stock batches');
+    } finally {
+      setSalesOrderStockLoading(false);
+    }
   };
 
   const closeSalesModal = () => {
@@ -301,13 +337,57 @@ const Quotes: React.FC = () => {
 
   const confirmConvertToSalesOrder = async () => {
     if (!salesModalQuote) return;
+    const items = salesModalQuote.items || [];
+    
+    // Check if every item has a stock batch selected
+    for (const item of items) {
+      const sel = salesOrderBatchSelections[item.id];
+      if (!sel || !sel.stockBatchId) {
+        toast.error(`Please select a stock batch for: ${item.product?.name || item.productId}`);
+        return;
+      }
+
+      // Check available stock (remaining - booked)
+      const batches = salesOrderStockCache[item.productId.toString()] || [];
+      const batch = batches.find(b => b.id.toString() === sel.stockBatchId.toString());
+      if (batch) {
+        const qty = item.quantity;
+        const availableBoxes = batch.remainingBoxes - (batch.bookedBoxes || 0);
+        const availablePacks = batch.remainingPacks - (batch.bookedPacks || 0);
+        const availablePcs = batch.remainingPcs - (batch.bookedPcs || 0);
+
+        if (sel.saleUnit === 'box' && availableBoxes < qty) {
+          toast.error(`Insufficient available box stock in batch ${batch.batchCode || batch.id} for ${item.product?.name}`);
+          return;
+        }
+        if (sel.saleUnit === 'pack' && availablePacks < qty) {
+          toast.error(`Insufficient available pack stock in batch ${batch.batchCode || batch.id} for ${item.product?.name}`);
+          return;
+        }
+        if (sel.saleUnit === 'piece' && availablePcs < qty) {
+          toast.error(`Insufficient available piece stock in batch ${batch.batchCode || batch.id} for ${item.product?.name}`);
+          return;
+        }
+      }
+    }
+
+    const itemsPayload = items.map((item: QuoteItem) => ({
+      productId: item.productId,
+      stockBatchId: salesOrderBatchSelections[item.id].stockBatchId,
+      saleUnit: salesOrderBatchSelections[item.id].saleUnit,
+    }));
+
     setConvertingId(salesModalQuote.id);
     try {
-      await dispatch(convertQuoteToSalesOrder(salesModalQuote.id)).unwrap();
-      toast.success(`Sales Order created from ${salesModalQuote.quoteNo}`);
+      await dispatch(convertQuoteToSalesOrder({ quoteId: salesModalQuote.id, items: itemsPayload })).unwrap();
+      toast.success(
+        salesModalQuote.status === 'accepted'
+          ? `Sales Order updated and stock re-booked from ${salesModalQuote.quoteNo}`
+          : `Sales Order created and stock booked from ${salesModalQuote.quoteNo}`
+      );
       navigate('/sales-orders');
     } catch (e: any) {
-      toast.error(e?.message || 'Failed to convert');
+      toast.error(e?.message || e || 'Failed to convert');
     } finally {
       setConvertingId(null);
       closeSalesModal();
@@ -460,7 +540,7 @@ const Quotes: React.FC = () => {
       <div className="flex h-[calc(100vh-80px)] border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm -mt-2">
         {/* LEFT COLUMN: Sidebar Quotes list */}
         <div className="hidden md:flex md:w-[28%] md:min-w-[280px] md:max-w-[340px] border-r border-gray-200 flex-col bg-gray-50/50">
-          
+
           {/* Sidebar Header */}
           <div className="p-3 border-b border-gray-200 bg-white flex flex-col gap-2">
             <div className="flex items-center justify-between">
@@ -493,7 +573,7 @@ const Quotes: React.FC = () => {
                   </div>
                 )}
               </div>
-              
+
               {/* Quick Add Button */}
               <button
                 onClick={handleAddQuote}
@@ -503,7 +583,7 @@ const Quotes: React.FC = () => {
                 <Plus className="h-4 w-4" />
               </button>
             </div>
-            
+
             {/* Search */}
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
@@ -551,10 +631,10 @@ const Quotes: React.FC = () => {
                         <span className={cn(
                           "text-[9px] font-bold uppercase mt-1 px-1 rounded-sm border",
                           q.status === 'accepted' ? 'text-emerald-600 bg-emerald-50/40 border-emerald-100' :
-                          q.status === 'draft' ? 'text-gray-500 bg-gray-50 border-gray-100' :
-                          q.status === 'sent' ? 'text-blue-600 bg-blue-50/40 border-blue-100' :
-                          q.status === 'rejected' ? 'text-red-600 bg-red-50/40 border-red-100' :
-                          'text-amber-600 bg-amber-50/40 border-amber-100' // expired
+                            q.status === 'draft' ? 'text-gray-500 bg-gray-50 border-gray-100' :
+                              q.status === 'sent' ? 'text-blue-600 bg-blue-50/40 border-blue-100' :
+                                q.status === 'rejected' ? 'text-red-600 bg-red-50/40 border-red-100' :
+                                  'text-amber-600 bg-amber-50/40 border-amber-100' // expired
                         )}>
                           {q.status}
                         </span>
@@ -700,22 +780,20 @@ const Quotes: React.FC = () => {
               <div className="bg-white border-b border-gray-200 flex px-4 flex-shrink-0">
                 <button
                   type="button"
-                  className={`py-2 px-4 font-semibold text-xs border-b-2 transition-all ${
-                    activeDetailTab === 'preview'
+                  className={`py-2 px-4 font-semibold text-xs border-b-2 transition-all ${activeDetailTab === 'preview'
                       ? 'border-blue-500 text-blue-600 font-bold'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
+                    }`}
                   onClick={() => setActiveDetailTab('preview')}
                 >
                   📄 Quotation Preview
                 </button>
                 <button
                   type="button"
-                  className={`py-2 px-4 font-semibold text-xs border-b-2 transition-all flex items-center gap-1.5 ${
-                    activeDetailTab === 'pl'
+                  className={`py-2 px-4 font-semibold text-xs border-b-2 transition-all flex items-center gap-1.5 ${activeDetailTab === 'pl'
                       ? 'border-blue-500 text-blue-600 font-bold'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
+                    }`}
                   onClick={() => setActiveDetailTab('pl')}
                 >
                   📈 P&L Analysis
@@ -725,207 +803,207 @@ const Quotes: React.FC = () => {
               {activeDetailTab === 'preview' ? (
                 /* Document Paper Preview Area */
                 <div className="flex-1 p-2 sm:p-5 overflow-y-auto">
-                <div className="bg-white border border-gray-250/70 rounded-lg shadow-md p-4 sm:p-6 md:p-10 max-w-4xl mx-auto my-3 min-h-[900px] flex flex-col justify-between">
-                  <div>
-                    {/* Header */}
-                    <div className="flex justify-between items-start border-b border-gray-100 pb-5 mb-5">
-                      <div>
-                        <h1 className="text-xl md:text-2xl font-black tracking-tight text-emerald-700 uppercase">
-                          {settings?.companyName || 'VEGNAR GREENS'}
-                        </h1>
-                        <p className="text-[10px] text-gray-450 mt-1 uppercase font-bold tracking-wider leading-relaxed whitespace-pre-line">
-                          {settings?.companyAddress || 'Vegnar Greens LLP\n757, Food Park, Phase 1, Sector 38\nHSIIDC, Rai, Sonipat, Haryana, 131029'}
-                          {settings?.companyGstin && (
-                            <>
-                              <br />GSTIN: {settings.companyGstin}
-                            </>
-                          )}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <h2 className="text-lg md:text-xl font-black tracking-wider text-gray-300 uppercase">QUOTATION</h2>
-                        <div className="text-xs text-gray-650 mt-3.5 space-y-1.5 font-semibold">
-                          <div>
-                            <span className="text-gray-400 font-bold uppercase text-[9px] mr-1.5">Quote No:</span>
-                            <span className="text-gray-900 font-extrabold">{activeQuote.quoteNo}</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-400 font-bold uppercase text-[9px] mr-1.5">Date:</span>
-                            <span className="text-gray-900">{formatDate(activeQuote.quoteDate)}</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-400 font-bold uppercase text-[9px] mr-1.5">Expiry:</span>
-                            <span className="text-gray-900">{formatDate(activeQuote.expiryDate)}</span>
-                          </div>
-                          {(activeQuote as any).reference && (
+                  <div className="bg-white border border-gray-250/70 rounded-lg shadow-md p-4 sm:p-6 md:p-10 max-w-4xl mx-auto my-3 min-h-[900px] flex flex-col justify-between">
+                    <div>
+                      {/* Header */}
+                      <div className="flex justify-between items-start border-b border-gray-100 pb-5 mb-5">
+                        <div>
+                          <h1 className="text-xl md:text-2xl font-black tracking-tight text-emerald-700 uppercase">
+                            {settings?.companyName || 'VEGNAR GREENS'}
+                          </h1>
+                          <p className="text-[10px] text-gray-450 mt-1 uppercase font-bold tracking-wider leading-relaxed whitespace-pre-line">
+                            {settings?.companyAddress || 'Vegnar Greens LLP\n757, Food Park, Phase 1, Sector 38\nHSIIDC, Rai, Sonipat, Haryana, 131029'}
+                            {settings?.companyGstin && (
+                              <>
+                                <br />GSTIN: {settings.companyGstin}
+                              </>
+                            )}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <h2 className="text-lg md:text-xl font-black tracking-wider text-gray-300 uppercase">QUOTATION</h2>
+                          <div className="text-xs text-gray-650 mt-3.5 space-y-1.5 font-semibold">
                             <div>
-                              <span className="text-gray-400 font-bold uppercase text-[9px] mr-1.5">Reference:</span>
-                              <span className="text-gray-900">{(activeQuote as any).reference}</span>
+                              <span className="text-gray-400 font-bold uppercase text-[9px] mr-1.5">Quote No:</span>
+                              <span className="text-gray-900 font-extrabold">{activeQuote.quoteNo}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-400 font-bold uppercase text-[9px] mr-1.5">Date:</span>
+                              <span className="text-gray-900">{formatDate(activeQuote.quoteDate)}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-400 font-bold uppercase text-[9px] mr-1.5">Expiry:</span>
+                              <span className="text-gray-900">{formatDate(activeQuote.expiryDate)}</span>
+                            </div>
+                            {(activeQuote as any).reference && (
+                              <div>
+                                <span className="text-gray-400 font-bold uppercase text-[9px] mr-1.5">Reference:</span>
+                                <span className="text-gray-900">{(activeQuote as any).reference}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Address Section */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 md:gap-8 mb-6">
+                        <div>
+                          <h3 className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-2">Bill To</h3>
+                          <div className="text-xs text-gray-800 font-semibold space-y-1">
+                            <div className="font-extrabold text-gray-950 text-sm">{activeQuote.customer?.name}</div>
+                            {activeQuote.customer?.email && <div className="text-gray-500 font-medium">Email: {activeQuote.customer.email}</div>}
+                            {activeQuote.customer?.phone && <div className="text-gray-500 font-medium">Phone: {activeQuote.customer.phone}</div>}
+                            {activeQuote.customer?.address && (
+                              <div className="text-gray-550 italic font-medium leading-relaxed mt-1">
+                                {activeQuote.customer.address}
+                              </div>
+                            )}
+                            {activeQuote.customer?.gstNumber && (
+                              <div className="text-[10px] font-bold text-gray-600 uppercase tracking-wide mt-1.5 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-150 inline-block">
+                                GSTIN: {activeQuote.customer.gstNumber}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <h3 className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-2">Ship To</h3>
+                          <div className="text-xs text-gray-800 font-semibold space-y-1">
+                            <div className="font-extrabold text-gray-955 text-sm">{activeQuote.customer?.name}</div>
+                            {activeQuote.customer?.shippingAddress ? (
+                              <div className="text-gray-550 italic font-medium leading-relaxed mt-1">
+                                {activeQuote.customer.shippingAddress}
+                              </div>
+                            ) : activeQuote.customer?.address ? (
+                              <div className="text-gray-550 italic font-medium leading-relaxed mt-1">
+                                {activeQuote.customer.address}
+                              </div>
+                            ) : (
+                              <div className="text-gray-400 italic">No shipping address provided</div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Delivery & Payment details */}
+                      {((activeQuote as any).paymentTerms || (activeQuote as any).termsOfDelivery) && (
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-gray-50/50 border border-gray-200/60 rounded px-4 py-2.5 mb-6 text-xs font-semibold">
+                          {(activeQuote as any).paymentTerms && (
+                            <div>
+                              <span className="block text-[8px] text-gray-400 uppercase font-bold tracking-wider mb-0.5">Payment Terms</span>
+                              <span className="text-gray-700">{(activeQuote as any).paymentTerms}</span>
                             </div>
                           )}
+                          {(activeQuote as any).termsOfDelivery && (
+                            <div>
+                              <span className="block text-[8px] text-gray-400 uppercase font-bold tracking-wider mb-0.5">Delivery Terms</span>
+                              <span className="text-gray-700">{(activeQuote as any).termsOfDelivery}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Items Table */}
+                      <div className="border border-gray-200 rounded overflow-x-auto mb-5 shadow-3xs">
+                        <table className="min-w-full divide-y divide-gray-200 text-xs text-left">
+                          <thead className="bg-gray-50/75">
+                            <tr className="font-bold text-gray-600 uppercase tracking-wider text-[10px]">
+                              <th className="px-3.5 py-2.5 text-center w-12 border-r border-gray-200">#</th>
+                              <th className="px-4 py-2.5 border-r border-gray-200">Product & Description</th>
+                              <th className="px-3 py-2.5 text-right w-20 border-r border-gray-200">Qty</th>
+                              <th className="px-3 py-2.5 text-left w-20 border-r border-gray-200">Unit</th>
+                              <th className="px-3.5 py-2.5 text-right w-28 border-r border-gray-200">Rate</th>
+                              <th className="px-3 py-2.5 text-right w-20 border-r border-gray-200">GST %</th>
+                              <th className="px-3.5 py-2.5 text-right w-28 border-r border-gray-200">GST Amt</th>
+                              <th className="px-4 py-2.5 text-right w-32">Total</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-150 bg-white font-medium text-gray-700">
+                            {(activeQuote.items || []).map((item: QuoteItem, idx: number) => {
+                              const itemQty = Number(item.quantity) || 0;
+                              const itemRate = Number(item.rate) || 0;
+                              const itemTaxRate = (item as any).taxRate || (item.product?.category?.gstRate) || 0;
+                              const itemAmount = itemQty * itemRate;
+                              const itemGstAmt = (itemAmount * itemTaxRate) / 100;
+                              const itemTotal = itemAmount + itemGstAmt;
+
+                              return (
+                                <tr key={item.id} className="hover:bg-gray-50/20 transition-colors">
+                                  <td className="px-3.5 py-2.5 text-center text-gray-400 font-bold border-r border-gray-100">{idx + 1}</td>
+                                  <td className="px-4 py-2.5 border-r border-gray-100">
+                                    <div className="font-bold text-gray-905">{item.product?.name || `Product #${item.productId}`}</div>
+                                    {item.description && (
+                                      <p className="text-[11px] text-gray-400 mt-0.5 italic font-medium">{item.description}</p>
+                                    )}
+                                  </td>
+                                  <td className="px-3 py-2.5 text-right border-r border-gray-100">{itemQty}</td>
+                                  <td className="px-3 py-2.5 text-left capitalize border-r border-gray-100">{item.unit}</td>
+                                  <td className="px-3.5 py-2.5 text-right border-r border-gray-100">₹{itemRate.toFixed(2)}</td>
+                                  <td className="px-3 py-2.5 text-right border-r border-gray-100">{itemTaxRate}%</td>
+                                  <td className="px-3.5 py-2.5 text-right text-gray-500 border-r border-gray-100">₹{itemGstAmt.toFixed(2)}</td>
+                                  <td className="px-4 py-2.5 text-right font-bold text-gray-900">₹{itemTotal.toFixed(2)}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Summary Calculations */}
+                      <div className="flex justify-end mb-4">
+                        <div className="w-80 text-xs font-semibold space-y-2 text-right">
+                          <div className="flex justify-between text-gray-500 px-1">
+                            <span>Subtotal</span>
+                            <span>₹{itemsSubtotal.toFixed(2)}</span>
+                          </div>
+                          {Number(activeQuote.tax) > 0 && (
+                            <div className="flex justify-between text-gray-500 px-1">
+                              <span>GST Amount</span>
+                              <span>+₹{Number(activeQuote.tax).toFixed(2)}</span>
+                            </div>
+                          )}
+                          {Number(activeQuote.discount) > 0 && (
+                            <div className="flex justify-between text-gray-500 px-1">
+                              <span>Discount</span>
+                              <span>-₹{Number(activeQuote.discount).toFixed(2)}</span>
+                            </div>
+                          )}
+                          {Number(activeQuote.shippingCharge) > 0 && (
+                            <div className="flex justify-between text-gray-500 px-1">
+                              <span>Shipping Charge</span>
+                              <span>+₹{Number(activeQuote.shippingCharge).toFixed(2)}</span>
+                            </div>
+                          )}
+                          {Number((activeQuote as any).adjustment) !== 0 && (
+                            <div className="flex justify-between text-gray-500 px-1">
+                              <span>Round Off</span>
+                              <span>₹{Number((activeQuote as any).adjustment).toFixed(2)}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between font-black text-gray-905 text-sm border-t border-gray-200 pt-2 px-2 py-1.5 bg-gray-50/60 rounded">
+                            <span>Grand Total</span>
+                            <span className="text-blue-600 font-black">₹{activeQuote.totalAmount.toFixed(2)}</span>
+                          </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Address Section */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 md:gap-8 mb-6">
-                      <div>
-                        <h3 className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-2">Bill To</h3>
-                        <div className="text-xs text-gray-800 font-semibold space-y-1">
-                          <div className="font-extrabold text-gray-950 text-sm">{activeQuote.customer?.name}</div>
-                          {activeQuote.customer?.email && <div className="text-gray-500 font-medium">Email: {activeQuote.customer.email}</div>}
-                          {activeQuote.customer?.phone && <div className="text-gray-500 font-medium">Phone: {activeQuote.customer.phone}</div>}
-                          {activeQuote.customer?.address && (
-                            <div className="text-gray-550 italic font-medium leading-relaxed mt-1">
-                              {activeQuote.customer.address}
-                            </div>
-                          )}
-                          {activeQuote.customer?.gstNumber && (
-                            <div className="text-[10px] font-bold text-gray-600 uppercase tracking-wide mt-1.5 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-150 inline-block">
-                              GSTIN: {activeQuote.customer.gstNumber}
-                            </div>
-                          )}
+                    {/* Notes / Terms */}
+                    <div className="border-t border-gray-150 pt-5 mt-5 space-y-3.5 text-left">
+                      {activeQuote.notes && (
+                        <div>
+                          <h4 className="text-[8px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Notes</h4>
+                          <p className="text-xs text-gray-600 leading-relaxed font-semibold italic">{activeQuote.notes}</p>
                         </div>
-                      </div>
-                      <div>
-                        <h3 className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-2">Ship To</h3>
-                        <div className="text-xs text-gray-800 font-semibold space-y-1">
-                          <div className="font-extrabold text-gray-955 text-sm">{activeQuote.customer?.name}</div>
-                          {activeQuote.customer?.shippingAddress ? (
-                            <div className="text-gray-550 italic font-medium leading-relaxed mt-1">
-                              {activeQuote.customer.shippingAddress}
-                            </div>
-                          ) : activeQuote.customer?.address ? (
-                            <div className="text-gray-550 italic font-medium leading-relaxed mt-1">
-                              {activeQuote.customer.address}
-                            </div>
-                          ) : (
-                            <div className="text-gray-400 italic">No shipping address provided</div>
-                          )}
+                      )}
+                      {activeQuote.termsAndConditions && (
+                        <div>
+                          <h4 className="text-[8px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Terms & Conditions</h4>
+                          <p className="text-xs text-gray-550 leading-relaxed font-semibold whitespace-pre-wrap">{activeQuote.termsAndConditions}</p>
                         </div>
-                      </div>
+                      )}
                     </div>
-
-                    {/* Delivery & Payment details */}
-                    {((activeQuote as any).paymentTerms || (activeQuote as any).termsOfDelivery) && (
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-gray-50/50 border border-gray-200/60 rounded px-4 py-2.5 mb-6 text-xs font-semibold">
-                        {(activeQuote as any).paymentTerms && (
-                          <div>
-                            <span className="block text-[8px] text-gray-400 uppercase font-bold tracking-wider mb-0.5">Payment Terms</span>
-                            <span className="text-gray-700">{(activeQuote as any).paymentTerms}</span>
-                          </div>
-                        )}
-                        {(activeQuote as any).termsOfDelivery && (
-                          <div>
-                            <span className="block text-[8px] text-gray-400 uppercase font-bold tracking-wider mb-0.5">Delivery Terms</span>
-                            <span className="text-gray-700">{(activeQuote as any).termsOfDelivery}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Items Table */}
-                    <div className="border border-gray-200 rounded overflow-x-auto mb-5 shadow-3xs">
-                      <table className="min-w-full divide-y divide-gray-200 text-xs text-left">
-                        <thead className="bg-gray-50/75">
-                          <tr className="font-bold text-gray-600 uppercase tracking-wider text-[10px]">
-                            <th className="px-3.5 py-2.5 text-center w-12 border-r border-gray-200">#</th>
-                            <th className="px-4 py-2.5 border-r border-gray-200">Product & Description</th>
-                            <th className="px-3 py-2.5 text-right w-20 border-r border-gray-200">Qty</th>
-                            <th className="px-3 py-2.5 text-left w-20 border-r border-gray-200">Unit</th>
-                            <th className="px-3.5 py-2.5 text-right w-28 border-r border-gray-200">Rate</th>
-                            <th className="px-3 py-2.5 text-right w-20 border-r border-gray-200">GST %</th>
-                            <th className="px-3.5 py-2.5 text-right w-28 border-r border-gray-200">GST Amt</th>
-                            <th className="px-4 py-2.5 text-right w-32">Total</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-150 bg-white font-medium text-gray-700">
-                          {(activeQuote.items || []).map((item: QuoteItem, idx: number) => {
-                            const itemQty = Number(item.quantity) || 0;
-                            const itemRate = Number(item.rate) || 0;
-                            const itemTaxRate = (item as any).taxRate || (item.product?.category?.gstRate) || 0;
-                            const itemAmount = itemQty * itemRate;
-                            const itemGstAmt = (itemAmount * itemTaxRate) / 100;
-                            const itemTotal = itemAmount + itemGstAmt;
-
-                            return (
-                              <tr key={item.id} className="hover:bg-gray-50/20 transition-colors">
-                                <td className="px-3.5 py-2.5 text-center text-gray-400 font-bold border-r border-gray-100">{idx + 1}</td>
-                                <td className="px-4 py-2.5 border-r border-gray-100">
-                                  <div className="font-bold text-gray-905">{item.product?.name || `Product #${item.productId}`}</div>
-                                  {item.description && (
-                                    <p className="text-[11px] text-gray-400 mt-0.5 italic font-medium">{item.description}</p>
-                                  )}
-                                </td>
-                                <td className="px-3 py-2.5 text-right border-r border-gray-100">{itemQty}</td>
-                                <td className="px-3 py-2.5 text-left capitalize border-r border-gray-100">{item.unit}</td>
-                                <td className="px-3.5 py-2.5 text-right border-r border-gray-100">₹{itemRate.toFixed(2)}</td>
-                                <td className="px-3 py-2.5 text-right border-r border-gray-100">{itemTaxRate}%</td>
-                                <td className="px-3.5 py-2.5 text-right text-gray-500 border-r border-gray-100">₹{itemGstAmt.toFixed(2)}</td>
-                                <td className="px-4 py-2.5 text-right font-bold text-gray-900">₹{itemTotal.toFixed(2)}</td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {/* Summary Calculations */}
-                    <div className="flex justify-end mb-4">
-                      <div className="w-80 text-xs font-semibold space-y-2 text-right">
-                        <div className="flex justify-between text-gray-500 px-1">
-                          <span>Subtotal</span>
-                          <span>₹{itemsSubtotal.toFixed(2)}</span>
-                        </div>
-                        {Number(activeQuote.tax) > 0 && (
-                          <div className="flex justify-between text-gray-500 px-1">
-                            <span>GST Amount</span>
-                            <span>+₹{Number(activeQuote.tax).toFixed(2)}</span>
-                          </div>
-                        )}
-                        {Number(activeQuote.discount) > 0 && (
-                          <div className="flex justify-between text-gray-500 px-1">
-                            <span>Discount</span>
-                            <span>-₹{Number(activeQuote.discount).toFixed(2)}</span>
-                          </div>
-                        )}
-                        {Number(activeQuote.shippingCharge) > 0 && (
-                          <div className="flex justify-between text-gray-500 px-1">
-                            <span>Shipping Charge</span>
-                            <span>+₹{Number(activeQuote.shippingCharge).toFixed(2)}</span>
-                          </div>
-                        )}
-                        {Number((activeQuote as any).adjustment) !== 0 && (
-                          <div className="flex justify-between text-gray-500 px-1">
-                            <span>Round Off</span>
-                            <span>₹{Number((activeQuote as any).adjustment).toFixed(2)}</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between font-black text-gray-905 text-sm border-t border-gray-200 pt-2 px-2 py-1.5 bg-gray-50/60 rounded">
-                          <span>Grand Total</span>
-                          <span className="text-blue-600 font-black">₹{activeQuote.totalAmount.toFixed(2)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Notes / Terms */}
-                  <div className="border-t border-gray-150 pt-5 mt-5 space-y-3.5 text-left">
-                    {activeQuote.notes && (
-                      <div>
-                        <h4 className="text-[8px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Notes</h4>
-                        <p className="text-xs text-gray-600 leading-relaxed font-semibold italic">{activeQuote.notes}</p>
-                      </div>
-                    )}
-                    {activeQuote.termsAndConditions && (
-                      <div>
-                        <h4 className="text-[8px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Terms & Conditions</h4>
-                        <p className="text-xs text-gray-550 leading-relaxed font-semibold whitespace-pre-wrap">{activeQuote.termsAndConditions}</p>
-                      </div>
-                    )}
                   </div>
                 </div>
-              </div>
               ) : (
                 /* P&L tab content */
                 <div className="flex-1 p-4 sm:p-5 overflow-y-auto bg-gray-50/20">
@@ -996,72 +1074,71 @@ const Quotes: React.FC = () => {
 
                     {/* Product wise breakdown */}
                     {plSummary && plSummary.itemsPL.length > 0 && (
-                    <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-x-auto">
-                      <div className="px-3.5 py-2.5 border-b border-gray-200 bg-gray-50/70 font-bold text-xs text-gray-705">
-                        Product-Wise P&L Breakdown
-                      </div>
-                      <table className="w-full text-xs text-left border-collapse">
-                        <thead>
-                          <tr className="bg-gray-100/80 border-b border-gray-200 text-gray-600 font-bold uppercase tracking-wider text-[10px]">
-                            <th className="p-2.5">Product & SKU</th>
-                            <th className="p-2.5 text-right w-16">Qty</th>
-                            <th className="p-2.5 text-left w-16">Unit</th>
-                            <th className="p-2.5 text-right w-24">Est. Cost/Unit</th>
-                            <th className="p-2.5 text-right w-24">Sales Rate</th>
-                            <th className="p-2.5 text-right w-28">Total Cost</th>
-                            <th className="p-2.5 text-right w-28">Total Revenue</th>
-                            <th className="p-2.5 text-right w-24">Profit</th>
-                            <th className="p-2.5 text-right w-20">Margin</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200 bg-white">
-                          {plSummary.itemsPL.map((item, idx) => {
-                            const hasNoStock = item.costPerUnit === 0;
-                            return (
-                              <tr key={idx} className={`hover:bg-gray-50/30 ${hasNoStock ? 'bg-amber-50/10' : ''}`}>
-                                <td className="p-2.5">
-                                  <div className="font-bold text-gray-800">
-                                    {item.product?.name || `Product #${item.productId}`}
-                                  </div>
-                                  <div className="text-[10px] text-gray-400 mt-0.5">
-                                    SKU: {item.product?.sku || '-'}
-                                  </div>
-                                  {hasNoStock && (
-                                    <span className="inline-flex items-center gap-0.5 mt-0.5 text-[9px] font-bold text-amber-700 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded-full">
-                                      ⚠ No Stock Data
+                      <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-x-auto">
+                        <div className="px-3.5 py-2.5 border-b border-gray-200 bg-gray-50/70 font-bold text-xs text-gray-705">
+                          Product-Wise P&L Breakdown
+                        </div>
+                        <table className="w-full text-xs text-left border-collapse">
+                          <thead>
+                            <tr className="bg-gray-100/80 border-b border-gray-200 text-gray-600 font-bold uppercase tracking-wider text-[10px]">
+                              <th className="p-2.5">Product & SKU</th>
+                              <th className="p-2.5 text-right w-16">Qty</th>
+                              <th className="p-2.5 text-left w-16">Unit</th>
+                              <th className="p-2.5 text-right w-24">Est. Cost/Unit</th>
+                              <th className="p-2.5 text-right w-24">Sales Rate</th>
+                              <th className="p-2.5 text-right w-28">Total Cost</th>
+                              <th className="p-2.5 text-right w-28">Total Revenue</th>
+                              <th className="p-2.5 text-right w-24">Profit</th>
+                              <th className="p-2.5 text-right w-20">Margin</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-200 bg-white">
+                            {plSummary.itemsPL.map((item, idx) => {
+                              const hasNoStock = item.costPerUnit === 0;
+                              return (
+                                <tr key={idx} className={`hover:bg-gray-50/30 ${hasNoStock ? 'bg-amber-50/10' : ''}`}>
+                                  <td className="p-2.5">
+                                    <div className="font-bold text-gray-800">
+                                      {item.product?.name || `Product #${item.productId}`}
+                                    </div>
+                                    <div className="text-[10px] text-gray-400 mt-0.5">
+                                      SKU: {item.product?.sku || '-'}
+                                    </div>
+                                    {hasNoStock && (
+                                      <span className="inline-flex items-center gap-0.5 mt-0.5 text-[9px] font-bold text-amber-700 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded-full">
+                                        ⚠ No Stock Data
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="p-2.5 text-right font-semibold">{item.quantity}</td>
+                                  <td className="p-2.5 text-left capitalize text-gray-500">{item.unit}</td>
+                                  <td className={`p-2.5 text-right ${hasNoStock ? 'text-amber-500' : 'text-gray-500'}`}>
+                                    ₹{item.costPerUnit.toFixed(2)}
+                                  </td>
+                                  <td className="p-2.5 text-right">₹{Number(item.rate || 0).toFixed(2)}</td>
+                                  <td className={`p-2.5 text-right font-medium ${hasNoStock ? 'text-amber-500' : 'text-gray-500'}`}>
+                                    ₹{item.itemCOGS.toFixed(2)}
+                                  </td>
+                                  <td className="p-2.5 text-right font-medium">₹{item.itemSales.toFixed(2)}</td>
+                                  <td className={`p-2.5 text-right font-bold ${item.itemProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                    ₹{item.itemProfit.toFixed(2)}
+                                  </td>
+                                  <td className="p-2.5 text-right">
+                                    <span className={`inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded ${hasNoStock
+                                        ? 'bg-amber-50 text-amber-600 border border-amber-200'
+                                        : item.itemMargin >= 0
+                                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                                          : 'bg-red-50 text-red-600 border border-red-100'
+                                      }`}>
+                                      {item.itemMargin.toFixed(1)}%
                                     </span>
-                                  )}
-                                </td>
-                                <td className="p-2.5 text-right font-semibold">{item.quantity}</td>
-                                <td className="p-2.5 text-left capitalize text-gray-500">{item.unit}</td>
-                                <td className={`p-2.5 text-right ${hasNoStock ? 'text-amber-500' : 'text-gray-500'}`}>
-                                  ₹{item.costPerUnit.toFixed(2)}
-                                </td>
-                                <td className="p-2.5 text-right">₹{Number(item.rate || 0).toFixed(2)}</td>
-                                <td className={`p-2.5 text-right font-medium ${hasNoStock ? 'text-amber-500' : 'text-gray-500'}`}>
-                                  ₹{item.itemCOGS.toFixed(2)}
-                                </td>
-                                <td className="p-2.5 text-right font-medium">₹{item.itemSales.toFixed(2)}</td>
-                                <td className={`p-2.5 text-right font-bold ${item.itemProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                                  ₹{item.itemProfit.toFixed(2)}
-                                </td>
-                                <td className="p-2.5 text-right">
-                                  <span className={`inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                                    hasNoStock
-                                      ? 'bg-amber-50 text-amber-600 border border-amber-200'
-                                      : item.itemMargin >= 0
-                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                                      : 'bg-red-50 text-red-600 border border-red-100'
-                                  }`}>
-                                    {item.itemMargin.toFixed(1)}%
-                                  </span>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
                     )}
                     <div className="text-[9px] text-gray-400 italic leading-normal px-1">
                       * P&L calculations are estimates. Products with no stock history have COGS = ₹0.00 and Margin = 0% — indicated by ⚠ No Stock Data badge.
@@ -1259,9 +1336,8 @@ const Quotes: React.FC = () => {
                     <button
                       key={page}
                       onClick={() => setCurrentPage(page as number)}
-                      className={`w-7 h-7 rounded text-xs font-bold transition-colors ${
-                        currentPage === page ? 'bg-blue-500 text-white' : 'border border-gray-300 text-gray-700 hover:bg-gray-50 bg-white'
-                      }`}
+                      className={`w-7 h-7 rounded text-xs font-bold transition-colors ${currentPage === page ? 'bg-blue-500 text-white' : 'border border-gray-300 text-gray-700 hover:bg-gray-50 bg-white'
+                        }`}
                       disabled={loading}
                     >
                       {page}
@@ -1382,14 +1458,133 @@ const Quotes: React.FC = () => {
       </Modal>
 
       {/* Convert to Sales Order Confirmation Modal */}
-      <Modal isOpen={!!salesModalQuote} onClose={closeSalesModal} title="Convert to Sales Order" size="sm">
+      <Modal isOpen={!!salesModalQuote} onClose={closeSalesModal} title={`Convert to Sales Order - ${salesModalQuote?.quoteNo}`} size="xl">
         {salesModalQuote && (
-          <div className="space-y-4 p-2">
-            <p className="text-sm font-semibold text-gray-700">Are you sure you want to convert quote <strong>{salesModalQuote.quoteNo}</strong> to a Sales Order?</p>
-            <div className="flex justify-end gap-2.5">
-              <Button variant="outline" onClick={closeSalesModal}>Cancel</Button>
-              <Button onClick={confirmConvertToSalesOrder} loading={convertingId === salesModalQuote.id}>Convert</Button>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4 bg-gradient-to-r from-emerald-50 to-teal-50 p-4 rounded-xl border border-emerald-100 shadow-inner">
+              <div>
+                <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">Customer Details</span>
+                <span className="font-bold text-gray-900 text-sm block mt-0.5">{salesModalQuote.customer?.name || 'N/A'}</span>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">Total Amount</span>
+                <span className="font-bold text-emerald-700 text-base block mt-0.5">₹{salesModalQuote.totalAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
             </div>
+
+            {salesOrderStockLoading ? (
+              <div className="flex flex-col items-center justify-center py-10 space-y-2">
+                <Loader2 className="h-8 w-8 animate-spin text-primary-500" />
+                <span className="text-xs text-gray-500 font-medium">Fetching available batches...</span>
+              </div>
+            ) : (
+              <>
+                <div className="text-xs text-amber-800 bg-amber-50/70 border border-amber-250 rounded-lg px-3.5 py-2.5 flex items-start gap-2">
+                  <span className="mt-0.5 text-amber-500 font-bold">ℹ️</span>
+                  <p className="leading-relaxed font-medium">
+                    Please select the stock batches from which you want to book inventory for this Sales Order. The booked stock will be reserved until invoiced.
+                  </p>
+                </div>
+
+                <div className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm max-h-[50vh] overflow-y-auto">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50 sticky top-0 z-10">
+                        <tr>
+                          <th scope="col" className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Product Details</th>
+                          <th scope="col" className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider w-[50%]">Select Stock Batch</th>
+                          <th scope="col" className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider w-[20%]">Sale Unit</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 bg-white">
+                        {(salesModalQuote.items || []).map((item: QuoteItem) => {
+                          const batches = salesOrderStockCache[item.productId.toString()] || [];
+                          const sel = salesOrderBatchSelections[item.id] || { stockBatchId: '', saleUnit: item.unit || 'box' };
+
+                          return (
+                            <tr key={item.id} className="hover:bg-gray-50 transition-colors duration-150">
+                              <td className="px-4 py-3.5">
+                                <div className="flex items-start gap-2.5">
+                                  <div className="p-1.5 bg-emerald-50 rounded-lg text-emerald-700 mt-0.5">
+                                    <Package className="h-4 w-4" />
+                                  </div>
+                                  <div>
+                                    <div className="font-semibold text-gray-900 text-xs sm:text-sm max-w-[220px] truncate" title={item.product?.name}>
+                                      {item.product?.name || `Product #${item.productId}`}
+                                    </div>
+                                    <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-gray-500">
+                                      {item.product?.grade && (
+                                        <span className="bg-gray-100 text-gray-700 px-1 rounded font-medium">{item.product.grade}</span>
+                                      )}
+                                      <span className="font-bold text-primary-700">Req: {item.quantity} {item.unit}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3.5">
+                                {batches.length === 0 ? (
+                                  <div className="text-[11px] text-red-650 bg-red-50 border border-red-150 rounded px-2.5 py-1.5 font-medium inline-flex items-center gap-1">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse"></span>
+                                    No stock available
+                                  </div>
+                                ) : (
+                                  <select
+                                    className="w-full border border-gray-300 rounded-md px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 bg-white font-medium text-gray-800 shadow-sm"
+                                    value={sel.stockBatchId}
+                                    onChange={(e) => setSalesOrderBatchSelections(prev => ({
+                                      ...prev,
+                                      [item.id]: { ...sel, stockBatchId: e.target.value }
+                                    }))}
+                                  >
+                                    <option value="">Select batch...</option>
+                                    {batches.map((b: StockBatch) => {
+                                      const availBoxes = b.remainingBoxes - (b.bookedBoxes || 0);
+                                      const availPacks = b.remainingPacks - (b.bookedPacks || 0);
+                                      const availPcs = b.remainingPcs - (b.bookedPcs || 0);
+                                      return (
+                                        <option key={b.id} value={b.id}>
+                                          [{b.location?.name || 'Loc'}] {b.vendor?.name || 'Vendor'} - {b.batchCode || 'No Batch'} (Avail: {availBoxes}b / {availPacks}pk / {availPcs}pc)
+                                        </option>
+                                      );
+                                    })}
+                                  </select>
+                                )}
+                              </td>
+                              <td className="px-4 py-3.5">
+                                <select
+                                  className="w-full border border-gray-300 rounded-md px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 bg-white font-medium text-gray-800 shadow-sm"
+                                  value={sel.saleUnit}
+                                  onChange={(e) => setSalesOrderBatchSelections(prev => ({
+                                    ...prev,
+                                    [item.id]: { ...sel, saleUnit: e.target.value }
+                                  }))}
+                                >
+                                  <option value="box">Box</option>
+                                  <option value="pack">Pack</option>
+                                  <option value="piece">Piece</option>
+                                </select>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-3.5 border-t border-gray-200">
+                  <Button variant="outline" onClick={closeSalesModal}>Cancel</Button>
+                  <Button
+                    onClick={confirmConvertToSalesOrder}
+                    loading={convertingId === salesModalQuote.id}
+                    disabled={salesOrderStockLoading}
+                    variant="primary"
+                  >
+                    Confirm & Book Stock
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         )}
       </Modal>

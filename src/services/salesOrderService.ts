@@ -26,8 +26,8 @@ export const salesOrderService = {
     await api.delete(`/sales-orders/${id}`);
   },
 
-  convertFromQuote: async (quoteId: string | number): Promise<SalesOrder> => {
-    const response = await api.post(`/sales-orders/convert-from-quote/${quoteId}`);
+  convertFromQuote: async (quoteId: string | number, items?: { productId: number | string; stockBatchId: string | number; saleUnit: string }[]): Promise<SalesOrder> => {
+    const response = await api.post(`/sales-orders/convert-from-quote/${quoteId}`, { items });
     return response.data.data;
   },
 
