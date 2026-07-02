@@ -52,8 +52,7 @@ const Inward: React.FC = () => {
   );
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortBy, setSortBy] = useState<string>('date');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [dateSortOrder, setDateSortOrder] = useState<'asc' | 'desc'>('desc');
   const [directScannerOpen, setDirectScannerOpen] = useState(false);
   const [showScanLocationModal, setShowScanLocationModal] = useState(false);
   const [selectedScanLocation, setSelectedScanLocation] = useState('');
@@ -193,13 +192,11 @@ const Inward: React.FC = () => {
     {
       key: 'date',
       title: 'Date',
-      sortable: true,
       render: (value: string) => formatDate(value),
     },
     {
       key: 'vendor.name',
       title: 'Vendor',
-      sortable: true,
       render: (_: any, record: InwardInvoice) => (
         <div>
           <div className="font-medium">{record.vendor?.name}</div>
@@ -210,25 +207,21 @@ const Inward: React.FC = () => {
     {
       key: 'location.name',
       title: 'Location',
-      sortable: true,
       render: (_: any, record: InwardInvoice) => record.location?.name,
     },
     {
       key: 'totalCost',
       title: 'Total Cost',
-      sortable: true,
       render: (value: number) => <span className="font-semibold">{formatCurrency(value)}</span>,
     },
     {
       key: 'amountPaid',
       title: 'Amount Paid',
-      sortable: true,
       render: (_: any, record: InwardInvoice) => formatCurrency(record.amountPaid || 0),
     },
     {
       key: 'balanceDue',
       title: 'Balance Due',
-      sortable: true,
       render: (_: any, record: InwardInvoice) => {
         const balance = record.totalCost - (record.amountPaid || 0);
         return <span className={cn('font-semibold', balance > 0 ? 'text-red-600' : 'text-gray-900')}>{formatCurrency(balance)}</span>;
@@ -326,51 +319,14 @@ const Inward: React.FC = () => {
       <div className="card overflow-x-auto">
         <Table
           data={[...invoices].sort((a, b) => {
-            let valA: any;
-            let valB: any;
-
-            if (sortBy === 'vendor.name') {
-              valA = a.vendor?.name || '';
-              valB = b.vendor?.name || '';
-            } else if (sortBy === 'location.name') {
-              valA = a.location?.name || '';
-              valB = b.location?.name || '';
-            } else if (sortBy === 'balanceDue') {
-              valA = a.totalCost - (a.amountPaid || 0);
-              valB = b.totalCost - (b.amountPaid || 0);
-            } else {
-              valA = a[sortBy as keyof InwardInvoice] ?? '';
-              valB = b[sortBy as keyof InwardInvoice] ?? '';
-            }
-
-            if (sortBy === 'date') {
-              const diff = new Date(valA).getTime() - new Date(valB).getTime();
-              return sortOrder === 'asc' ? diff : -diff;
-            }
-
-            if (typeof valA === 'string' && typeof valB === 'string') {
-              const comp = valA.localeCompare(valB);
-              return sortOrder === 'asc' ? comp : -comp;
-            }
-
-            if (typeof valA === 'number' && typeof valB === 'number') {
-              return sortOrder === 'asc' ? valA - valB : valB - valA;
-            }
-
-            return 0;
+            const diff = new Date(a.date).getTime() - new Date(b.date).getTime();
+            return dateSortOrder === 'asc' ? diff : -diff;
           })}
           columns={columns}
           loading={loading}
-          sortBy={sortBy}
-          sortOrder={sortOrder}
-          onSort={(key) => {
-            if (sortBy === key) {
-              setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
-            } else {
-              setSortBy(key);
-              setSortOrder('asc');
-            }
-          }}
+          sortBy="date"
+          sortOrder={dateSortOrder}
+          onSort={() => setDateSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
         />
 
         <Pagination
@@ -491,62 +447,43 @@ const Inward: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {(() => {
-                      const list: any[] = [];
-                      selectedInvoice.items?.forEach((item) => {
-                        if (item.boxes > 0) {
-                          list.push(item);
-                        }
-                        if (item.subItems && item.subItems.length > 0) {
-                          item.subItems.forEach((sub: any) => {
-                            list.push({
-                              ...sub,
-                              product: item.product,
-                              isSubItem: true,
-                            });
-                          });
-                        }
-                      });
-                      return list.map((item, index) => (
-                        <tr key={index} className={cn(item.isSubItem && "bg-gray-50/50")}>
-                          <td className="px-4 py-2 text-sm text-gray-900">
-                            {item.isSubItem && <span className="text-gray-400 mr-1.5">└</span>}
-                            {item.product?.name}{' '}
-                            {item.product?.grade && `(${item.product.grade})`}
-                            {item.isSubItem && <span className="text-gray-400 text-xs ml-1.5">(Split Lot)</span>}
-                          </td>
-                          <td className="px-4 py-2 text-sm text-gray-900">
-                            {item.product?.sku || '—'}
-                          </td>
-                          <td className="px-4 py-2 text-sm text-gray-900">
-                            {item.boxes}
-                          </td>
-                          <td className="px-4 py-2 text-sm text-gray-900">
-                            {item.packPerBox || item.pcsPerBox || 'N/A'}
-                          </td>
-                          <td className="px-4 py-2 text-sm text-gray-900">
-                            {item.packPerPiece || 1}
-                          </td>
-                          <td className="px-4 py-2 text-sm text-gray-900">
-                            {item.totalPacks ||
-                              item.boxes *
-                                (item.packPerBox || item.pcsPerBox || 1)}
-                          </td>
-                          <td className="px-4 py-2 text-sm text-gray-900">
-                            {item.totalPcs}
-                          </td>
-                          <td className="px-4 py-2 text-sm text-gray-900">
-                            {formatCurrency(item.ratePerBox)}
-                          </td>
-                          <td className="px-4 py-2 text-sm text-gray-900">
-                            {formatCurrency(item.gstAmount)}
-                          </td>
-                          <td className="px-4 py-2 text-sm text-gray-900 font-semibold">
-                            {formatCurrency(item.totalCost)}
-                          </td>
-                        </tr>
-                      ));
-                    })()}
+                    {selectedInvoice.items?.map((item, index) => (
+                      <tr key={index}>
+                        <td className="px-4 py-2 text-sm text-gray-900">
+                          {item.product?.name}{' '}
+                          {item.product?.grade && `(${item.product.grade})`}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-900">
+                          {item.product?.sku || '—'}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-900">
+                          {item.boxes}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-900">
+                          {item.packPerBox || item.pcsPerBox || 'N/A'}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-900">
+                          {item.packPerPiece || 1}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-900">
+                          {item.totalPacks ||
+                            item.boxes *
+                              (item.packPerBox || item.pcsPerBox || 1)}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-900">
+                          {item.totalPcs}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-900">
+                          {formatCurrency(item.ratePerBox)}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-900">
+                          {formatCurrency(item.gstAmount)}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-900 font-semibold">
+                          {formatCurrency(item.totalCost)}
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
