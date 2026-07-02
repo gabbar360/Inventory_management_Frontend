@@ -94,7 +94,7 @@ const inwardSchema = z.object({
     .array(
       z.object({
         productId: z.union([z.string(), z.number()]).pipe(z.coerce.string().min(1, 'Product is required')),
-        boxes: z.number().min(1, 'Boxes must be at least 1'),
+        boxes: z.number().min(0, 'Boxes must be at least 0'),
         packPerBox: z.number().min(1, 'Pack per box must be at least 1'),
         packPerPiece: z.number().min(1, 'Pack per piece must be at least 1'),
         unit: z.enum(['box', 'pack', 'piece']).default('box'),
@@ -118,7 +118,14 @@ const inwardSchema = z.object({
         ).optional(),
       })
     )
-    .min(1, 'At least one item is required'),
+    .min(1, 'At least one item is required')
+    .refine(
+      (items) => items.every(item => (item.subItems && item.subItems.length > 0) || item.boxes >= 1),
+      {
+        message: 'Boxes must be at least 1 when no sub items are present',
+        path: [],
+      }
+    ),
 });
 
 interface AddEditInwardProps {
@@ -519,13 +526,22 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
     const product = products.find((p) => String(p.id) === String(item.productId));
     const gstRate = product?.category?.gstRate || 0;
     
-    const boxes = Number(item.boxes) || 0;
+    const originalBoxes = Number(item.boxes) || 0;
     const packPerBox = Number(item.packPerBox) || 0;
     const packPerPiece = Number(item.packPerPiece) || 0;
     const rate = Number(item.ratePerBox) || 0;
     const unit = item.unit || 'box';
 
-    const totalPacks = boxes * packPerBox;
+    // Sum sub-item boxes
+    let sumSubBoxes = 0;
+    if (item.subItems && item.subItems.length > 0) {
+      item.subItems.forEach((sub) => {
+        sumSubBoxes += Number(sub.boxes) || 0;
+      });
+    }
+
+    const remainderBoxes = originalBoxes;
+    const totalPacks = remainderBoxes * packPerBox;
     const totalPcs = totalPacks * packPerPiece;
 
     let ratePerPack = 0;
@@ -535,7 +551,7 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
     if (unit === 'box') {
       ratePerPack = packPerBox > 0 ? rate / packPerBox : 0;
       ratePerPcs = (packPerBox > 0 && packPerPiece > 0) ? rate / (packPerBox * packPerPiece) : 0;
-      baseAmount = boxes * rate;
+      baseAmount = remainderBoxes * rate;
     } else if (unit === 'pack') {
       ratePerPack = rate;
       ratePerPcs = packPerPiece > 0 ? rate / packPerPiece : 0;
@@ -553,6 +569,9 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
     let totalSubAmount = 0;
     let totalSubBase = 0;
     let totalSubGst = 0;
+    let totalSubPcs = 0;
+    let totalSubPacks = 0;
+
     if (item.subItems && item.subItems.length > 0) {
       item.subItems.forEach((sub) => {
         const subBoxes = Number(sub.boxes) || 0;
@@ -563,6 +582,8 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
 
         const subPacks = subBoxes * subPackPerBox;
         const subPcs = subPacks * subPackPerPiece;
+        totalSubPcs += subPcs;
+        totalSubPacks += subPacks;
 
         let subBase = 0;
         if (subUnit === 'box') {
@@ -581,8 +602,8 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
     }
 
     return {
-      totalPacks,
-      totalPcs,
+      totalPacks: totalPacks + totalSubPacks,
+      totalPcs: totalPcs + totalSubPcs,
       ratePerPack,
       ratePerPcs,
       baseAmount: baseAmount + totalSubBase,
@@ -598,8 +619,9 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
       toast.error('Please select a product');
       return;
     }
-    if (!newItem.boxes || newItem.boxes <= 0) {
-      toast.error('Boxes must be at least 1');
+    const hasSubItems = newItem.subItems && newItem.subItems.length > 0;
+    if (newItem.boxes < 0 || (!hasSubItems && (!newItem.boxes || newItem.boxes <= 0))) {
+      toast.error(hasSubItems ? 'Boxes must be positive' : 'Boxes must be at least 1');
       return;
     }
     if (!newItem.ratePerBox || newItem.ratePerBox < 0) {
@@ -667,8 +689,9 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
       toast.error('Please select a product');
       return;
     }
-    if (!editingData.boxes || editingData.boxes <= 0) {
-      toast.error('Boxes must be at least 1');
+    const hasSubItemsEdit = editingData.subItems && editingData.subItems.length > 0;
+    if (editingData.boxes < 0 || (!hasSubItemsEdit && (!editingData.boxes || editingData.boxes <= 0))) {
+      toast.error(hasSubItemsEdit ? 'Boxes must be positive' : 'Boxes must be at least 1');
       return;
     }
     if (editingData.ratePerBox < 0) {
@@ -1003,7 +1026,17 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
                             ...newItem,
                             subItems: [
                               ...currentSubItems,
-                              { boxes: 1, packPerBox: 1, packPerPiece: 1, unit: 'box', ratePerBox: 0, color: newItem.color || '', brand: newItem.brand || '' },
+                              { 
+                                boxes: 1, 
+                                packPerBox: 1, 
+                                packPerPiece: 1, 
+                                unit: 'box', 
+                                ratePerBox: 0, 
+                                batchCode: '',
+                                mfgDate: '',
+                                color: '', 
+                                brand: '' 
+                              },
                             ],
                           });
                         }}
@@ -1187,7 +1220,15 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
                       const unit = item.unit || 'box';
                       const gstRate = product?.category?.gstRate || 0;
 
-                      const totalPacks = (item.boxes || 0) * (item.packPerBox || 0);
+                      const remainderBoxes = item.boxes || 0;
+                      let sumSubBoxes = 0;
+                      if (item.subItems && item.subItems.length > 0) {
+                        item.subItems.forEach((sub) => {
+                          sumSubBoxes += Number(sub.boxes) || 0;
+                        });
+                      }
+
+                      const totalPacks = remainderBoxes * (item.packPerBox || 0);
                       const totalPcs = totalPacks * (item.packPerPiece || 0);
 
                       let ratePerBox = 0, ratePerPack = 0, ratePerPcs = 0, baseAmount = 0;
@@ -1195,7 +1236,7 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
                         ratePerBox = item.ratePerBox || 0;
                         ratePerPack = ratePerBox / (item.packPerBox || 1);
                         ratePerPcs = ratePerPack / (item.packPerPiece || 1);
-                        baseAmount = (item.boxes || 0) * ratePerBox;
+                        baseAmount = remainderBoxes * ratePerBox;
                       } else if (unit === 'pack') {
                         ratePerPack = item.ratePerBox || 0;
                         ratePerBox = ratePerPack * (item.packPerBox || 1);
@@ -1210,6 +1251,37 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
 
                       const gstAmount = (baseAmount * gstRate) / 100;
                       const itemTotal = baseAmount + gstAmount;
+
+                      // Calculate sub-items totals for this line
+                      let subBaseAmountTotal = 0;
+                      let subGstAmountTotal = 0;
+                      let subTotalBoxesTotal = 0;
+                      if (item.subItems && item.subItems.length > 0) {
+                        item.subItems.forEach((sub) => {
+                          const subBoxes = Number(sub.boxes) || 0;
+                          subTotalBoxesTotal += subBoxes;
+
+                          const subTotalPacks = subBoxes * (sub.packPerBox || 0);
+                          const subTotalPcs = subTotalPacks * (sub.packPerPiece || 0);
+
+                          const subUnit = sub.unit || 'box';
+                          let subBase = 0;
+                          if (subUnit === 'box') {
+                            subBase = subBoxes * (sub.ratePerBox || 0);
+                          } else if (subUnit === 'pack') {
+                            subBase = subTotalPacks * (sub.ratePerBox || 0);
+                          } else {
+                            subBase = subTotalPcs * (sub.ratePerBox || 0);
+                          }
+                          subBaseAmountTotal += subBase;
+                        });
+                        subGstAmountTotal = (subBaseAmountTotal * gstRate) / 100;
+                      }
+                      const subTotalCostTotal = subBaseAmountTotal + subGstAmountTotal;
+
+                      const overallBase = baseAmount + subBaseAmountTotal;
+                      const overallGst = gstAmount + subGstAmountTotal;
+                      const overallTotal = itemTotal + subTotalCostTotal;
 
                       return (
                         <React.Fragment key={idx}>
@@ -1237,7 +1309,17 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
                             <td className="p-2 text-xs text-gray-800" data-label="SKU">
                               {product?.sku || products.find((p) => String(p.id) === String(item.productId))?.sku || '—'}
                             </td>
-                            <td className="p-2 text-center text-xs text-gray-800" data-label="Boxes">{item.boxes}</td>
+                            <td className="p-2 text-center text-[10px] sm:text-xs text-gray-800" data-label="Boxes">
+                              {item.subItems && item.subItems.length > 0 ? (
+                                <div className="space-y-0.5">
+                                  <div><span className="text-gray-400 font-medium">Parent:</span> <span className="font-bold">{item.boxes}</span></div>
+                                  <div><span className="text-purple-600 font-medium">Sub:</span> <span className="font-medium text-purple-700">{subTotalBoxesTotal}</span></div>
+                                  <div className="pt-0.5 border-t border-dashed border-gray-200"><span className="text-gray-500 font-medium">Total:</span> <span className="font-bold text-gray-700">{item.boxes + subTotalBoxesTotal}</span></div>
+                                </div>
+                              ) : (
+                                <span>{item.boxes}</span>
+                              )}
+                            </td>
                             <td className="p-2 text-center text-xs text-gray-800" data-label="Pack/Box">{item.packPerBox}</td>
                             <td className="p-2 text-center text-xs text-gray-800" data-label="Pcs/Pack">{item.packPerPiece}</td>
                             <td className="p-2 text-xs text-gray-800 uppercase" data-label="Unit">{item.unit}</td>
@@ -1250,10 +1332,36 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
                               <div><span className="font-bold text-gray-600">Rate/PCS:</span> {formatCurrency(ratePerPcs)}</div>
                             </td>
 
-                            <td className="p-2 text-right text-[9px] space-y-0.5 leading-none" data-label="Totals">
-                              <div><span className="text-gray-400">Base:</span> <span className="font-semibold text-gray-800">{formatCurrency(baseAmount)}</span></div>
-                              <div><span className="text-gray-400">GST:</span> <span className="text-gray-800">{formatCurrency(gstAmount)}</span></div>
-                              <div className="pt-0.5 border-t border-gray-150"><span className="text-gray-500 font-bold">Total:</span> <span className="font-extrabold text-primary-650">{formatCurrency(itemTotal)}</span></div>
+                            <td className="p-2 text-right text-[9px] space-y-1.5 leading-none" data-label="Totals">
+                              {/* Parent cost (if sub-items exist) */}
+                              {item.subItems && item.subItems.length > 0 && (
+                                <div className="space-y-0.5 border-b border-dashed border-gray-200 pb-1">
+                                  <div className="text-gray-500 font-bold">Parent Item ({item.boxes} Box):</div>
+                                  <div><span className="text-gray-400">Base:</span> <span className="font-medium text-gray-700">{formatCurrency(baseAmount)}</span></div>
+                                  <div><span className="text-gray-400">GST:</span> <span className="text-gray-700">{formatCurrency(gstAmount)}</span></div>
+                                  <div><span className="text-gray-500 font-semibold">Total:</span> <span className="font-semibold text-gray-800">{formatCurrency(itemTotal)}</span></div>
+                                </div>
+                              )}
+                              
+                              {/* Sub-items cost (if sub-items exist) */}
+                              {item.subItems && item.subItems.length > 0 && (
+                                <div className="space-y-0.5 border-b border-dashed border-gray-200 pb-1">
+                                  <div className="text-purple-600 font-bold">Sub-Items ({subTotalBoxesTotal} Box):</div>
+                                  <div><span className="text-gray-400">Base:</span> <span className="font-medium text-gray-700">{formatCurrency(subBaseAmountTotal)}</span></div>
+                                  <div><span className="text-gray-400">GST:</span> <span className="text-gray-700">{formatCurrency(subGstAmountTotal)}</span></div>
+                                  <div><span className="text-purple-500 font-semibold">Total:</span> <span className="font-semibold text-purple-700">{formatCurrency(subTotalCostTotal)}</span></div>
+                                </div>
+                              )}
+
+                              {/* Combined total */}
+                              <div className="space-y-0.5">
+                                {item.subItems && item.subItems.length > 0 && (
+                                  <div className="text-primary-700 font-bold">Line Combined Total:</div>
+                                )}
+                                <div><span className="text-gray-400">Base:</span> <span className="font-semibold text-gray-800">{formatCurrency(overallBase)}</span></div>
+                                <div><span className="text-gray-400">GST:</span> <span className="text-gray-800">{formatCurrency(overallGst)}</span></div>
+                                <div className="pt-0.5 border-t border-gray-150"><span className="text-gray-500 font-bold">Total:</span> <span className="font-extrabold text-primary-650">{formatCurrency(overallTotal)}</span></div>
+                              </div>
                             </td>
 
                             <td className="p-2 text-center" data-label="Sub Items">
@@ -1491,7 +1599,17 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
                                             ...editingData,
                                             subItems: [
                                               ...subLines,
-                                              { boxes: 1, packPerBox: 1, packPerPiece: 1, unit: 'box', ratePerBox: 0 },
+                                              { 
+                                                boxes: 1, 
+                                                packPerBox: 1, 
+                                                packPerPiece: 1, 
+                                                unit: 'box', 
+                                                ratePerBox: 0,
+                                                batchCode: '',
+                                                mfgDate: '',
+                                                color: '',
+                                                brand: ''
+                                              },
                                             ],
                                           });
                                         }}
