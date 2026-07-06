@@ -47,6 +47,7 @@ const playErrorSound = () => {
 };
 
 interface InwardItem {
+  id?: string;
   productId: string;
   boxes: number;
   packPerBox: number;
@@ -77,7 +78,7 @@ interface InwardInvoiceFormData {
   vendorId: string;
   locationId: string;
   expense: number;
-  items: InwardItem[];
+  items: (InwardItem & { id?: string })[];
   purchaseOrderId?: string;
   scannedBarcodes?: string[];
 }
@@ -93,6 +94,7 @@ const inwardSchema = z.object({
   items: z
     .array(
       z.object({
+        id: z.string().optional(),
         productId: z.union([z.string(), z.number()]).pipe(z.coerce.string().min(1, 'Product is required')),
         boxes: z.number().min(1, 'Boxes must be at least 1'),
         packPerBox: z.number().min(1, 'Pack per box must be at least 1'),
@@ -246,6 +248,7 @@ const AddEditInward: React.FC<AddEditInwardProps> = ({ invoice, onSuccess, onCan
         }
 
         return {
+          id: String(item.id),
           productId: String(item.productId),
           boxes: item.boxes,
           packPerBox: item.packPerBox || item.pcsPerBox || 1,
