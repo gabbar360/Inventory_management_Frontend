@@ -356,8 +356,14 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
     setValue('items', items, { shouldValidate: true });
   }, [items, setValue]);
 
-  // ── Auto-calculate rounding adjustment ──
+  const [adjustmentLocked, setAdjustmentLocked] = useState(false);
+
+  // ── Auto-calculate rounding adjustment (only for new invoices or when cache is ready) ──
   useEffect(() => {
+    if (adjustmentLocked) return;
+    // Don't recalculate if cache is empty but items exist (cache not loaded yet)
+    const cacheReady = items.every((item) => !item.productId || availableStockCache[item.productId]);
+    if (!cacheReady) return;
     let totalBase = 0;
     let totalGst = 0;
     items.forEach((item) => {
@@ -374,7 +380,7 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
     const raw = totalBase + totalGst + shippingGstAmt + expenseVal + shippingVal - discountVal;
     const rounding = raw - Math.round(raw);
     setValue('adjustment', rounding.toFixed(2), { shouldValidate: false, shouldDirty: false });
-  }, [items, watchedExpense, watchedShipping, watchedDiscount]);
+  }, [items, watchedExpense, watchedShipping, watchedDiscount, availableStockCache, adjustmentLocked]);
 
   // ── Load customers & Indian states ──
   useEffect(() => {
@@ -416,6 +422,7 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
   // ── Populate form when editing (Edit mode) ──
   useEffect(() => {
     if (invoice) {
+      setAdjustmentLocked(true); // lock until stock cache is loaded
       reset({
         invoiceNo: invoice.invoiceNo,
         date: invoice.date.split('T')[0],
@@ -443,13 +450,17 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
       setItems(mappedItems);
       setExpandedItems(new Set(mappedItems.map((_, i) => i)));
 
-      // Load stock batches for editing items
+      // Load stock batches for editing items, then unlock adjustment
       if (invoice.items) {
         const uniqueProductIds = [...new Set(invoice.items.map((i) => i.productId))];
-        uniqueProductIds.forEach((pid) => {
-          const batchIds = invoice.items?.filter((i) => i.productId === pid).map((i) => i.stockBatchId.toString()) || [];
-          loadAvailableStock(pid.toString(), batchIds);
-        });
+        Promise.all(
+          uniqueProductIds.map((pid) => {
+            const batchIds = invoice.items?.filter((i) => i.productId === pid).map((i) => i.stockBatchId.toString()) || [];
+            return loadAvailableStock(pid.toString(), batchIds);
+          })
+        ).then(() => setAdjustmentLocked(false));
+      } else {
+        setAdjustmentLocked(false);
       }
     } else {
       reset({
