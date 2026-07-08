@@ -4,7 +4,7 @@ import {
   Mail, Phone, Building2, MapPin, Calendar,
   TrendingUp, Users, CheckCircle2, XCircle, Briefcase,
   MessageSquare, ChevronDown, Sparkles, ArrowUpRight,
-  LayoutDashboard, List, Filter, Search,
+  LayoutDashboard, List, Filter, Search, RefreshCw,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -253,12 +253,18 @@ const Leads: React.FC = () => {
 
   useEffect(() => { setCurrentPage(1); }, [viewMode, debouncedSearch, filterSource]);
 
-  useEffect(() => {
+  const fetchLeadsData = () => {
     if (viewMode === 'list') {
       dispatch(fetchLeads({ page: currentPage, limit: 10, search: debouncedSearch || undefined, source: filterSource !== 'all' ? filterSource : undefined }));
     } else {
       dispatch(fetchLeads({ page: 1, limit: 500, search: debouncedSearch || undefined, source: filterSource !== 'all' ? filterSource : undefined }));
     }
+  };
+
+  useEffect(() => {
+    fetchLeadsData();
+    const interval = setInterval(fetchLeadsData, 30000);
+    return () => clearInterval(interval);
   }, [dispatch, viewMode, currentPage, debouncedSearch, filterSource]);
 
   useEffect(() => {
