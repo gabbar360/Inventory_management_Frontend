@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { Plus, Trash2, Eye, Download, Edit, Loader2, Printer, Mail } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -8,6 +8,7 @@ import {
   fetchPurchaseOrderById,
   deletePurchaseOrder,
   downloadPurchaseOrderPDF,
+  clearCurrentPurchaseOrder,
 } from '@/slices/purchaseOrderSlice';
 import { PurchaseOrder } from '@/types';
 import { formatCurrency, formatDate, debounce } from '@/utils';
@@ -23,8 +24,12 @@ import ShareDocumentModal from '@/components/ShareDocumentModal';
 const PurchaseOrders: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const location = useLocation();
   const dispatch = useAppDispatch();
   const { orders, currentPurchaseOrder, pagination, loading } = useAppSelector((state) => state.purchaseOrders);
+
+  const isAddMode = location.pathname.includes('/add');
+  const isEditMode = !!id;
 
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null);
@@ -42,6 +47,11 @@ const PurchaseOrders: React.FC = () => {
   useEffect(() => {
     if (id) dispatch(fetchPurchaseOrderById(id));
   }, [id, dispatch]);
+
+  // Clear stale PO data when in add mode
+  useEffect(() => {
+    if (isAddMode) dispatch(clearCurrentPurchaseOrder());
+  }, [isAddMode, dispatch]);
 
   const debouncedSearch = debounce((value: string) => {
     setSearch(value);
@@ -173,10 +183,21 @@ const PurchaseOrders: React.FC = () => {
     },
   ];
 
-  if (id || window.location.pathname.includes('/add')) {
+  if (isEditMode || isAddMode) {
+    // Show spinner while fetching the PO in edit mode
+    if (isEditMode && loading && !currentPurchaseOrder) {
+      return (
+        <div className="flex items-center justify-center min-h-[300px]">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary-600 mx-auto mb-2" />
+            <p className="text-xs text-gray-500 font-medium">Loading purchase order...</p>
+          </div>
+        </div>
+      );
+    }
     return (
       <AddEditPurchaseOrder
-        purchaseOrder={id && currentPurchaseOrder ? currentPurchaseOrder : undefined}
+        purchaseOrder={isEditMode && currentPurchaseOrder ? currentPurchaseOrder : undefined}
         onSuccess={handleFormSuccess}
         onCancel={handleFormCancel}
       />

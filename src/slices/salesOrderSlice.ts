@@ -35,7 +35,7 @@ export const deleteSalesOrder = createAsyncThunk('salesOrders/delete', async (id
 
 export const convertQuoteToSalesOrder = createAsyncThunk(
   'salesOrders/convertFromQuote',
-  async ({ quoteId, items }: { quoteId: string | number; items: { productId: number | string; stockBatchId: string | number; saleUnit: string }[] }, { rejectWithValue }) => {
+  async ({ quoteId, items }: { quoteId: string | number; items: { quoteItemId?: number | string; productId: number | string; stockBatchId: string | number; saleUnit: string; quantity?: number }[] }, { rejectWithValue }) => {
     try {
       return await salesOrderService.convertFromQuote(quoteId, items);
     } catch (e: any) {
@@ -43,6 +43,10 @@ export const convertQuoteToSalesOrder = createAsyncThunk(
     }
   }
 );
+
+export const fetchSalesOrderById = createAsyncThunk('salesOrders/fetchById', async (id: string) => {
+  return await salesOrderService.getById(id);
+});
 
 export const convertSalesOrderToInvoice = createAsyncThunk(
   'salesOrders/convertToInvoice',
@@ -72,6 +76,10 @@ const salesOrderSlice = createSlice({
       .addCase(fetchSalesOrders.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch sales orders';
+      })
+      .addCase(fetchSalesOrderById.fulfilled, (state, action) => {
+        const idx = state.orders.findIndex((o) => o.id === action.payload.id);
+        if (idx !== -1) state.orders[idx] = action.payload;
       })
       .addCase(createSalesOrder.fulfilled, (state, action) => { state.orders.unshift(action.payload); })
       .addCase(updateSalesOrder.fulfilled, (state, action) => {

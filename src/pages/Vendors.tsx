@@ -252,7 +252,9 @@ const Vendors: React.FC = () => {
   };
 
   const handleFormCancel = () => {
-    if (id) {
+    if (isEditMode) {
+      navigate('/vendors');
+    } else if (id) {
       if (activeTab === 'transactions') {
         navigate(`/vendors/${id}/purchase`);
       } else if (activeTab === 'statement') {

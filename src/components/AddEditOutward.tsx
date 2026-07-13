@@ -117,6 +117,7 @@ interface MultiLineSelectProps {
   placeholder?: string;
   disabled?: boolean;
   error?: string;
+  showLabel?: boolean;
 }
 
 const MultiLineSelect: React.FC<MultiLineSelectProps> = ({
@@ -126,6 +127,7 @@ const MultiLineSelect: React.FC<MultiLineSelectProps> = ({
   placeholder = 'Select option',
   disabled = false,
   error,
+  showLabel = true,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -143,7 +145,7 @@ const MultiLineSelect: React.FC<MultiLineSelectProps> = ({
 
   return (
     <div ref={dropdownRef} className="relative">
-      <label className="block text-xs font-semibold text-gray-700 mb-1">Stock Batch *</label>
+      {showLabel && <label className="block text-xs font-semibold text-gray-700 mb-1">Stock Batch *</label>}
       <button
         type="button"
         onClick={() => !disabled && setIsOpen(!isOpen)}
@@ -226,6 +228,13 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
     ratePerUnit: 0,
     description: '',
   });
+  const [newItemSelections, setNewItemSelections] = useState<Array<{
+    id: string;
+    stockBatchId: string;
+    saleUnit: 'box' | 'pack' | 'piece';
+    quantity: number;
+    ratePerUnit: number;
+  }>>([{ id: '1', stockBatchId: '', saleUnit: 'box', quantity: 1, ratePerUnit: 0 }]);
 
   // Editing state
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -450,6 +459,15 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
       setItems(mappedItems);
       setExpandedItems(new Set(mappedItems.map((_, i) => i)));
 
+      // Pre-populate productsCache from existing items so GST shows immediately
+      const productsCacheUpdate: { [key: string]: Product } = {};
+      invoice.items?.forEach((item) => {
+        if (item.product) productsCacheUpdate[String(item.productId)] = item.product as Product;
+      });
+      if (Object.keys(productsCacheUpdate).length > 0) {
+        setProductsCache((prev) => ({ ...prev, ...productsCacheUpdate }));
+      }
+
       // Load stock batches for editing items, then unlock adjustment
       if (invoice.items) {
         const uniqueProductIds = [...new Set(invoice.items.map((i) => i.productId))];
@@ -494,8 +512,9 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
   const getPreviewDetails = (item: OutwardItem) => {
     const stockBatches = availableStockCache[item.productId] || [];
     const selectedBatch = stockBatches.find((b) => b.id.toString() === item.stockBatchId?.toString());
-    const product = productsCache[item.productId] || selectedBatch?.product;
-    const gstRate = product?.category?.gstRate || 0;
+    // Fallback chain: productsCache → cache batch product → item's own product (edit mode)
+    const product = productsCache[item.productId] || selectedBatch?.product || item.product;
+    const gstRate = product?.category?.gstRate ?? item.stockBatch?.product?.category?.gstRate ?? 0;
 
     const baseAmount = (item.quantity || 0) * (item.ratePerUnit || 0);
     const gstAmount = (baseAmount * gstRate) / 100;
@@ -552,7 +571,8 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
   const getMaxStock = (item: OutwardItem, isEditingRow = false, index = -1) => {
     if (!item.productId || !item.stockBatchId) return 0;
     const batches = availableStockCache[item.productId] || [];
-    const selectedBatch = batches.find((b) => b.id.toString() === item.stockBatchId?.toString());
+    // Fallback to item's own stockBatch if cache not loaded yet (edit mode)
+    const selectedBatch = batches.find((b) => b.id.toString() === item.stockBatchId?.toString()) || item.stockBatch;
     if (!selectedBatch) return 0;
 
     const addedOfSameBatchUnit = items
@@ -583,41 +603,90 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
       toast.error('Select a product');
       return;
     }
-    if (!newItem.stockBatchId) {
-      toast.error('Select a stock batch');
-      return;
-    }
-    if (!newItem.quantity || newItem.quantity <= 0) {
-      toast.error('Quantity must be at least 1');
-      return;
-    }
-    const maxQty = getMaxStock(newItem);
-    if (newItem.quantity > maxQty) {
-      toast.error(`Quantity exceeds available stock of ${maxQty}`);
-      return;
-    }
 
-    const { selectedBatch, product } = getPreviewDetails(newItem);
-    
-    const existingIdx = items.findIndex(
-      (it) => it.stockBatchId.toString() === newItem.stockBatchId.toString() && it.saleUnit === newItem.saleUnit
-    );
+    const itemsToAdd: OutwardItem[] = [];
 
-    if (existingIdx >= 0) {
-      const updated = [...items];
-      updated[existingIdx].quantity += newItem.quantity;
-      setItems(updated);
-      toast.success(`Updated quantity for product: ${product?.name}`);
-    } else {
-      const itemToAdd: OutwardItem = {
-        ...newItem,
+    for (const sel of newItemSelections) {
+      if (!sel.stockBatchId) {
+        toast.error('Select a stock batch for all selection rows');
+        return;
+      }
+      if (!sel.quantity || sel.quantity <= 0) {
+        toast.error('Quantity must be at least 1 for all selection rows');
+        return;
+      }
+
+      // Check stock availability
+      const batches = availableStockCache[newItem.productId] || [];
+      const selectedBatch = batches.find((b) => b.id.toString() === sel.stockBatchId.toString());
+      if (!selectedBatch) {
+        toast.error('Selected batch not found. Please wait for stock to load.');
+        return;
+      }
+
+      const product = productsCache[newItem.productId] || selectedBatch.product || newItem.product;
+
+      // Validate quantity against remaining stock
+      const addedOfSameBatchUnit = items
+        .filter((added) => added.stockBatchId.toString() === sel.stockBatchId.toString() && added.saleUnit === sel.saleUnit)
+        .reduce((sum, added) => sum + (Number(added.quantity) || 0), 0);
+
+      // also check other selection rows in newItemSelections
+      const otherSelections = newItemSelections
+        .filter((s) => s !== sel && s.stockBatchId.toString() === sel.stockBatchId.toString() && s.saleUnit === sel.saleUnit)
+        .reduce((sum, s) => sum + (Number(s.quantity) || 0), 0);
+
+      const originalItem = invoice?.items?.find(
+        (oi) => oi.stockBatchId.toString() === sel.stockBatchId.toString() && oi.saleUnit === sel.saleUnit
+      );
+      const originalQty = originalItem?.quantity || 0;
+
+      const remaining =
+        sel.saleUnit === 'box'
+          ? selectedBatch.remainingBoxes
+          : sel.saleUnit === 'pack'
+          ? selectedBatch.remainingPacks
+          : selectedBatch.remainingPcs;
+
+      const maxQty = (remaining || 0) + (invoice ? originalQty : 0) - addedOfSameBatchUnit - otherSelections;
+
+      if (sel.quantity > maxQty) {
+        toast.error(`Quantity ${sel.quantity} for batch ${selectedBatch.batchCode || selectedBatch.id} exceeds available stock of ${maxQty}`);
+        return;
+      }
+
+      itemsToAdd.push({
+        productId: newItem.productId,
+        stockBatchId: sel.stockBatchId,
+        locationId: selectedBatch.locationId?.toString() || '1',
+        saleUnit: sel.saleUnit,
+        quantity: sel.quantity,
+        ratePerUnit: sel.ratePerUnit,
+        description: newItem.description || '',
         product,
-        stockBatch: selectedBatch,
-      };
-      setItems([...items, itemToAdd]);
-      toast.success(`Added product: ${product?.name}`);
+        stockBatch: selectedBatch
+      });
     }
 
+    // Append all validated items
+    const updatedItems = [...items];
+    itemsToAdd.forEach((itemToAdd) => {
+      // Check if duplicate entry exists in main items list
+      const existingIdx = updatedItems.findIndex(
+        (it) => it.stockBatchId.toString() === itemToAdd.stockBatchId.toString() && it.saleUnit === itemToAdd.saleUnit
+      );
+
+      if (existingIdx >= 0) {
+        updatedItems[existingIdx].quantity += itemToAdd.quantity;
+      } else {
+        updatedItems.push(itemToAdd);
+      }
+    });
+
+    setItems(updatedItems);
+    toast.success(`Items added successfully`);
+
+    // Reset newItem & selections
     setNewItem({
       productId: '',
       stockBatchId: '',
@@ -627,6 +696,7 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
       ratePerUnit: 0,
       description: '',
     });
+    setNewItemSelections([{ id: Math.random().toString(), stockBatchId: '', saleUnit: 'box', quantity: 1, ratePerUnit: 0 }]);
   };
 
   const handleRemoveItem = (index: number) => {
@@ -635,41 +705,80 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
       setEditingIndex(null);
       setEditingData(null);
     }
-    // Clear stock batch cache when item removed to ensure fresh data on rescan
-    setAvailableStockCache({});
   };
 
-  const handleSaveEdit = (index: number) => {
-    if (!editingData) return;
-    if (!editingData.productId) {
-      toast.error('Select a product');
-      return;
-    }
-    if (!editingData.stockBatchId) {
-      toast.error('Select a stock batch');
-      return;
-    }
-    if (!editingData.quantity || editingData.quantity <= 0) {
-      toast.error('Quantity must be at least 1');
-      return;
-    }
-    const maxQty = getMaxStock(editingData, true, index);
-    if (editingData.quantity > maxQty) {
-      toast.error(`Quantity exceeds available stock of ${maxQty}`);
-      return;
-    }
-
-    const { selectedBatch, product } = getPreviewDetails(editingData);
-    const updatedItems = [...items];
-    updatedItems[index] = {
-      ...editingData,
-      product,
-      stockBatch: selectedBatch,
-    };
-
-    setItems(updatedItems);
+  const handleRemoveGroup = (productId: string, saleUnit: string, ratePerUnit: number) => {
+    setItems((prev) =>
+      prev.filter(
+        (it) =>
+          !(
+            it.productId.toString() === productId.toString() &&
+            it.saleUnit === saleUnit &&
+            it.ratePerUnit === ratePerUnit
+          )
+      )
+    );
     setEditingIndex(null);
     setEditingData(null);
+    toast.success('Product line removed successfully');
+  };
+
+  const handleEditGroup = (productId: string, saleUnit: string, ratePerUnit: number) => {
+    const matchingItems = items.filter(
+      (it) =>
+        it.productId.toString() === productId.toString() &&
+        it.saleUnit === saleUnit &&
+        it.ratePerUnit === ratePerUnit
+    );
+    if (matchingItems.length === 0) return;
+
+    const firstItem = matchingItems[0];
+    const product = productsCache[firstItem.productId] || firstItem.product;
+
+    // Set main newItem with full product info so ProductSearch shows correctly
+    setNewItem({
+      productId: firstItem.productId,
+      stockBatchId: '',
+      locationId: '',
+      saleUnit: firstItem.saleUnit as 'box' | 'pack' | 'piece',
+      quantity: 1,
+      ratePerUnit: firstItem.ratePerUnit,
+      description: firstItem.description || '',
+      product,
+    });
+
+    // Cache the product so ProductSearch can display it
+    if (product) {
+      setProductsCache((prev) => ({ ...prev, [firstItem.productId]: product }));
+    }
+
+    // Populate multi-selection row splits
+    const selections = matchingItems.map((it) => ({
+      id: Math.random().toString(),
+      stockBatchId: it.stockBatchId,
+      saleUnit: it.saleUnit as 'box' | 'pack' | 'piece',
+      quantity: it.quantity,
+      ratePerUnit: it.ratePerUnit,
+    }));
+    setNewItemSelections(selections);
+
+    // Load fresh stock for this product including existing batch ids (so they show in dropdown)
+    const batchIds = matchingItems.map((it) => it.stockBatchId.toString());
+    loadAvailableStock(firstItem.productId.toString(), batchIds);
+
+    // Remove matching items from list (loaded back to form for editing)
+    setItems((prev) =>
+      prev.filter(
+        (it) =>
+          !(
+            it.productId.toString() === productId.toString() &&
+            it.saleUnit === saleUnit &&
+            it.ratePerUnit === ratePerUnit
+          )
+      )
+    );
+
+    toast.success('Item loaded into form for editing');
   };
 
   const toggleItemCollapse = (index: number) => {
@@ -861,8 +970,8 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
             </div>
 
             {/* Input fields to add new items */}
-            <div className="bg-gray-50 border border-gray-200 p-3 rounded space-y-3 mb-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg space-y-4 mb-4">
+              <div className="grid grid-cols-1 gap-3">
                 <ProductSearch
                   value={newItem.productId}
                   onChange={(productId, prod) => {
@@ -875,140 +984,227 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
                       description: prod?.description || '',
                     });
                     if (prod) setProductsCache((prev) => ({ ...prev, [productId]: prod }));
-                    if (productId) loadAvailableStock(productId.toString());
-                  }}
-                />
-
-                <Controller
-                  name="items"
-                  control={control}
-                  render={() => {
-                    const batches = availableStockCache[newItem.productId] || [];
-                    const stockBatchOptions = batches.map((batch) => ({
-                      value: batch.id.toString(),
-                      line1: `[${batch.location?.name}] ${batch.vendor?.name} - ${formatDate(batch.inwardDate)}`,
-                      line2: `${batch.remainingBoxes} boxes, ${batch.packPerBox} pack/box, ${batch.remainingPacks || 0} packs, ${batch.packPerPiece} pcs/pack, ${batch.remainingPcs} pcs`,
-                    }));
-
-                    return (
-                      <MultiLineSelect
-                        options={stockBatchOptions}
-                        value={newItem.stockBatchId}
-                        onChange={(value) => {
-                          const selectedBatch = batches.find((b) => b.id.toString() === value.toString());
-                          const suggestedRate = selectedBatch
-                            ? (newItem.saleUnit === 'box'
-                                ? selectedBatch.costPerBox * 1.2
-                                : newItem.saleUnit === 'pack'
-                                ? (selectedBatch.costPerPack || selectedBatch.costPerBox / (selectedBatch.packPerBox || 1)) * 1.2
-                                : selectedBatch.costPerPcs * 1.2)
-                            : 0;
-
-                          setNewItem({
-                            ...newItem,
-                            stockBatchId: value,
-                            locationId: selectedBatch?.locationId?.toString() || '',
-                            ratePerUnit: Math.round(suggestedRate * 100) / 100,
-                          });
-                        }}
-                        placeholder={newItem.productId ? 'Select stock batch' : 'Select product first'}
-                        disabled={!newItem.productId}
-                      />
-                    );
+                    if (productId) {
+                      loadAvailableStock(productId.toString()).then((batches) => {
+                        const defaultBatch = batches[0];
+                        const defaultUnit = 'box';
+                        const suggestedRate = defaultBatch ? defaultBatch.costPerBox * 1.2 : 0;
+                        setNewItemSelections([{
+                          id: Math.random().toString(),
+                          stockBatchId: defaultBatch ? defaultBatch.id.toString() : '',
+                          saleUnit: defaultUnit,
+                          quantity: 1,
+                          ratePerUnit: Math.round(suggestedRate * 100) / 100
+                        }]);
+                      });
+                    } else {
+                      setNewItemSelections([{ id: Math.random().toString(), stockBatchId: '', saleUnit: 'box', quantity: 1, ratePerUnit: 0 }]);
+                    }
                   }}
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <Select
-                  label="Sale Unit *"
-                  value={newItem.saleUnit}
-                  onChange={(e) => {
-                    const unit = e.target.value as 'box' | 'pack' | 'piece';
-                    const batches = availableStockCache[newItem.productId] || [];
-                    const selectedBatch = batches.find((b) => b.id.toString() === newItem.stockBatchId.toString());
-                    const suggestedRate = selectedBatch
-                      ? (unit === 'box'
-                          ? selectedBatch.costPerBox * 1.2
-                          : unit === 'pack'
-                          ? (selectedBatch.costPerPack || selectedBatch.costPerBox / (selectedBatch.packPerBox || 1)) * 1.2
-                          : selectedBatch.costPerPcs * 1.2)
-                      : 0;
+              {newItem.productId && (
+                <div className="space-y-3 pt-2">
+                  <div className="text-xs font-bold text-gray-700">Stock Batches & Quantities Selection</div>
+                  
+                  <div className="space-y-2">
+                    {newItemSelections.map((sel, idx) => {
+                      const batches = availableStockCache[newItem.productId] || [];
+                      const stockBatchOptions = batches.map((batch) => ({
+                        value: batch.id.toString(),
+                        line1: `[${batch.location?.name}] ${batch.vendor?.name} - ${formatDate(batch.inwardDate)}`,
+                        line2: `${batch.remainingBoxes} boxes, ${batch.packPerBox} pack/box, ${batch.remainingPacks || 0} packs, ${batch.packPerPiece} pcs/pack, ${batch.remainingPcs} pcs`,
+                      }));
 
-                    setNewItem({
-                      ...newItem,
-                      saleUnit: unit,
-                      ratePerUnit: Math.round(suggestedRate * 100) / 100,
-                    });
-                  }}
-                >
-                  {saleUnitOptions.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </Select>
+                      // Calculate max stock available for this row
+                      const maxQty = (() => {
+                        if (!newItem.productId || !sel.stockBatchId) return 0;
+                        const selectedBatch = batches.find((b) => b.id.toString() === sel.stockBatchId.toString());
+                        if (!selectedBatch) return 0;
 
-                <Input
-                  type="number"
-                  label={`Quantity * (Max: ${getMaxStock(newItem)})`}
-                  value={newItem.quantity || ''}
-                  onChange={(e) => setNewItem({ ...newItem, quantity: Number(e.target.value) || 0 })}
-                  min="1"
-                />
+                        const addedOfSameBatchUnit = items
+                          .filter((added) => added.stockBatchId.toString() === sel.stockBatchId.toString() && added.saleUnit === sel.saleUnit)
+                          .reduce((sum, added) => sum + (Number(added.quantity) || 0), 0);
 
-                <Input
-                  type="number"
-                  label="Rate *"
-                  value={newItem.ratePerUnit || ''}
-                  onChange={(e) => setNewItem({ ...newItem, ratePerUnit: Number(e.target.value) || 0 })}
-                  step="0.01"
-                  min="0"
-                />
-              </div>
+                        const otherSelections = newItemSelections
+                          .filter((s, i) => i !== idx && s.stockBatchId.toString() === sel.stockBatchId.toString() && s.saleUnit === sel.saleUnit)
+                          .reduce((sum, s) => sum + (Number(s.quantity) || 0), 0);
 
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-semibold text-gray-700">Line Description</label>
-                <input
-                  type="text"
-                  placeholder="Line description details..."
-                  className="w-full text-xs p-1 border border-gray-300 rounded outline-none focus:ring-1 focus:ring-primary-500"
-                  value={newItem.description}
-                  onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
-                />
-              </div>
+                        const originalItem = invoice?.items?.find(
+                          (oi) => oi.stockBatchId.toString() === sel.stockBatchId.toString() && oi.saleUnit === sel.saleUnit
+                        );
+                        const originalQty = originalItem?.quantity || 0;
 
-              {/* Live Preview Card */}
-              {newItem.productId && newItem.stockBatchId && (
-                (() => {
-                  const prev = getPreviewDetails(newItem);
-                  const maxQty = getMaxStock(newItem);
-                  return (
-                    <div className="bg-white border border-gray-200 rounded p-2.5 text-[10px] grid grid-cols-2 md:grid-cols-4 gap-2 text-gray-600 shadow-sm leading-tight">
-                      <div><span className="font-bold text-gray-500">Available Stock:</span> {maxQty} {newItem.saleUnit}(s)</div>
-                      {prev.selectedBatch && (
-                        <div>
-                          <span className="font-bold text-gray-500">Cost:</span> ₹
-                          {newItem.saleUnit === 'box'
-                            ? prev.selectedBatch.costPerBox
-                            : newItem.saleUnit === 'pack'
-                            ? (prev.selectedBatch.costPerPack || (prev.selectedBatch.costPerBox / (prev.selectedBatch.packPerBox || 1)).toFixed(2))
-                            : prev.selectedBatch.costPerPcs}
+                        const remaining =
+                          sel.saleUnit === 'box'
+                            ? selectedBatch.remainingBoxes
+                            : sel.saleUnit === 'pack'
+                            ? selectedBatch.remainingPacks
+                            : selectedBatch.remainingPcs;
+
+                        return (remaining || 0) + (invoice ? originalQty : 0) - addedOfSameBatchUnit - otherSelections;
+                      })();
+
+                      return (
+                        <div key={sel.id} style={{ zIndex: newItemSelections.length - idx }} className="flex flex-col lg:flex-row items-stretch lg:items-end gap-3 p-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:border-primary-200 transition-colors duration-150 relative">
+                          {/* Stock Batch Select */}
+                          <div className="flex-1 min-w-[280px]">
+                            <MultiLineSelect
+                              options={stockBatchOptions}
+                              value={sel.stockBatchId}
+                              onChange={(val) => {
+                                const selectedBatch = batches.find((b) => b.id.toString() === val.toString());
+                                const suggestedRate = selectedBatch
+                                  ? (sel.saleUnit === 'box'
+                                      ? selectedBatch.costPerBox * 1.2
+                                      : sel.saleUnit === 'pack'
+                                      ? (selectedBatch.costPerPack || selectedBatch.costPerBox / (selectedBatch.packPerBox || 1)) * 1.2
+                                      : selectedBatch.costPerPcs * 1.2)
+                                  : 0;
+
+                                const updated = [...newItemSelections];
+                                updated[idx] = {
+                                  ...sel,
+                                  stockBatchId: val,
+                                  ratePerUnit: Math.round(suggestedRate * 100) / 100
+                                };
+                                setNewItemSelections(updated);
+                              }}
+                              placeholder="Select stock batch"
+                              showLabel={true}
+                            />
+                          </div>
+
+                          {/* Sale Unit Dropdown */}
+                          <div className="w-full lg:w-28">
+                            <label className="block text-xs font-semibold text-gray-700 mb-1">Sale Unit *</label>
+                            <select
+                              className="w-full h-8.5 border border-gray-300 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 bg-white font-medium text-gray-800 shadow-sm"
+                              value={sel.saleUnit}
+                              onChange={(e) => {
+                                const unit = e.target.value as 'box' | 'pack' | 'piece';
+                                const selectedBatch = batches.find((b) => b.id.toString() === sel.stockBatchId.toString());
+                                const suggestedRate = selectedBatch
+                                  ? (unit === 'box'
+                                      ? selectedBatch.costPerBox * 1.2
+                                      : unit === 'pack'
+                                      ? (selectedBatch.costPerPack || selectedBatch.costPerBox / (selectedBatch.packPerBox || 1)) * 1.2
+                                      : selectedBatch.costPerPcs * 1.2)
+                                  : 0;
+
+                                const updated = [...newItemSelections];
+                                updated[idx] = {
+                                  ...sel,
+                                  saleUnit: unit,
+                                  ratePerUnit: Math.round(suggestedRate * 100) / 100
+                                };
+                                setNewItemSelections(updated);
+                              }}
+                            >
+                              <option value="box">Box</option>
+                              <option value="pack">Pack</option>
+                              <option value="piece">Piece</option>
+                            </select>
+                          </div>
+
+                          {/* Quantity Input */}
+                          <div className="w-full lg:w-28">
+                            <label className="block text-xs font-semibold text-gray-700 mb-1">
+                              Qty * <span className="text-[10px] text-gray-400 font-normal">(Max: {maxQty})</span>
+                            </label>
+                            <input
+                              type="number"
+                              className="w-full h-8.5 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 font-bold"
+                              placeholder={`Max: ${maxQty}`}
+                              value={sel.quantity || ''}
+                              onChange={(e) => {
+                                const updated = [...newItemSelections];
+                                updated[idx] = { ...sel, quantity: Number(e.target.value) || 0 };
+                                setNewItemSelections(updated);
+                              }}
+                              min="1"
+                            />
+                          </div>
+
+                          {/* Rate Input */}
+                          <div className="w-full lg:w-28">
+                            <label className="block text-xs font-semibold text-gray-700 mb-1">Rate *</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              className="w-full h-8.5 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500"
+                              placeholder="Rate"
+                              value={sel.ratePerUnit || ''}
+                              onChange={(e) => {
+                                const updated = [...newItemSelections];
+                                updated[idx] = { ...sel, ratePerUnit: Number(e.target.value) || 0 };
+                                setNewItemSelections(updated);
+                              }}
+                              min="0"
+                            />
+                          </div>
+
+                          {/* Action Button */}
+                          <div className="flex items-center justify-end pb-1 h-8.5">
+                            {newItemSelections.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setNewItemSelections(newItemSelections.filter((_, i) => i !== idx));
+                                }}
+                                className="p-1.5 text-red-500 hover:bg-red-55/60 hover:text-red-700 rounded-md transition-colors border border-red-100 lg:border-none"
+                                title="Remove batch selection"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      )}
-                      <div><span className="font-bold text-gray-500">Base Amount:</span> {formatCurrency(prev.baseAmount)}</div>
-                      <div><span className="font-bold text-gray-500">GST ({prev.gstRate}%):</span> {formatCurrency(prev.gstAmount)}</div>
-                      <div className="col-span-2 md:col-span-1 font-bold text-primary-700"><span className="text-gray-500">Total:</span> {formatCurrency(prev.totalAmount)}</div>
-                    </div>
-                  );
-                })()
-              )}
+                      );
+                    })}
+                  </div>
 
-              <div className="flex justify-end pt-1">
-                <Button type="button" onClick={handleAddItem} className="odoo-btn-primary px-3 h-7 text-xs">
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Add Item
-                </Button>
-              </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const batches = availableStockCache[newItem.productId] || [];
+                      const defaultBatch = batches[0] ? batches[0].id.toString() : '';
+                      const suggestedRate = batches[0] ? batches[0].costPerBox * 1.2 : 0;
+                      setNewItemSelections([
+                        ...newItemSelections,
+                        {
+                          id: Math.random().toString(),
+                          stockBatchId: defaultBatch,
+                          saleUnit: 'box',
+                          quantity: 1,
+                          ratePerUnit: Math.round(suggestedRate * 100) / 100
+                        }
+                      ]);
+                    }}
+                    className="inline-flex items-center gap-1 text-xs font-bold text-primary-600 hover:text-primary-750 hover:underline transition-colors"
+                  >
+                    <Plus className="h-3.5 w-3.5" /> Add Another Batch Row
+                  </button>
+
+                  <div className="flex flex-col gap-1 mt-2">
+                    <label className="text-[10px] font-semibold text-gray-700">Line Description</label>
+                    <input
+                      type="text"
+                      placeholder="Line description details..."
+                      className="w-full text-xs p-1 border border-gray-300 rounded outline-none focus:ring-1 focus:ring-primary-500"
+                      value={newItem.description}
+                      onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="flex justify-end pt-2">
+                    <Button type="button" onClick={handleAddItem} className="odoo-btn-primary px-3 h-7 text-xs">
+                      <Plus className="h-3.5 w-3.5 mr-1" /> Add Items to List
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Added Items List Table */}
@@ -1031,286 +1227,145 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
                     </tr>
                   </thead>
                   <tbody>
-                    {items.map((item, idx) => {
-                      const isEditing = editingIndex === idx;
-                      const { gstRate, gstAmount, totalAmount, selectedBatch, product } = getPreviewDetails(item);
+                    {(() => {
+                      const groupedItemsMap = new Map<string, any>();
+                      items.forEach((item, originalIndex) => {
+                        const key = `${item.productId}-${item.saleUnit}-${item.ratePerUnit}`;
+                        if (groupedItemsMap.has(key)) {
+                          const existing = groupedItemsMap.get(key)!;
+                          existing.quantity += item.quantity;
+                          existing.originalIndices.push(originalIndex);
+                          if (item.stockBatch && !existing.stockBatches.some((b: any) => b.id.toString() === item.stockBatchId.toString())) {
+                            existing.stockBatches.push(item.stockBatch);
+                          }
+                          if (item.description && !existing.descriptions.includes(item.description)) {
+                            existing.descriptions.push(item.description);
+                          }
+                        } else {
+                          groupedItemsMap.set(key, {
+                            ...item,
+                            originalIndices: [originalIndex],
+                            stockBatches: item.stockBatch ? [item.stockBatch] : [],
+                            descriptions: item.description ? [item.description] : [],
+                          });
+                        }
+                      });
+                      const grouped = Array.from(groupedItemsMap.values());
 
-                      return (
-                        <React.Fragment key={idx}>
-                          <tr className="border-b border-gray-150 hover:bg-gray-50/40">
-                            <td className="p-2 text-center text-gray-500 font-bold text-xs" data-label="#">{idx + 1}</td>
-                            <td className="p-2 min-w-[150px]" data-label="Product">
-                              <div className="font-semibold text-xs text-gray-800">
-                                {product?.name || 'Unknown Product'}
-                                {product?.grade && <span className="ml-1 text-[10px] text-gray-500 font-normal">({product.grade})</span>}
-                              </div>
-                              {item.description && (
-                                <div className="text-[9px] text-gray-500 italic mt-0.5">{item.description}</div>
-                              )}
-                            </td>
-                            <td className="p-2 text-xs text-gray-800" data-label="SKU">{product?.sku || '—'}</td>
-                            <td className="p-2 min-w-[150px] text-xs text-gray-700" data-label="Stock Batch">
-                              {selectedBatch ? (
-                                <div>
-                                  <div className="font-medium text-[10px]">{`[${selectedBatch.location?.name}] ${selectedBatch.vendor?.name}`}</div>
-                                  <div className="text-[9px] text-gray-400">{`Inward: ${formatDate(selectedBatch.inwardDate)}`}</div>
-                                </div>
-                              ) : (
-                                'N/A'
-                              )}
-                            </td>
-                            <td className="p-2 text-xs text-gray-800 uppercase" data-label="Unit">{item.saleUnit}</td>
-                            <td className="p-2 text-center text-xs text-gray-800 font-bold" data-label="Qty">{item.quantity}</td>
-                            <td className="p-2 text-xs text-gray-800" data-label="Rate">{formatCurrency(item.ratePerUnit)}</td>
-                            <td className="p-2 text-right text-[10px]" data-label="GST">
-                              <div className="text-gray-800">{formatCurrency(gstAmount)}</div>
-                              <div className="text-[8px] text-gray-400 font-bold">({gstRate}%)</div>
-                            </td>
-                            <td className="p-2 text-right text-xs font-extrabold text-primary-650" data-label="Total">{formatCurrency(totalAmount)}</td>
-                            <td className="p-2 text-center" data-label="Info">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  toggleItemCollapse(idx);
-                                }}
-                                className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold border border-gray-300 rounded bg-gray-50 hover:bg-gray-100 text-gray-600 transition-colors mx-auto"
-                              >
-                                {expandedItems.has(idx) ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                                <span>Detail</span>
-                              </button>
-                            </td>
-                            <td className="p-2 text-center" data-label="Actions">
-                              <div className="flex gap-1.5 justify-center">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    if (isEditing) {
-                                      setEditingIndex(null);
-                                      setEditingData(null);
-                                    } else {
-                                      setEditingIndex(idx);
-                                      setEditingData({ ...item });
-                                    }
-                                  }}
-                                  className="text-blue-600 hover:text-blue-800 transition-colors"
-                                  title="Edit"
-                                >
-                                  <Edit2 className="h-3.5 w-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveItem(idx)}
-                                  className="text-red-500 hover:text-red-700 text-lg font-bold leading-none"
-                                  title="Remove"
-                                >
-                                  ×
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
+                      return grouped.map((item, idx) => {
+                        const { gstRate, gstAmount, totalAmount, product } = getPreviewDetails(item);
 
-                          {/* Expanded Info Details Row */}
-                          {expandedItems.has(idx) && (
-                            <tr className="bg-gray-50/45 border-b border-gray-150">
-                              <td colSpan={11} className="p-2.5">
-                                <div className="space-y-2 pl-4 border-l-2 border-primary-500 text-[10px] leading-tight text-gray-600">
-                                  {selectedBatch && (
-                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                                      <div><span className="font-bold">Original Batch Stock:</span> {selectedBatch.boxes} boxes / {selectedBatch.totalPacks} packs / {selectedBatch.totalPcs} pcs</div>
-                                      <div><span className="font-bold">Remaining Batch Stock:</span> {selectedBatch.remainingBoxes} boxes / {selectedBatch.remainingPacks} packs / {selectedBatch.remainingPcs} pcs</div>
-                                      <div><span className="font-bold">Costing:</span> ₹{selectedBatch.costPerBox}/box, ₹{selectedBatch.costPerPack || (selectedBatch.costPerBox / (selectedBatch.packPerBox || 1)).toFixed(2)}/pack, ₹{selectedBatch.costPerPcs}/pcs</div>
-                                    </div>
-                                  )}
-                                  {item.description && (
-                                    <div>
-                                      <span className="font-bold block text-[9px] uppercase tracking-wider text-gray-400 mb-0.5">Line Description</span>
-                                      <div className="text-xs text-gray-800 italic">{item.description}</div>
-                                    </div>
-                                  )}
+                        return (
+                          <React.Fragment key={idx}>
+                            <tr className="border-b border-gray-150 hover:bg-gray-50/40">
+                              <td className="p-2 text-center text-gray-500 font-bold text-xs" data-label="#">{idx + 1}</td>
+                              <td className="p-2 min-w-[150px]" data-label="Product">
+                                <div className="font-semibold text-xs text-gray-800">
+                                  {product?.name || 'Unknown Product'}
+                                  {product?.grade && <span className="ml-1 text-[10px] text-gray-500 font-normal">({product.grade})</span>}
                                 </div>
+                                {item.descriptions.length > 0 && (
+                                  <div className="text-[9px] text-gray-500 italic mt-0.5">{item.descriptions.join(', ')}</div>
+                                )}
                               </td>
-                            </tr>
-                          )}
-
-                          {/* Editing nested row (QuoteForm style) */}
-                          {isEditing && editingData && (
-                            <tr className="bg-blue-50/50 border-b border-blue-200">
-                              <td colSpan={11} className="p-3">
-                                <div className="space-y-3">
-                                  <div className="font-bold text-xs text-blue-900 border-b border-blue-150 pb-1">
-                                    Edit Line Item #{idx + 1}
-                                  </div>
-
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                    <ProductSearch
-                                      value={editingData.productId}
-                                      onChange={(productId, prod) => {
-                                        setEditingData({
-                                          ...editingData,
-                                          productId,
-                                          stockBatchId: '',
-                                          locationId: '',
-                                          ratePerUnit: 0,
-                                          description: prod?.description || '',
-                                        });
-                                        if (prod) setProductsCache((prev) => ({ ...prev, [productId]: prod }));
-                                        if (productId) loadAvailableStock(productId.toString());
-                                      }}
-                                    />
-
-                                    <Controller
-                                      name="items"
-                                      control={control}
-                                      render={() => {
-                                        const batches = availableStockCache[editingData.productId] || [];
-                                        const stockBatchOptions = batches.map((batch) => ({
-                                          value: batch.id.toString(),
-                                          line1: `[${batch.location?.name}] ${batch.vendor?.name} - ${formatDate(batch.inwardDate)}`,
-                                          line2: `${batch.remainingBoxes} boxes, ${batch.packPerBox} pack/box, ${batch.remainingPacks || 0} packs, ${batch.packPerPiece} pcs/pack, ${batch.remainingPcs} pcs`,
-                                        }));
-
-                                        return (
-                                          <MultiLineSelect
-                                            options={stockBatchOptions}
-                                            value={editingData.stockBatchId}
-                                            onChange={(value) => {
-                                              const selectedBatch = batches.find((b) => b.id.toString() === value.toString());
-                                              const suggestedRate = selectedBatch
-                                                ? (editingData.saleUnit === 'box'
-                                                    ? selectedBatch.costPerBox * 1.2
-                                                    : editingData.saleUnit === 'pack'
-                                                    ? (selectedBatch.costPerPack || selectedBatch.costPerBox / (selectedBatch.packPerBox || 1)) * 1.2
-                                                    : selectedBatch.costPerPcs * 1.2)
-                                                : 0;
-
-                                              setEditingData({
-                                                ...editingData,
-                                                stockBatchId: value,
-                                                locationId: selectedBatch?.locationId?.toString() || '',
-                                                ratePerUnit: Math.round(suggestedRate * 100) / 100,
-                                              });
-                                            }}
-                                            placeholder={editingData.productId ? 'Select stock batch' : 'Select product first'}
-                                            disabled={!editingData.productId}
-                                          />
-                                        );
-                                      }}
-                                    />
-                                  </div>
-
-                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                    <Select
-                                      label="Sale Unit *"
-                                      value={editingData.saleUnit}
-                                      onChange={(e) => {
-                                        const unit = e.target.value as any;
-                                        const batches = availableStockCache[editingData.productId] || [];
-                                        const selectedBatch = batches.find((b) => b.id.toString() === editingData.stockBatchId.toString());
-                                        const suggestedRate = selectedBatch
-                                          ? (unit === 'box'
-                                              ? selectedBatch.costPerBox * 1.2
-                                              : unit === 'pack'
-                                              ? (selectedBatch.costPerPack || selectedBatch.costPerBox / (selectedBatch.packPerBox || 1)) * 1.2
-                                              : selectedBatch.costPerPcs * 1.2)
-                                          : 0;
-
-                                        setEditingData({
-                                          ...editingData,
-                                          saleUnit: unit,
-                                          ratePerUnit: Math.round(suggestedRate * 100) / 100,
-                                        });
-                                      }}
-                                    >
-                                      {saleUnitOptions.map((opt) => (
-                                        <option key={opt.value} value={opt.value}>
-                                          {opt.label}
-                                        </option>
-                                      ))}
-                                    </Select>
-
-                                    <Input
-                                      type="number"
-                                      label={`Quantity * (Max: ${getMaxStock(editingData, true, idx)})`}
-                                      value={editingData.quantity || ''}
-                                      onChange={(e) => setEditingData({ ...editingData, quantity: Number(e.target.value) || 0 })}
-                                      min="1"
-                                    />
-
-                                    <Input
-                                      type="number"
-                                      label="Rate *"
-                                      value={editingData.ratePerUnit || ''}
-                                      onChange={(e) => setEditingData({ ...editingData, ratePerUnit: Number(e.target.value) || 0 })}
-                                      step="0.01"
-                                      min="0"
-                                    />
-                                  </div>
-
-                                  <div className="flex flex-col gap-1">
-                                    <label className="text-[10px] font-semibold text-blue-900">Line Description</label>
-                                    <input
-                                      type="text"
-                                      placeholder="Line description details..."
-                                      className="w-full text-xs p-1 border border-blue-200 rounded outline-none focus:ring-1 focus:ring-primary-500"
-                                      value={editingData.description}
-                                      onChange={(e) => setEditingData({ ...editingData, description: e.target.value })}
-                                    />
-                                  </div>
-
-                                  {/* Calculations Preview for Edit Item */}
-                                  {editingData.productId && editingData.stockBatchId && (
-                                    (() => {
-                                      const prev = getPreviewDetails(editingData);
-                                      const maxQty = getMaxStock(editingData, true, idx);
+                              <td className="p-2 text-xs text-gray-800" data-label="SKU">{product?.sku || '—'}</td>
+                              <td className="p-2 min-w-[150px] text-xs text-gray-700" data-label="Stock Batch">
+                                {item.stockBatches.length > 0 ? (
+                                  <div>
+                                    {item.stockBatches.map((batch: any, bIdx: number) => {
+                                      const matchingItems = items.filter(
+                                        (it) => it.productId.toString() === item.productId.toString() && it.stockBatchId.toString() === batch.id.toString() && it.saleUnit === item.saleUnit
+                                      );
+                                      const batchQty = matchingItems.reduce((sum, it) => sum + it.quantity, 0);
                                       return (
-                                        <div className="bg-white border border-blue-150 rounded p-2.5 text-[10px] grid grid-cols-2 md:grid-cols-4 gap-2 text-blue-900 shadow-sm leading-tight">
-                                          <div><span className="font-bold text-blue-700">Available Stock:</span> {maxQty} {editingData.saleUnit}(s)</div>
-                                          {prev.selectedBatch && (
-                                            <div>
-                                              <span className="font-bold text-blue-700">Cost:</span> ₹
-                                              {editingData.saleUnit === 'box'
-                                                ? prev.selectedBatch.costPerBox
-                                                : editingData.saleUnit === 'pack'
-                                                ? (prev.selectedBatch.costPerPack || (prev.selectedBatch.costPerBox / (prev.selectedBatch.packPerBox || 1)).toFixed(2))
-                                                : prev.selectedBatch.costPerPcs}
-                                            </div>
-                                          )}
-                                          <div><span className="font-bold text-blue-700">Base Amount:</span> {formatCurrency(prev.baseAmount)}</div>
-                                          <div><span className="font-bold text-blue-700">GST ({prev.gstRate}%):</span> {formatCurrency(prev.gstAmount)}</div>
-                                          <div className="col-span-2 md:col-span-1 font-bold text-green-700"><span className="text-blue-700">Total:</span> {formatCurrency(prev.totalAmount)}</div>
+                                        <div key={bIdx} className="mb-1 last:mb-0 border-b last:border-0 border-gray-150 pb-1 last:pb-0">
+                                          <div className="font-medium text-[10px]">
+                                            {`[${batch.location?.name}] ${batch.vendor?.name} `}
+                                            <span className="text-primary-600 font-bold ml-1">({batchQty} {item.saleUnit}s)</span>
+                                          </div>
+                                          <div className="text-[9px] text-gray-400">{`Inward: ${formatDate(batch.inwardDate)}`}</div>
                                         </div>
                                       );
-                                    })()
-                                  )}
-
-                                  <div className="flex gap-2 justify-end pt-1">
-                                    <Button
-                                      type="button"
-                                      onClick={() => handleSaveEdit(idx)}
-                                      className="odoo-btn-primary px-3 h-7 text-xs bg-blue-700 hover:bg-blue-800"
-                                    >
-                                      Save Line Change
-                                    </Button>
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      onClick={() => {
-                                        setEditingIndex(null);
-                                        setEditingData(null);
-                                      }}
-                                      className="odoo-btn-secondary px-3 h-7 text-xs border-blue-300 text-blue-800"
-                                    >
-                                      Cancel
-                                    </Button>
+                                    })}
                                   </div>
+                                ) : (
+                                  'N/A'
+                                )}
+                              </td>
+                              <td className="p-2 text-xs text-gray-800 uppercase" data-label="Unit">{item.saleUnit}</td>
+                              <td className="p-2 text-center text-xs text-gray-800 font-bold" data-label="Qty">{item.quantity}</td>
+                              <td className="p-2 text-xs text-gray-800" data-label="Rate">{formatCurrency(item.ratePerUnit)}</td>
+                              <td className="p-2 text-right text-[10px]" data-label="GST">
+                                <div className="text-gray-800">{formatCurrency(gstAmount)}</div>
+                                <div className="text-[8px] text-gray-400 font-bold">({gstRate}%)</div>
+                              </td>
+                              <td className="p-2 text-right text-xs font-extrabold text-primary-650" data-label="Total">{formatCurrency(totalAmount)}</td>
+                              <td className="p-2 text-center" data-label="Info">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    toggleItemCollapse(idx);
+                                  }}
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold border border-gray-300 rounded bg-gray-50 hover:bg-gray-100 text-gray-600 transition-colors mx-auto"
+                                >
+                                  {expandedItems.has(idx) ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                                  <span>Detail</span>
+                                </button>
+                              </td>
+                              <td className="p-2 text-center" data-label="Actions">
+                                <div className="flex gap-1.5 justify-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleEditGroup(item.productId, item.saleUnit, item.ratePerUnit)}
+                                    className="text-blue-600 hover:text-blue-800 transition-colors"
+                                    title="Edit"
+                                  >
+                                    <Edit2 className="h-3.5 w-3.5" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveGroup(item.productId, item.saleUnit, item.ratePerUnit)}
+                                    className="text-red-500 hover:text-red-700 text-lg font-bold leading-none"
+                                    title="Remove"
+                                  >
+                                    ×
+                                  </button>
                                 </div>
                               </td>
                             </tr>
-                          )}
-                        </React.Fragment>
-                      );
-                    })}
+
+                            {/* Expanded Info Details Row */}
+                            {expandedItems.has(idx) && (
+                              <tr className="bg-gray-50/45 border-b border-gray-150">
+                                <td colSpan={11} className="p-2.5">
+                                  <div className="space-y-3 pl-4 border-l-2 border-primary-500 text-[10px] leading-tight text-gray-600">
+                                    {item.stockBatches.map((batch: any, bIdx: number) => (
+                                      <div key={bIdx} className="space-y-1 py-1 border-b last:border-b-0 border-gray-200/40 pb-1.5 last:pb-0">
+                                        <div className="font-bold text-gray-700 text-[11px] mb-0.5">
+                                          Batch: {batch.batchCode || batch.id} ({`[${batch.location?.name}] ${batch.vendor?.name}`})
+                                        </div>
+                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                          <div><span className="font-bold">Original Batch Stock:</span> {batch.boxes} boxes / {batch.totalPacks} packs / {batch.totalPcs} pcs</div>
+                                          <div><span className="font-bold">Remaining Batch Stock:</span> {batch.remainingBoxes} boxes / {batch.totalPacks ? batch.remainingPacks : 0} packs / {batch.remainingPcs} pcs</div>
+                                          <div><span className="font-bold">Costing:</span> ₹{batch.costPerBox}/box, ₹{batch.costPerPack || (batch.costPerBox / (batch.packPerBox || 1)).toFixed(2)}/pack, ₹{batch.costPerPcs}/pcs</div>
+                                        </div>
+                                      </div>
+                                    ))}
+                                    {item.descriptions.length > 0 && (
+                                      <div>
+                                        <span className="font-bold block text-[9px] uppercase tracking-wider text-gray-400 mb-0.5">Line Description</span>
+                                        <div className="text-xs text-gray-800 italic">{item.descriptions.join(', ')}</div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      });
+                    })()}
                   </tbody>
                 </table>
               </div>

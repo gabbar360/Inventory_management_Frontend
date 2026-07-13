@@ -74,6 +74,7 @@ const purchaseOrderSlice = createSlice({
   initialState,
   reducers: {
     clearError: (state) => { state.error = null; },
+    clearCurrentPurchaseOrder: (state) => { state.currentPurchaseOrder = null; },
   },
   extraReducers: (builder) => {
     builder
@@ -120,5 +121,5 @@ const purchaseOrderSlice = createSlice({
   },
 });
 
-export const { clearError } = purchaseOrderSlice.actions;
+export const { clearError, clearCurrentPurchaseOrder } = purchaseOrderSlice.actions;
 export default purchaseOrderSlice.reducer;

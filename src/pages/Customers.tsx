@@ -274,7 +274,9 @@ const Customers: React.FC = () => {
   };
 
   const handleFormCancel = () => {
-    if (id) {
+    if (isEditMode) {
+      navigate('/customers');
+    } else if (id) {
       if (activeTab === 'transactions') {
         navigate(`/customers/${id}/sales`);
       } else if (activeTab === 'statement') {

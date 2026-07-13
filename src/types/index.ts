@@ -260,6 +260,7 @@ export interface StockBatch {
   product?: Product;
   vendor?: Vendor;
   location?: Location;
+  inwardInvoice?: { invoiceNo: string } | null;
   // Legacy fields for backward compatibility
   pcsPerBox?: number;
 }
@@ -638,4 +639,22 @@ export interface PaymentMadeInvoice {
   invoiceId: number;
   amountApplied: number;
   invoice?: InwardInvoice;
+}
+
+export interface StockTransfer {
+  id: number;
+  transferNo: string;
+  stockBatchId: number;
+  fromLocationId: number;
+  toLocationId: number;
+  boxes: number;
+  packs: number;
+  pieces: number;
+  transferDate: string;
+  remarks?: string;
+  createdAt: string;
+  updatedAt: string;
+  stockBatch?: StockBatch | null;
+  fromLocation?: Location | null;
+  toLocation?: Location | null;
 }

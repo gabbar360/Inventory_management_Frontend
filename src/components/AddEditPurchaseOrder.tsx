@@ -256,7 +256,7 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
       });
       setItems([]);
     }
-  }, [purchaseOrder, vendors, reset]);
+  }, [purchaseOrder, vendors, products, reset]);
 
   // Calculations
   const calculateItemTotal = (item: POItem) => {
@@ -492,8 +492,8 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
         toast.success('Purchase order created successfully');
       }
       onSuccess();
-    } catch (error) {
-      // Error handled by Redux
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to save purchase order');
     }
   };
 

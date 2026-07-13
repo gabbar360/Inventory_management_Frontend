@@ -4,7 +4,7 @@ import { Plus, Edit, Trash2, Eye, Download, Loader2, MoreVertical, FileText, Pac
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { salesOrderService } from '@/services/salesOrderService';
-import { fetchSalesOrders, deleteSalesOrder, convertSalesOrderToInvoice } from '@/slices/salesOrderSlice';
+import { fetchSalesOrders, deleteSalesOrder, convertSalesOrderToInvoice, fetchSalesOrderById } from '@/slices/salesOrderSlice';
 import { fetchAvailableStock } from '@/slices/inventorySlice';
 import { SalesOrder, SalesOrderItem, StockBatch } from '@/types';
 import { formatDate, debounce } from '@/utils';
@@ -50,6 +50,7 @@ const SalesOrders: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [viewOrder, setViewOrder] = useState<SalesOrder | null>(null);
   const [editOrderData, setEditOrderData] = useState<SalesOrder | undefined>(undefined);
+  const [editOrderLoading, setEditOrderLoading] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [actionModalOrder, setActionModalOrder] = useState<SalesOrder | null>(null);
   const [submittingInvoice, setSubmittingInvoice] = useState(false);
@@ -59,13 +60,19 @@ const SalesOrders: React.FC = () => {
     dispatch(fetchSalesOrders({ page: currentPage, limit: 10, search }));
   }, [dispatch, search, currentPage]);
 
-  // When editing via route param, find order from list
+  // When editing via route param, fetch order by ID directly from API
   useEffect(() => {
-    if (id && orders.length > 0) {
-      const found = orders.find((o) => o.id === id);
-      if (found) setEditOrderData(found);
+    if (id) {
+      setEditOrderLoading(true);
+      dispatch(fetchSalesOrderById(id))
+        .unwrap()
+        .then((data) => setEditOrderData(data))
+        .catch(() => toast.error('Failed to load sales order'))
+        .finally(() => setEditOrderLoading(false));
+    } else {
+      setEditOrderData(undefined);
     }
-  }, [id, orders]);
+  }, [id, dispatch]);
 
   const debouncedSearch = debounce((value: string) => {
     setSearch(value);
@@ -174,8 +181,18 @@ const SalesOrders: React.FC = () => {
     },
   ];
 
-  // ── Show form if in add/edit mode (like Products.tsx) ──
+  // ── Show form if in add/edit mode ──
   if (id || window.location.pathname.includes('/add')) {
+    if (id && editOrderLoading) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="flex flex-col items-center gap-2">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
+            <div className="text-xs font-semibold text-gray-500">Loading order...</div>
+          </div>
+        </div>
+      );
+    }
     return (
       <AddEditSalesOrder
         order={editOrderData}
@@ -268,25 +285,44 @@ const SalesOrders: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {viewOrder.items.map((item, i) => (
-                      <tr key={i}>
-                        <td className="px-3 py-2">
-                          <div>
-                            {item.product?.name}{item.product?.grade ? ` (${item.product.grade})` : ''}
-                          </div>
-                          {item.description && (
-                            <div className="text-xs text-gray-400 mt-0.5 italic">
-                              {item.description}
+                    {(() => {
+                      const groupedItemsMap = new Map<string, SalesOrderItem>();
+                      viewOrder.items.forEach((item) => {
+                        const key = `${item.productId}-${item.unit}-${item.rate}`;
+                        if (groupedItemsMap.has(key)) {
+                          const existing = groupedItemsMap.get(key)!;
+                          existing.quantity += item.quantity;
+                          existing.amount += item.amount;
+                          if (item.description && existing.description && !existing.description.includes(item.description)) {
+                            existing.description = `${existing.description}, ${item.description}`;
+                          } else if (item.description && !existing.description) {
+                            existing.description = item.description;
+                          }
+                        } else {
+                          groupedItemsMap.set(key, { ...item });
+                        }
+                      });
+                      const grouped = Array.from(groupedItemsMap.values());
+                      return grouped.map((item, i) => (
+                        <tr key={i}>
+                          <td className="px-3 py-2">
+                            <div>
+                              {item.product?.name}{item.product?.grade ? ` (${item.product.grade})` : ''}
                             </div>
-                          )}
-                        </td>
-                        <td className="px-3 py-2">{item.product?.sku || '—'}</td>
-                        <td className="px-3 py-2">{item.quantity}</td>
-                        <td className="px-3 py-2 capitalize">{item.unit}</td>
-                        <td className="px-3 py-2">₹{item.rate?.toFixed(2)}</td>
-                        <td className="px-3 py-2 font-medium">₹{item.amount?.toFixed(2)}</td>
-                      </tr>
-                    ))}
+                            {item.description && (
+                              <div className="text-xs text-gray-400 mt-0.5 italic">
+                                {item.description}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-3 py-2">{item.product?.sku || '—'}</td>
+                          <td className="px-3 py-2">{item.quantity}</td>
+                          <td className="px-3 py-2 capitalize">{item.unit}</td>
+                          <td className="px-3 py-2">₹{item.rate?.toFixed(2)}</td>
+                          <td className="px-3 py-2 font-medium">₹{item.amount?.toFixed(2)}</td>
+                        </tr>
+                      ));
+                    })()}
                   </tbody>
                 </table>
               </div>

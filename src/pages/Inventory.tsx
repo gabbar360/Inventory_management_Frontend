@@ -16,6 +16,8 @@ import {
   ChevronRight,
   Clock,
   Printer,
+  FileText,
+  X,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
@@ -25,12 +27,13 @@ import {
   downloadStockReport,
 } from '@/slices/inventorySlice';
 import { fetchLocations } from '@/slices/locationSlice';
-import { StockBatch, StockSummary } from '@/types';
+import { StockBatch, StockSummary, StockTransfer } from '@/types';
 import { formatCurrency, formatNumber } from '@/utils';
 import Table from '@/components/Table';
 import Pagination from '@/components/Pagination';
 import StockTransferModal from '@/components/StockTransferModal';
-import { transferStock } from '@/services/stockTransferService';
+import Button from '@/components/Button';
+import { transferStock, getTransferHistory } from '@/services/stockTransferService';
 import { toast } from 'react-hot-toast';
 import ReactDOM from 'react-dom';
 import { Download } from 'lucide-react';
@@ -146,6 +149,13 @@ const Inventory: React.FC = () => {
   const [transferModalOpen, setTransferModalOpen] = useState(false);
   const [selectedBatch, setSelectedBatch] = useState<StockBatch | null>(null);
   const [lowStockOpen, setLowStockOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'summary' | 'history'>('summary');
+  const [transferHistory, setTransferHistory] = useState<StockTransfer[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyLimit] = useState(10);
+  const [selectedTransfer, setSelectedTransfer] = useState<StockTransfer | null>(null);
   const handleDownloadReport = async (type: 'location' | 'all') => {
     try {
       await dispatch(downloadStockReport({
@@ -194,6 +204,28 @@ const Inventory: React.FC = () => {
     setDrawerOpen(true);
   };
 
+  const loadHistory = async () => {
+    setHistoryLoading(true);
+    try {
+      const res = await getTransferHistory({ page: historyPage, limit: historyLimit });
+      if (res.success && res.data) {
+        setTransferHistory(res.data.transfers || []);
+        setHistoryTotal(res.data.total || 0);
+      }
+    } catch (err) {
+      console.error('Failed to load transfer history:', err);
+      toast.error('Failed to load transfer history');
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'history') {
+      loadHistory();
+    }
+  }, [activeTab, historyPage]);
+
   const handleTransfer = async (data: any) => {
     try {
       await transferStock(data);
@@ -202,11 +234,105 @@ const Inventory: React.FC = () => {
       if (selectedProduct) {
         loadBatches(selectedProduct);
       }
+      if (activeTab === 'history') {
+        loadHistory();
+      }
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to transfer stock');
       throw error;
     }
   };
+
+  const historyColumns = [
+    {
+      key: 'transferNo',
+      title: 'Transfer No',
+      render: (_: any, record: StockTransfer) => (
+        <button
+          onClick={() => setSelectedTransfer(record)}
+          className="font-mono text-xs font-bold text-primary-600 hover:text-primary-800 bg-primary-50 hover:bg-primary-100 px-2 py-0.5 rounded border border-primary-200 transition-colors"
+        >
+          {record.transferNo}
+        </button>
+      ),
+    },
+    {
+      key: 'product',
+      title: 'Product',
+      render: (_: any, record: StockTransfer) => (
+        <div className="flex flex-col">
+          <span className="font-semibold text-gray-900 text-xs sm:text-sm">
+            {record.stockBatch?.product?.name || 'N/A'}
+          </span>
+          {record.stockBatch?.batchCode && (
+            <span className="text-[10px] font-mono text-gray-400">
+              Batch: {record.stockBatch.batchCode}
+            </span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'fromLocation',
+      title: 'From Location',
+      render: (_: any, record: StockTransfer) => (
+        <span className="text-xs text-gray-700 font-medium">
+          {record.fromLocation?.name || 'N/A'}
+        </span>
+      ),
+    },
+    {
+      key: 'toLocation',
+      title: 'To Location',
+      render: (_: any, record: StockTransfer) => (
+        <span className="text-xs text-primary-700 font-bold bg-primary-50 px-2.5 py-0.5 rounded-full border border-primary-100">
+          {record.toLocation?.name || 'N/A'}
+        </span>
+      ),
+    },
+    {
+      key: 'quantity',
+      title: 'Transferred Qty',
+      render: (_: any, record: StockTransfer) => (
+        <div className="flex flex-col text-xs text-gray-600 font-medium">
+          {record.boxes > 0 && <span>{record.boxes} boxes</span>}
+          {record.packs > 0 && <span>{record.packs} packs</span>}
+          {record.pieces > 0 && <span>{record.pieces} pieces</span>}
+          {record.boxes === 0 && record.packs === 0 && record.pieces === 0 && <span>0 pcs</span>}
+        </div>
+      ),
+    },
+    {
+      key: 'transferDate',
+      title: 'Transfer Date',
+      render: (_: any, record: StockTransfer) => (
+        <span className="text-xs text-gray-500 font-medium">
+          {new Date(record.transferDate).toLocaleDateString()} {new Date(record.transferDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </span>
+      ),
+    },
+    {
+      key: 'remarks',
+      title: 'Remarks',
+      render: (_: any, record: StockTransfer) => (
+        <span className="text-xs text-gray-500 italic block max-w-[150px] truncate" title={record.remarks || ''}>
+          {record.remarks || '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      title: 'Actions',
+      render: (_: any, record: StockTransfer) => (
+        <button
+          onClick={() => setSelectedTransfer(record)}
+          className="text-xs font-bold text-primary-600 hover:text-white bg-primary-50 hover:bg-primary-600 border border-primary-200 px-2.5 py-1 rounded transition-all shadow-xs"
+        >
+          View Details
+        </button>
+      ),
+    },
+  ];
 
   const locationOptions = [
     { value: '', label: 'All Locations' },
@@ -492,143 +618,260 @@ const Inventory: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Stock Table */}
+      {/* Main Stock Table Container with Tabs */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-          <div>
-            <h3 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
-              Stock Summary
-              {selectedLocation && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-normal text-gray-600 bg-white rounded border border-gray-200">
-                  <MapPin className="w-3 h-3 text-primary-500" />
-                  {locations.find((l) => l.id === selectedLocation)?.name}
-                </span>
-              )}
-            </h3>
-            <p className="text-xs text-gray-500 mt-0.5">
-              General overview of product pieces and boxes. Click on "View Batches" to inspect individual lots and storage timelines.
-            </p>
-          </div>
+        {/* Tab switcher */}
+        <div className="flex border-b border-gray-100 bg-gray-50/50">
+          <button
+            onClick={() => setActiveTab('summary')}
+            className={`px-5 py-3 text-xs sm:text-sm font-bold border-b-2 transition-all duration-200 ${
+              activeTab === 'summary'
+                ? 'border-primary-600 text-primary-600 bg-white'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100/50'
+            }`}
+          >
+            Stock Summary
+          </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`px-5 py-3 text-xs sm:text-sm font-bold border-b-2 transition-all duration-200 ${
+              activeTab === 'history'
+                ? 'border-primary-600 text-primary-600 bg-white'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100/50'
+            }`}
+          >
+            Transfer History
+          </button>
         </div>
 
-        {/* Desktop Table View */}
-        <div className="hidden md:block">
-          <Table
-            data={stockSummary}
-            columns={summaryColumns}
-            loading={loading}
-            emptyMessage="No stock inventory available"
-          />
-        </div>
+        {activeTab === 'summary' ? (
+          <>
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+              <div>
+                <h3 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
+                  Stock Summary
+                  {selectedLocation && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-normal text-gray-600 bg-white rounded border border-gray-200">
+                      <MapPin className="w-3 h-3 text-primary-500" />
+                      {locations.find((l) => l.id === selectedLocation)?.name}
+                    </span>
+                  )}
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  General overview of product pieces and boxes. Click on "View Batches" to inspect individual lots and storage timelines.
+                </p>
+              </div>
+            </div>
 
-        {/* Mobile Custom Card View */}
-        <div className="md:hidden">
-          {loading ? (
-            <div className="p-4 space-y-3">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="animate-pulse bg-gray-50 border border-gray-150 rounded-xl p-4 h-36"></div>
-              ))}
+            {/* Desktop Table View */}
+            <div className="hidden md:block">
+              <Table
+                data={stockSummary}
+                columns={summaryColumns}
+                loading={loading}
+                emptyMessage="No stock inventory available"
+              />
             </div>
-          ) : stockSummary.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 px-4">
-              <Archive className="h-10 w-10 text-gray-300 mb-2" strokeWidth={1.5} />
-              <p className="text-gray-500 text-sm font-semibold">No stock inventory available</p>
-            </div>
-          ) : (
-            <div className="p-3.5 space-y-3.5 bg-gray-50/30">
-              {stockSummary.map((item, index) => {
-                const isLowStock = item.totalPcs < 100;
-                return (
-                  <div
-                    key={index}
-                    className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 space-y-3 hover:border-primary-200 transition-colors"
-                  >
-                    {/* Header: Name, Category, Status */}
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div>
-                          <h4 className="font-bold text-gray-900 text-[13px] leading-snug tracking-tight">{item.productName}</h4>
-                          <span className="inline-block mt-0.5 px-2 py-0.5 rounded bg-gray-100 text-[9px] font-bold text-gray-500 uppercase tracking-wider">
-                            {item.categoryName}
+
+            {/* Mobile Custom Card View */}
+            <div className="md:hidden">
+              {loading ? (
+                <div className="p-4 space-y-3">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="animate-pulse bg-gray-50 border border-gray-150 rounded-xl p-4 h-36"></div>
+                  ))}
+                </div>
+              ) : stockSummary.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 px-4">
+                  <Archive className="h-10 w-10 text-gray-300 mb-2" strokeWidth={1.5} />
+                  <p className="text-gray-500 text-sm font-semibold">No stock inventory available</p>
+                </div>
+              ) : (
+                <div className="p-3.5 space-y-3.5 bg-gray-50/30">
+                  {stockSummary.map((item, index) => {
+                    const isLowStock = item.totalPcs < 100;
+                    return (
+                      <div
+                        key={index}
+                        className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 space-y-3 hover:border-primary-200 transition-colors"
+                      >
+                        {/* Header: Name, Category, Status */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div>
+                              <h4 className="font-bold text-gray-900 text-[13px] leading-snug tracking-tight">{item.productName}</h4>
+                              <span className="inline-block mt-0.5 px-2 py-0.5 rounded bg-gray-100 text-[9px] font-bold text-gray-500 uppercase tracking-wider">
+                                {item.categoryName}
+                              </span>
+                            </div>
+                          </div>
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider ${isLowStock
+                                ? 'bg-rose-50 text-rose-700 border border-rose-200/50'
+                                : 'bg-emerald-50 text-emerald-700 border border-emerald-200/50'
+                              }`}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${isLowStock ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`} />
+                            {isLowStock ? 'Low' : 'In Stock'}
                           </span>
                         </div>
-                      </div>
-                      <span
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider ${isLowStock
-                            ? 'bg-rose-50 text-rose-700 border border-rose-200/50'
-                            : 'bg-emerald-50 text-emerald-700 border border-emerald-200/50'
-                          }`}
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full ${isLowStock ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`} />
-                        {isLowStock ? 'Low' : 'In Stock'}
-                      </span>
-                    </div>
 
-                    {/* Quantities & Value Grid */}
-                    <div className="grid grid-cols-3 gap-2 bg-gray-50/50 p-2.5 rounded-lg border border-gray-200/60 text-center">
-                      <div>
-                        <span className="text-[8px] font-bold text-gray-400 uppercase tracking-wider block">Boxes</span>
-                        <span className="text-xs font-bold text-gray-900 mt-0.5">{formatNumber(item.totalBoxes)}</span>
-                      </div>
-                      <div>
-                        <span className="text-[8px] font-bold text-gray-400 uppercase tracking-wider block">Pieces</span>
-                        <span className="text-xs font-bold text-gray-900 mt-0.5">{formatNumber(item.totalPcs)}</span>
-                      </div>
-                      <div>
-                        <span className="text-[8px] font-bold text-gray-400 uppercase tracking-wider block">Valuation</span>
-                        <span className="text-xs font-bold text-emerald-600 mt-0.5">{formatCurrency(item.totalValue)}</span>
-                      </div>
-                    </div>
+                        {/* Quantities & Value Grid */}
+                        <div className="grid grid-cols-3 gap-2 bg-gray-50/50 p-2.5 rounded-lg border border-gray-200/60 text-center">
+                          <div>
+                            <span className="text-[8px] font-bold text-gray-400 uppercase tracking-wider block">Boxes</span>
+                            <span className="text-xs font-bold text-gray-900 mt-0.5">{formatNumber(item.totalBoxes)}</span>
+                          </div>
+                          <div>
+                            <span className="text-[8px] font-bold text-gray-400 uppercase tracking-wider block">Pieces</span>
+                            <span className="text-xs font-bold text-gray-900 mt-0.5">{formatNumber(item.totalPcs)}</span>
+                          </div>
+                          <div>
+                            <span className="text-[8px] font-bold text-gray-400 uppercase tracking-wider block">Valuation</span>
+                            <span className="text-xs font-bold text-emerald-600 mt-0.5">{formatCurrency(item.totalValue)}</span>
+                          </div>
+                        </div>
 
-                    {/* Locations List */}
-                    {item.locations && item.locations.length > 0 && (
-                      <div className="pt-1.5 border-t border-gray-100">
-                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Locations</span>
-                        {item.locations.length > 3 ? (
-                          <LocationsPopover locations={item.locations} />
-                        ) : (
-                          <div className="flex flex-wrap gap-1">
-                            {item.locations.map((loc: any, idx: number) => (
-                              <div
-                                key={idx}
-                                title={`${loc.locationName}: ${formatNumber(loc.boxes)} boxes`}
-                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-100 border border-gray-200 text-[10px] text-gray-700 font-semibold"
-                              >
-                                <MapPin className="w-2 h-2 text-primary-500 flex-shrink-0" />
-                                <span className="max-w-[70px] truncate">{loc.locationName}</span>
+                        {/* Locations List */}
+                        {item.locations && item.locations.length > 0 && (
+                          <div className="pt-1.5 border-t border-gray-100">
+                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Locations</span>
+                            {item.locations.length > 3 ? (
+                              <LocationsPopover locations={item.locations} />
+                            ) : (
+                              <div className="flex flex-wrap gap-1">
+                                {item.locations.map((loc: any, idx: number) => (
+                                  <div
+                                    key={idx}
+                                    title={`${loc.locationName}: ${formatNumber(loc.boxes)} boxes`}
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-100 border border-gray-200 text-[10px] text-gray-700 font-semibold"
+                                  >
+                                    <MapPin className="w-2 h-2 text-primary-500 flex-shrink-0" />
+                                    <span className="max-w-[70px] truncate">{loc.locationName}</span>
+                                  </div>
+                                ))}
                               </div>
-                            ))}
+                            )}
                           </div>
                         )}
+
+                        {/* View Batches CTA */}
+                        <button
+                          onClick={() => loadBatches(item.productId)}
+                          className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold text-primary-700 hover:text-white bg-primary-50 hover:bg-primary-600 rounded-lg border border-primary-200 transition-all shadow-xs"
+                        >
+                          View Batches & Lots
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
                       </div>
-                    )}
-
-                    {/* View Batches CTA */}
-                    <button
-                      onClick={() => loadBatches(item.productId)}
-                      className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold text-primary-700 hover:text-white bg-primary-50 hover:bg-primary-600 rounded-lg border border-primary-200 transition-all shadow-xs"
-                    >
-                      View Batches & Lots
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                );
-              })}
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        {pagination && pagination.totalPages > 1 && (
-          <div className="px-4 py-3 border-t border-gray-100 bg-white">
-            <Pagination
-              currentPage={summaryPage}
-              totalPages={pagination.totalPages}
-              total={pagination.total}
-              limit={pagination.limit}
-              onPageChange={setSummaryPage}
-              loading={loading}
-            />
-          </div>
+            {pagination && pagination.totalPages > 1 && (
+              <div className="px-4 py-3 border-t border-gray-100 bg-white">
+                <Pagination
+                  currentPage={summaryPage}
+                  totalPages={pagination.totalPages}
+                  total={pagination.total}
+                  limit={pagination.limit}
+                  onPageChange={setSummaryPage}
+                  loading={loading}
+                />
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+              <div>
+                <h3 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
+                  Transfer History
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Track stock movements and transfers between locations.
+                </p>
+              </div>
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block">
+              <Table
+                data={transferHistory}
+                columns={historyColumns}
+                loading={historyLoading}
+                emptyMessage="No stock transfer records available"
+              />
+            </div>
+
+            {/* Mobile View */}
+            <div className="block md:hidden divide-y divide-gray-100">
+              {historyLoading ? (
+                <div className="p-8 text-center text-xs text-gray-500">Loading history...</div>
+              ) : transferHistory.length === 0 ? (
+                <div className="p-8 text-center text-xs text-gray-500">No transfer history found</div>
+              ) : (
+                <div className="p-3.5 space-y-3.5 bg-gray-50/30">
+                  {transferHistory.map((item) => (
+                    <div
+                      key={item.id}
+                      className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 space-y-3"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-[10px] font-bold text-gray-800 bg-gray-100 px-2 py-0.5 rounded border border-gray-200">
+                          {item.transferNo}
+                        </span>
+                        <span className="text-[10px] text-gray-400 font-semibold">
+                          {new Date(item.transferDate).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-gray-900">{item.stockBatch?.product?.name || 'N/A'}</h4>
+                        {item.stockBatch?.batchCode && (
+                          <p className="text-[9px] font-mono text-gray-400 mt-0.5">Batch: {item.stockBatch.batchCode}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[10px] bg-gray-50 p-2 rounded-lg border border-gray-100">
+                        <span className="text-gray-600 font-medium">{item.fromLocation?.name}</span>
+                        <span className="text-gray-400 font-bold">&rarr;</span>
+                        <span className="text-primary-700 font-bold">{item.toLocation?.name}</span>
+                      </div>
+                      <div className="flex items-center justify-between pt-1 text-[10px]">
+                        <span className="text-gray-600 font-bold">
+                          Qty: {[
+                            item.boxes > 0 && `${item.boxes} boxes`,
+                            item.packs > 0 && `${item.packs} packs`,
+                            item.pieces > 0 && `${item.pieces} pieces`,
+                          ].filter(Boolean).join(', ') || '0 pcs'}
+                        </span>
+                        {item.remarks && (
+                          <span className="text-gray-500 italic max-w-[150px] truncate" title={item.remarks}>
+                            "{item.remarks}"
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Pagination */}
+            {historyTotal > historyLimit && (
+              <div className="px-4 py-3 border-t border-gray-100 bg-white">
+                <Pagination
+                  currentPage={historyPage}
+                  totalPages={Math.ceil(historyTotal / historyLimit)}
+                  total={historyTotal}
+                  limit={historyLimit}
+                  onPageChange={setHistoryPage}
+                  loading={historyLoading}
+                />
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -752,7 +995,7 @@ const Inventory: React.FC = () => {
                           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                             <div className="space-y-2">
                               {/* Lot Date and Vendor */}
-                              <div className="flex items-center gap-3">
+                              <div className="flex flex-wrap items-center gap-3">
                                 <span className="text-[11px] font-bold text-gray-700 flex items-center gap-1">
                                   <Calendar className="w-3 h-3 text-gray-400" />
                                   {new Date(batch.inwardDate).toLocaleDateString()}
@@ -761,6 +1004,11 @@ const Inventory: React.FC = () => {
                                 <span className="text-[11px] text-gray-600 flex items-center gap-1 font-semibold">
                                   <User className="w-3 h-3 text-gray-400" />
                                   {batch.vendor?.name || 'N/A'}
+                                </span>
+                                <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                                <span className="text-[11px] text-gray-600 flex items-center gap-1 font-semibold">
+                                  <FileText className="w-3 h-3 text-gray-400" />
+                                  Invoice: {batch.inwardInvoice?.invoiceNo || 'N/A'}
                                 </span>
                               </div>
 
@@ -861,6 +1109,161 @@ const Inventory: React.FC = () => {
         locations={locations.map((loc) => ({ id: loc.id, name: loc.name }))}
         onTransfer={handleTransfer}
       />
+
+      {/* Stock Transfer Detail Modal */}
+      {selectedTransfer && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <div className="bg-white rounded-xl shadow-xl max-w-md sm:max-w-lg w-full max-h-[90vh] overflow-hidden border border-gray-150 flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gray-50/50">
+              <div className="flex items-center gap-2">
+                <Warehouse className="w-5 h-5 text-primary-600" />
+                <div>
+                  <h2 className="text-sm sm:text-base font-bold text-gray-900">Stock Transfer Details</h2>
+                  <p className="text-[10px] text-gray-400 font-mono mt-0.5">ID: {selectedTransfer.transferNo}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedTransfer(null)}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-4 sm:p-5 overflow-y-auto space-y-4 sm:space-y-5 text-xs sm:text-sm">
+              {/* Logistics Grid */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">From Location</span>
+                  <span className="font-semibold text-gray-800 mt-1 block">{selectedTransfer.fromLocation?.name || 'N/A'}</span>
+                  {selectedTransfer.fromLocation?.address && (
+                    <span className="text-[10px] text-gray-500 italic mt-0.5 block">{selectedTransfer.fromLocation.address}</span>
+                  )}
+                </div>
+                <div className="bg-primary-50/30 p-3 rounded-lg border border-primary-100/50">
+                  <span className="text-[10px] font-bold text-primary-500 uppercase tracking-wider block">To Location</span>
+                  <span className="font-bold text-primary-800 mt-1 block">{selectedTransfer.toLocation?.name || 'N/A'}</span>
+                  {selectedTransfer.toLocation?.address && (
+                    <span className="text-[10px] text-primary-600 italic mt-0.5 block">{selectedTransfer.toLocation.address}</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Product Info */}
+              <div className="border border-gray-100 rounded-lg p-3.5 space-y-2">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Product Description</span>
+                <div>
+                  <h4 className="font-bold text-gray-900">{selectedTransfer.stockBatch?.product?.name || 'N/A'}</h4>
+                  <div className="flex gap-2 mt-1 flex-wrap">
+                    {selectedTransfer.stockBatch?.product?.grade && (
+                      <span className="px-2 py-0.5 bg-gray-100 text-[10px] font-bold text-gray-500 rounded uppercase">
+                        Grade: {selectedTransfer.stockBatch.product.grade}
+                      </span>
+                    )}
+                    {selectedTransfer.stockBatch?.batchCode && (
+                      <span className="px-2 py-0.5 bg-amber-50 text-[10px] font-bold text-amber-700 rounded font-mono border border-amber-100">
+                        Batch: {selectedTransfer.stockBatch.batchCode}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Quantities Transferred */}
+              <div className="bg-gray-50/50 border border-gray-150 rounded-lg p-4">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">Transferred Quantities</span>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="bg-white p-2 rounded border border-gray-100 shadow-xs">
+                    <span className="text-[10px] font-semibold text-gray-400 uppercase block">Boxes</span>
+                    <span className="text-sm font-extrabold text-gray-800 mt-0.5 block">{selectedTransfer.boxes}</span>
+                  </div>
+                  <div className="bg-white p-2 rounded border border-gray-100 shadow-xs">
+                    <span className="text-[10px] font-semibold text-gray-400 uppercase block">Packs</span>
+                    <span className="text-sm font-extrabold text-gray-800 mt-0.5 block">{selectedTransfer.packs}</span>
+                  </div>
+                  <div className="bg-white p-2 rounded border border-gray-100 shadow-xs">
+                    <span className="text-[10px] font-semibold text-gray-400 uppercase block">Pieces</span>
+                    <span className="text-sm font-extrabold text-primary-700 mt-0.5 block">{selectedTransfer.pieces}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Valuation Details */}
+              <div className="border border-gray-100 rounded-lg p-3.5 space-y-2">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Valuation & Costing</span>
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <span className="text-gray-500">Unit Cost (Piece):</span>
+                    <span className="font-semibold text-gray-900 ml-1">
+                      {selectedTransfer.stockBatch ? formatCurrency(selectedTransfer.stockBatch.costPerPcs) : '—'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Total Transferred Pcs:</span>
+                    <span className="font-semibold text-gray-900 ml-1">
+                      {selectedTransfer.stockBatch
+                        ? formatNumber(
+                            selectedTransfer.boxes * selectedTransfer.stockBatch.packPerBox * selectedTransfer.stockBatch.packPerPiece +
+                            selectedTransfer.packs * selectedTransfer.stockBatch.packPerPiece +
+                            selectedTransfer.pieces
+                          )
+                        : '—'}
+                    </span>
+                  </div>
+                  <div className="col-span-2 pt-2 border-t border-gray-100 flex items-center justify-between">
+                    <span className="font-bold text-gray-700">Estimated Value Transferred:</span>
+                    <span className="text-sm font-extrabold text-emerald-600">
+                      {selectedTransfer.stockBatch
+                        ? formatCurrency(
+                            (selectedTransfer.boxes * selectedTransfer.stockBatch.packPerBox * selectedTransfer.stockBatch.packPerPiece +
+                             selectedTransfer.packs * selectedTransfer.stockBatch.packPerPiece +
+                             selectedTransfer.pieces) * selectedTransfer.stockBatch.costPerPcs
+                          )
+                        : '—'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Batch Metadata (Inward & Vendor) */}
+              <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-4">
+                <div>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Supplier / Vendor</span>
+                  <span className="font-semibold text-gray-800 mt-0.5 block">{selectedTransfer.stockBatch?.vendor?.name || 'N/A'}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Inward Details</span>
+                  <span className="font-semibold text-gray-800 mt-0.5 block">
+                    Inv: {selectedTransfer.stockBatch?.inwardInvoice?.invoiceNo || 'N/A'}
+                  </span>
+                  {selectedTransfer.stockBatch?.inwardDate && (
+                    <span className="text-[10px] text-gray-400 block mt-0.5">
+                      Date: {new Date(selectedTransfer.stockBatch.inwardDate).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Remarks */}
+              {selectedTransfer.remarks && (
+                <div className="bg-yellow-50/40 border border-yellow-100 rounded-lg p-3">
+                  <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider block">Remarks / Notes</span>
+                  <p className="text-xs text-gray-700 italic mt-1 leading-relaxed">"{selectedTransfer.remarks}"</p>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end">
+              <Button onClick={() => setSelectedTransfer(null)} className="px-5 py-2">
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Collapsible Low Stock Alert Accordion */}
       {lowStockItems.length > 0 && (
