@@ -70,6 +70,7 @@ interface OutwardInvoiceFormData {
   shippingCharge: string;
   discount: string;
   items: OutwardItem[];
+  scannedBarcodes?: string[];
 }
 
 const outwardSchema = z.object({
@@ -100,6 +101,7 @@ const outwardSchema = z.object({
       })
     )
     .min(1, 'At least one item is required'),
+  scannedBarcodes: z.array(z.string()).optional(),
 });
 
 // ─── MultiLineSelect (For Stock Batches Selection) ───────────────────────────
@@ -242,9 +244,21 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
   const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
 
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [scannedBarcodes, setScannedBarcodes] = useState<Array<{
+    barcode: string;
+    productId: string;
+    stockBatchId: string;
+  }>>([]);
 
   const handleScanSuccess = async (barcode: string) => {
     try {
+      // Check if barcode already scanned in this session
+      if (scannedBarcodes.some((b) => b.barcode === barcode)) {
+        playErrorSound();
+        toast.error("This barcode has already been scanned in this invoice.");
+        return;
+      }
+
       const token = localStorage.getItem('token');
       const response = await axios.get(`/api/v1/barcodes/lookup/${barcode}`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -303,6 +317,11 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
           const updated = [...items];
           updated[existingIdx].quantity += 1;
           setItems(updated);
+          setScannedBarcodes((prev) => [...prev, {
+            barcode,
+            productId: String(box.productId),
+            stockBatchId: String(box.stockBatchId)
+          }]);
           playSuccessSound();
           toast.success(`Incremented quantity for product: ${box.product?.name} in stock batch.`);
         } else {
@@ -319,6 +338,11 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
             stockBatch: selectedBatch
           };
           setItems([...items, itemToAdd]);
+          setScannedBarcodes((prev) => [...prev, {
+            barcode,
+            productId: String(box.productId),
+            stockBatchId: String(box.stockBatchId)
+          }]);
           playSuccessSound();
           toast.success(`Added box for product: ${box.product?.name}`);
         }
@@ -459,6 +483,14 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
       setItems(mappedItems);
       setExpandedItems(new Set(mappedItems.map((_, i) => i)));
 
+      // Populate scannedBarcodes from existing boxDetails on edit
+      const mappedBarcodes = (invoice as any).boxDetails?.map((b: any) => ({
+        barcode: b.barcode,
+        productId: String(b.productId),
+        stockBatchId: String(b.stockBatchId)
+      })) || [];
+      setScannedBarcodes(mappedBarcodes);
+
       // Pre-populate productsCache from existing items so GST shows immediately
       const productsCacheUpdate: { [key: string]: Product } = {};
       invoice.items?.forEach((item) => {
@@ -494,6 +526,7 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
         discount: '0',
       });
       setItems([]);
+      setScannedBarcodes([]);
     }
   }, [invoice, reset]);
 
@@ -700,6 +733,10 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
   };
 
   const handleRemoveItem = (index: number) => {
+    const itemToRemove = items[index];
+    if (itemToRemove) {
+      setScannedBarcodes((prev) => prev.filter((b) => b.stockBatchId.toString() !== itemToRemove.stockBatchId.toString()));
+    }
     setItems(items.filter((_, i) => i !== index));
     if (editingIndex === index) {
       setEditingIndex(null);
@@ -708,6 +745,7 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
   };
 
   const handleRemoveGroup = (productId: string, saleUnit: string, ratePerUnit: number) => {
+    setScannedBarcodes((prev) => prev.filter((b) => !(b.productId.toString() === productId.toString())));
     setItems((prev) =>
       prev.filter(
         (it) =>
@@ -778,6 +816,7 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
       )
     );
 
+    setScannedBarcodes((prev) => prev.filter((b) => !(b.productId.toString() === productId.toString())));
     toast.success('Item loaded into form for editing');
   };
 
@@ -793,11 +832,15 @@ const AddEditOutward: React.FC<AddEditOutwardProps> = ({ invoice, onSuccess, onC
   // Submit form data
   const onSubmit = async (data: OutwardInvoiceFormData) => {
     try {
+      const submitData = {
+        ...data,
+        scannedBarcodes: scannedBarcodes.map((b) => b.barcode)
+      };
       if (invoice) {
-        await dispatch(updateOutwardInvoice({ id: invoice.id, data })).unwrap();
+        await dispatch(updateOutwardInvoice({ id: invoice.id, data: submitData })).unwrap();
         toast.success('Outward invoice updated successfully');
       } else {
-        await dispatch(createOutwardInvoice(data)).unwrap();
+        await dispatch(createOutwardInvoice(submitData)).unwrap();
         toast.success('Outward invoice created successfully');
       }
       onSuccess();

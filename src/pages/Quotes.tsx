@@ -546,7 +546,10 @@ const Quotes: React.FC = () => {
           else costPerUnit = costInfo.costPerPcs;
         }
 
-        const itemSales = qty * rate;
+        const gstRate = (item as any).taxRate || (item.product?.category?.gstRate) || 0;
+        const itemBaseSales = qty * rate;
+        const itemGstAmt = (itemBaseSales * gstRate) / 100;
+        const itemSales = itemBaseSales + itemGstAmt;
         const itemCOGS = qty * costPerUnit;
         const itemProfit = itemSales - itemCOGS;
         // If no stock data (costPerUnit is 0), margin is unknown — show 0 instead of misleading 100%

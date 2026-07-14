@@ -17,6 +17,7 @@ export interface OutwardInvoiceFormData {
   saleType: 'export' | 'domestic';
   expense: number;
   items: OutwardItemFormData[];
+  scannedBarcodes?: string[];
 }
 
 export const outwardService = {
