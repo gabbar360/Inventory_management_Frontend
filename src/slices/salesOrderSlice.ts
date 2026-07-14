@@ -35,7 +35,7 @@ export const deleteSalesOrder = createAsyncThunk('salesOrders/delete', async (id
 
 export const convertQuoteToSalesOrder = createAsyncThunk(
   'salesOrders/convertFromQuote',
-  async ({ quoteId, items }: { quoteId: string | number; items: { quoteItemId?: number | string; productId: number | string; stockBatchId: string | number; saleUnit: string; quantity?: number }[] }, { rejectWithValue }) => {
+  async ({ quoteId, items }: { quoteId: string | number; items: { quoteItemId?: number | string; productId: number | string; stockBatchId: string | number | null; saleUnit: string; quantity?: number }[] }, { rejectWithValue }) => {
     try {
       return await salesOrderService.convertFromQuote(quoteId, items);
     } catch (e: any) {

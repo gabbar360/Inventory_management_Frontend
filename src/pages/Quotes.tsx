@@ -343,7 +343,7 @@ const Quotes: React.FC = () => {
     if (!salesModalQuote) return;
     const items = salesModalQuote.items || [];
     
-    const itemsPayload: Array<{ quoteItemId?: string | number; productId: string | number; stockBatchId: string | number; saleUnit: string; quantity: number }> = [];
+    const itemsPayload: Array<{ quoteItemId?: string | number; productId: string | number; stockBatchId: number | null; saleUnit: string; quantity: number }> = [];
 
     // Accumulate requested amounts per batch
     const batchRequestedAmounts: Record<string, Record<string, number>> = {};
@@ -351,16 +351,12 @@ const Quotes: React.FC = () => {
     for (const item of items) {
       const selections = salesOrderBatchSelections[item.id] || [];
       if (selections.length === 0) {
-        toast.error(`Please select at least one stock batch for: ${item.product?.name || item.productId}`);
+        toast.error(`Please select at least one stock batch or 'Book Later' for: ${item.product?.name || item.productId}`);
         return;
       }
 
       let totalSelectedQty = 0;
       for (const sel of selections) {
-        if (!sel.stockBatchId) {
-          toast.error(`Please select a stock batch for all rows of: ${item.product?.name || item.productId}`);
-          return;
-        }
         if (sel.quantity <= 0) {
           toast.error(`Quantity must be greater than 0 for all rows of: ${item.product?.name || item.productId}`);
           return;
@@ -368,16 +364,18 @@ const Quotes: React.FC = () => {
 
         totalSelectedQty += sel.quantity;
 
-        // Accumulate requested amounts per batch
-        if (!batchRequestedAmounts[sel.stockBatchId]) {
-          batchRequestedAmounts[sel.stockBatchId] = { box: 0, pack: 0, piece: 0 };
+        // Accumulate requested amounts per batch only if batch is selected
+        if (sel.stockBatchId) {
+          if (!batchRequestedAmounts[sel.stockBatchId]) {
+            batchRequestedAmounts[sel.stockBatchId] = { box: 0, pack: 0, piece: 0 };
+          }
+          batchRequestedAmounts[sel.stockBatchId][sel.saleUnit] = (batchRequestedAmounts[sel.stockBatchId][sel.saleUnit] || 0) + sel.quantity;
         }
-        batchRequestedAmounts[sel.stockBatchId][sel.saleUnit] = (batchRequestedAmounts[sel.stockBatchId][sel.saleUnit] || 0) + sel.quantity;
 
         itemsPayload.push({
           quoteItemId: item.id,
           productId: item.productId,
-          stockBatchId: sel.stockBatchId,
+          stockBatchId: sel.stockBatchId ? parseInt(sel.stockBatchId) : null,
           saleUnit: sel.saleUnit,
           quantity: sel.quantity,
         });
@@ -1587,7 +1585,7 @@ const Quotes: React.FC = () => {
                                             setSalesOrderBatchSelections(prev => ({ ...prev, [item.id]: newSels }));
                                           }}
                                         >
-                                          <option value="">Select batch...</option>
+                                          <option value="">Book Later (No Stock)</option>
                                           {batches.map((b: StockBatch) => {
                                             const availBoxes = b.remainingBoxes - (b.bookedBoxes || 0);
                                             const availPacks = b.remainingPacks - (b.bookedPacks || 0);
