@@ -57,7 +57,7 @@ const CustomerCombobox: React.FC<{
     } else {
       setSearch('');
     }
-  }, [value]);
+  }, [value, options]);
 
   const filtered = options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()));
 
@@ -194,11 +194,29 @@ const AddEditSalesOrder: React.FC<AddEditSalesOrderProps> = ({ order, onSuccess,
       });
       setItems(
         order.items && order.items.length > 0
-          ? order.items.map((i) => ({ productId: i.productId, product: i.product, quantity: i.quantity, unit: i.unit, rate: i.rate, taxRate: i.taxRate, description: i.description || '' }))
+          ? order.items.map((i) => ({ productId: String(i.productId), product: i.product, quantity: i.quantity, unit: i.unit, rate: i.rate, taxRate: i.taxRate, description: i.description || '' }))
           : []
       );
+    } else {
+      setFormData({
+        customerId: '',
+        orderDate: new Date().toISOString().split('T')[0],
+        saleType: 'domestic',
+        status: 'pending',
+        notes: '',
+        reference: '',
+        referenceBy: '',
+        expectedShipmentDate: '',
+        placeOfSupply: '',
+        deliveryMethod: '',
+        adjustment: '0',
+        amountReceived: '0',
+        shippingCharge: '0',
+        discount: '0',
+      });
+      setItems([]);
     }
-  }, [order]);
+  }, [order?.id]);
 
   // ── Calc ──
   const calcRawTotal = (currentItems = items, shipping = formData.shippingCharge, discount = formData.discount) => {

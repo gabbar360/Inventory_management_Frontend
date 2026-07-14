@@ -149,7 +149,7 @@ export const BarcodePrint: React.FC = () => {
                 <div style={{ flexGrow: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px 6px' }}>
                   <BarcodeImage barcode={box.barcode} width="100%" height="auto" />
                   <div style={{ position: 'absolute', bottom: '4px', left: 0, right: 0, textAlign: 'center', fontSize: '11px', fontWeight: 'bold', letterSpacing: '1px', pointerEvents: 'none' }}>
-                    {index + 1} / {boxes.length}
+                    Box {box.boxIndex} / {box.totalBoxes} | Total: {index + 1} / {boxes.length}
                   </div>
                 </div>
               </>
@@ -197,8 +197,9 @@ export const BarcodePrint: React.FC = () => {
                     <div style={{ fontSize: '9px', fontWeight: 'bold' }}>TOTAL PCS</div>
                     <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{box.totalPcs || '—'}</div>
                   </div>
-                  <div style={{ width: '50%', padding: '2px 5px', textAlign: 'center', fontSize: '9px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {index + 1} / {boxes.length}
+                  <div style={{ width: '50%', padding: '2px 5px', textAlign: 'center', fontSize: '9px', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1.1 }}>
+                    <div>Box {box.boxIndex} / {box.totalBoxes}</div>
+                    <div style={{ fontSize: '8px', fontWeight: 'normal' }}>Total: {index + 1} / {boxes.length}</div>
                   </div>
                 </div>
                 {/* Barcode row */}
@@ -251,8 +252,9 @@ export const BarcodePrint: React.FC = () => {
                 {/* Barcode */}
                 <div style={{ flexGrow: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2px 5px' }}>
                   <BarcodeImage barcode={box.barcode} width="100%" height="auto" />
-                  <div style={{ position: 'absolute', bottom: '2px', right: '6px', fontSize: '9px', fontWeight: 'bold' }}>
-                    {index + 1}/{boxes.length}
+                  <div style={{ position: 'absolute', bottom: '2px', right: '6px', fontSize: '8px', fontWeight: 'bold', textAlign: 'right', lineHeight: 1.1 }}>
+                    <div>Box {box.boxIndex}/{box.totalBoxes}</div>
+                    <div style={{ fontSize: '7px', fontWeight: 'normal' }}>T: {index + 1}/{boxes.length}</div>
                   </div>
                 </div>
               </>

@@ -252,7 +252,15 @@ const Outward: React.FC = () => {
         <span className={record.grossProfitMargin >= 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>{record.grossProfitMargin?.toFixed(2) || '0.00'}%</span>
       ),
     },
-    { key: 'items', title: 'Items', render: (items: any[]) => items?.length || 0 },
+    {
+      key: 'items',
+      title: 'Items',
+      render: (items: any[]) => {
+        if (!items) return 0;
+        const uniqueProducts = new Set(items.map((i) => i.productId));
+        return uniqueProducts.size;
+      },
+    },
     {
       key: 'actions',
       title: 'Actions',
@@ -280,6 +288,17 @@ const Outward: React.FC = () => {
 
   // ── Show form if in add/edit mode (like Products.tsx) ──
   if (id || window.location.pathname.includes('/add')) {
+    // Wait for invoice data to load before rendering edit form
+    if (id && (!currentInvoice || String(currentInvoice.id) !== String(id))) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="flex flex-col items-center gap-2">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
+            <div className="text-xs font-semibold text-gray-500">Loading invoice...</div>
+          </div>
+        </div>
+      );
+    }
     return (
       <AddEditOutward
         invoice={id && currentInvoice ? currentInvoice : undefined}
@@ -372,26 +391,48 @@ const Outward: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {selectedInvoice.items?.map((item, index) => (
-                      <tr key={index}>
-                        <td className="px-4 py-2 text-sm text-gray-900">
-                          <div>
-                            {item.product?.name} {item.product?.grade && `(${item.product.grade})`}
-                          </div>
-                          {item.description && (
-                            <div className="text-xs text-gray-400 mt-0.5 italic">
-                              {item.description}
+                    {(() => {
+                      const groupedItemsMap = new Map<string, any>();
+                      selectedInvoice.items?.forEach((item) => {
+                        const key = `${item.productId}-${item.saleUnit}-${item.ratePerUnit}`;
+                        if (groupedItemsMap.has(key)) {
+                          const existing = groupedItemsMap.get(key)!;
+                          existing.quantity += item.quantity;
+                          existing.totalCost += item.totalCost;
+                          if (item.description && existing.description && !existing.description.includes(item.description)) {
+                            existing.description = `${existing.description}, ${item.description}`;
+                          } else if (item.description && !existing.description) {
+                            existing.description = item.description;
+                          }
+                          if (item.location?.name && existing.location?.name && !existing.location.name.includes(item.location.name)) {
+                            existing.location.name = `${existing.location.name}, ${item.location.name}`;
+                          }
+                        } else {
+                          groupedItemsMap.set(key, { ...item, location: item.location ? { ...item.location } : undefined });
+                        }
+                      });
+                      const grouped = Array.from(groupedItemsMap.values());
+                      return grouped.map((item, index) => (
+                        <tr key={index}>
+                          <td className="px-4 py-2 text-sm text-gray-900">
+                            <div>
+                              {item.product?.name} {item.product?.grade && `(${item.product.grade})`}
                             </div>
-                          )}
-                        </td>
-                        <td className="px-4 py-2 text-sm text-gray-900">{item.product?.sku || '—'}</td>
-                        <td className="px-4 py-2 text-sm text-gray-500">{item.location?.name || '-'}</td>
-                        <td className="px-4 py-2 text-sm text-gray-900 capitalize">{item.saleUnit}</td>
-                        <td className="px-4 py-2 text-sm text-gray-900">{item.quantity}</td>
-                        <td className="px-4 py-2 text-sm text-gray-900">{formatCurrency(item.ratePerUnit)}</td>
-                        <td className="px-4 py-2 text-sm text-gray-900 font-semibold">{formatCurrency(item.totalCost)}</td>
-                      </tr>
-                    ))}
+                            {item.description && (
+                              <div className="text-xs text-gray-400 mt-0.5 italic">
+                                {item.description}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-2 text-sm text-gray-900">{item.product?.sku || '—'}</td>
+                          <td className="px-4 py-2 text-sm text-gray-500">{item.location?.name || '-'}</td>
+                          <td className="px-4 py-2 text-sm text-gray-900 capitalize">{item.saleUnit}</td>
+                          <td className="px-4 py-2 text-sm text-gray-900">{item.quantity}</td>
+                          <td className="px-4 py-2 text-sm text-gray-900">{formatCurrency(item.ratePerUnit)}</td>
+                          <td className="px-4 py-2 text-sm text-gray-900 font-semibold">{formatCurrency(item.totalCost)}</td>
+                        </tr>
+                      ));
+                    })()}
                   </tbody>
                 </table>
               </div>
