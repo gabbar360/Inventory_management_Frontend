@@ -4,7 +4,7 @@ import {
   Mail, Phone, Building2, MapPin, Calendar,
   TrendingUp, Users, CheckCircle2, XCircle, Briefcase,
   MessageSquare, ChevronDown, Sparkles, ArrowUpRight,
-  LayoutDashboard, List, Filter, Search, RefreshCw,
+  LayoutDashboard, List, Filter, Search,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -263,8 +263,6 @@ const Leads: React.FC = () => {
 
   useEffect(() => {
     fetchLeadsData();
-    const interval = setInterval(fetchLeadsData, 30000);
-    return () => clearInterval(interval);
   }, [dispatch, viewMode, currentPage, debouncedSearch, filterSource]);
 
   useEffect(() => {
