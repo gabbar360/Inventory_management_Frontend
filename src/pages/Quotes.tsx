@@ -25,6 +25,7 @@ import Table from '@/components/Table';
 import QuoteForm from '@/components/forms/QuoteForm';
 import ShareDocumentModal from '@/components/ShareDocumentModal';
 import { inventoryService } from '@/services/inventoryService';
+import { salesOrderService } from '@/services/salesOrderService';
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 
@@ -138,6 +139,7 @@ const Quotes: React.FC = () => {
   const [salesOrderBatchSelections, setSalesOrderBatchSelections] = useState<Record<string, Array<{ id: string; stockBatchId: string; saleUnit: string; quantity: number }>>>({});
   const [salesOrderStockCache, setSalesOrderStockCache] = useState<Record<string, StockBatch[]>>({});
   const [salesOrderStockLoading, setSalesOrderStockLoading] = useState(false);
+  const [existingSalesOrderItems, setExistingSalesOrderItems] = useState<Record<string, any>>({});
 
   // Tab & cost cache states for quote details view panel
   const [activeDetailTab, setActiveDetailTab] = useState<'preview' | 'pl'>('preview');
@@ -297,23 +299,43 @@ const Quotes: React.FC = () => {
     setSalesModalQuote(quote);
     setSalesOrderBatchSelections({});
     setSalesOrderStockCache({});
+    setExistingSalesOrderItems({});
     setSalesOrderStockLoading(true);
     try {
       const items = quote.items || [];
-      const uniqueProductIds = [...new Set(items.map((i: QuoteItem) => i.productId.toString()))];
-      const results = await Promise.all(
-        uniqueProductIds.map((pid) => dispatch(fetchAvailableStock({ productId: pid })).unwrap())
-      );
+
+      // Fetch existing sales order for this quote (if any)
+      const existingSO = await salesOrderService.getByQuoteId(quote.id);
+      const bookedItemsMap: Record<string, any> = {};
+      if (existingSO && existingSO.items) {
+        for (const soItem of (existingSO as any).items) {
+          // Only mark as already booked if it has an actual stock batch assigned
+          if (!soItem.stockBatchId) continue;
+          const matchingQuoteItem = items.find(qi => qi.productId.toString() === soItem.productId.toString());
+          if (matchingQuoteItem) {
+            bookedItemsMap[matchingQuoteItem.id] = soItem;
+          }
+        }
+      }
+      setExistingSalesOrderItems(bookedItemsMap);
+
+      // Only fetch stock for NEW items (not already booked)
+      const newItems = items.filter(i => !bookedItemsMap[i.id]);
+      const uniqueProductIds = [...new Set(newItems.map((i: QuoteItem) => i.productId.toString()))];
       const cache: Record<string, StockBatch[]> = {};
-      uniqueProductIds.forEach((pid, idx) => { cache[pid] = results[idx]; });
+      if (uniqueProductIds.length > 0) {
+        const results = await Promise.all(
+          uniqueProductIds.map((pid) => dispatch(fetchAvailableStock({ productId: pid })).unwrap())
+        );
+        uniqueProductIds.forEach((pid, idx) => { cache[pid] = results[idx]; });
+      }
       setSalesOrderStockCache(cache);
 
-      // Pre-select first batch with sufficient stock if available, and set default unit
+      // Pre-select for new items only
       const initialSelections: Record<string, Array<{ id: string; stockBatchId: string; saleUnit: string; quantity: number }>> = {};
-      items.forEach((item) => {
+      newItems.forEach((item) => {
         const batches = cache[item.productId.toString()] || [];
         const defaultUnit = item.unit || 'box';
-        // Try to find a batch that can fulfill item.quantity
         const matchingBatch = batches.find((b) => {
           if (defaultUnit === 'box') return b.remainingBoxes >= item.quantity;
           if (defaultUnit === 'pack') return b.remainingPacks >= item.quantity;
@@ -337,6 +359,7 @@ const Quotes: React.FC = () => {
 
   const closeSalesModal = () => {
     setSalesModalQuote(null);
+    setExistingSalesOrderItems({});
   };
 
   const confirmConvertToSalesOrder = async () => {
@@ -349,6 +372,19 @@ const Quotes: React.FC = () => {
     const batchRequestedAmounts: Record<string, Record<string, number>> = {};
 
     for (const item of items) {
+      // If this item is already booked in existing SO, pass its existing batch info
+      const existingSOItem = existingSalesOrderItems[item.id];
+      if (existingSOItem) {
+        itemsPayload.push({
+          quoteItemId: item.id,
+          productId: item.productId,
+          stockBatchId: existingSOItem.stockBatchId || null,
+          saleUnit: existingSOItem.unit || item.unit || 'box',
+          quantity: existingSOItem.quantity || item.quantity,
+        });
+        continue;
+      }
+
       const selections = salesOrderBatchSelections[item.id] || [];
       if (selections.length === 0) {
         toast.error(`Please select at least one stock batch or 'Book Later' for: ${item.product?.name || item.productId}`);
@@ -1544,20 +1580,22 @@ const Quotes: React.FC = () => {
                       </thead>
                       <tbody className="divide-y divide-gray-200 bg-white">
                         {(salesModalQuote.items || []).map((item: QuoteItem) => {
+                          const isAlreadyBooked = !!existingSalesOrderItems[item.id];
+                          const existingSOItem = existingSalesOrderItems[item.id];
                           const batches = salesOrderStockCache[item.productId.toString()] || [];
                           const selections = salesOrderBatchSelections[item.id] || [];
                           const totalSelectedQty = selections.reduce((sum, s) => sum + (parseFloat(s.quantity as any) || 0), 0);
-                          const isQtyMatch = Math.abs(totalSelectedQty - item.quantity) < 0.001;
+                          const isQtyMatch = isAlreadyBooked || Math.abs(totalSelectedQty - item.quantity) < 0.001;
 
                           return (
-                            <tr key={item.id} className="hover:bg-gray-50/50 transition-colors duration-150 border-b border-gray-200">
+                            <tr key={item.id} className={`hover:bg-gray-50/50 transition-colors duration-150 border-b border-gray-200 ${isAlreadyBooked ? 'bg-gray-50/80 opacity-70' : ''}`}>
                               <td className="px-4 py-4 align-top w-[35%]">
                                 <div className="flex items-start gap-2.5">
-                                  <div className="p-1.5 bg-emerald-50 rounded-lg text-emerald-700 mt-0.5">
+                                  <div className={`p-1.5 rounded-lg mt-0.5 ${isAlreadyBooked ? 'bg-gray-100 text-gray-400' : 'bg-emerald-50 text-emerald-700'}`}>
                                     <Package className="h-4 w-4" />
                                   </div>
                                   <div>
-                                    <div className="font-semibold text-gray-900 text-xs sm:text-sm max-w-[200px] truncate animate-none" title={item.product?.name}>
+                                    <div className="font-semibold text-gray-900 text-xs sm:text-sm max-w-[200px] truncate" title={item.product?.name}>
                                       {item.product?.name || `Product #${item.productId}`}
                                     </div>
                                     <div className="flex flex-col gap-1 mt-1 text-[11px] text-gray-500">
@@ -1565,13 +1603,24 @@ const Quotes: React.FC = () => {
                                         <div>Grade: <span className="bg-gray-100 text-gray-700 px-1 rounded font-medium">{item.product.grade}</span></div>
                                       )}
                                       <div>Required: <span className="font-bold text-blue-600">{item.quantity} {item.unit}</span></div>
-                                      <div>Selected: <span className={cn("font-bold", isQtyMatch ? "text-emerald-600" : "text-amber-500")}>{totalSelectedQty} / {item.quantity}</span></div>
+                                      {isAlreadyBooked ? (
+                                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full w-fit">
+                                          ✓ Already Booked
+                                        </span>
+                                      ) : (
+                                        <div>Selected: <span className={`font-bold ${isQtyMatch ? 'text-emerald-600' : 'text-amber-500'}`}>{totalSelectedQty} / {item.quantity}</span></div>
+                                      )}
                                     </div>
                                   </div>
                                 </div>
                               </td>
                               <td className="px-4 py-4 align-top" colSpan={2}>
-                                <div className="space-y-3">
+                                {isAlreadyBooked ? (
+                                  <div className="text-xs text-gray-500 italic bg-gray-100 rounded px-3 py-2 border border-gray-200">
+                                    Stock already booked — Batch: <span className="font-semibold text-gray-700">{existingSOItem.stockBatchId ? `#${existingSOItem.stockBatchId}` : 'Book Later'}</span>, Qty: <span className="font-semibold text-gray-700">{existingSOItem.quantity} {existingSOItem.unit}</span>
+                                  </div>
+                                ) : (
+                                  <div className="space-y-3">
                                   {selections.map((sel, idx) => (
                                     <div key={sel.id} className="flex flex-wrap items-center gap-2">
                                       {/* Batch selection dropdown */}
@@ -1674,7 +1723,8 @@ const Quotes: React.FC = () => {
                                   >
                                     <Plus className="h-3 w-3" /> Add Batch Row
                                   </button>
-                                </div>
+                                  </div>
+                                )}
                               </td>
                             </tr>
                           );

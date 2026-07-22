@@ -26,6 +26,11 @@ export const salesOrderService = {
     await api.delete(`/sales-orders/${id}`);
   },
 
+  getByQuoteId: async (quoteId: string | number): Promise<SalesOrder | null> => {
+    const response = await api.get('/sales-orders', { params: { quoteId, limit: 1 } });
+    return response.data.data?.[0] || null;
+  },
+
   convertFromQuote: async (quoteId: string | number, items?: { quoteItemId?: number | string; productId: number | string; stockBatchId: string | number | null; saleUnit: string; quantity?: number }[]): Promise<SalesOrder> => {
     const response = await api.post(`/sales-orders/convert-from-quote/${quoteId}`, { items });
     return response.data.data;
