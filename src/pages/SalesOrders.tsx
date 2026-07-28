@@ -128,11 +128,6 @@ const SalesOrders: React.FC = () => {
     const items = order.items || [];
     const missingBatch = items.some((item: SalesOrderItem) => !item.stockBatchId);
     
-    if (missingBatch) {
-      toast.error("Some items in this order do not have a booked stock batch. Cannot convert directly.");
-      return;
-    }
-
     if (!window.confirm(`Are you sure you want to convert Sales Order ${order.orderNo} to an Outward Invoice?`)) {
       return;
     }

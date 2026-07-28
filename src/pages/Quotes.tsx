@@ -306,21 +306,21 @@ const Quotes: React.FC = () => {
 
       // Fetch existing sales order for this quote (if any)
       const existingSO = await salesOrderService.getByQuoteId(quote.id);
-      const bookedItemsMap: Record<string, any> = {};
+      const existingSOItemsMap: Record<string, any> = {};
       if (existingSO && existingSO.items) {
         for (const soItem of (existingSO as any).items) {
-          // Only mark as already booked if it has an actual stock batch assigned
+          // Only track items that already have a stock batch assigned
           if (!soItem.stockBatchId) continue;
           const matchingQuoteItem = items.find(qi => qi.productId.toString() === soItem.productId.toString());
           if (matchingQuoteItem) {
-            bookedItemsMap[matchingQuoteItem.id] = soItem;
+            existingSOItemsMap[matchingQuoteItem.id] = soItem;
           }
         }
       }
-      setExistingSalesOrderItems(bookedItemsMap);
+      setExistingSalesOrderItems(existingSOItemsMap);
 
-      // Only fetch stock for NEW items (not already booked)
-      const newItems = items.filter(i => !bookedItemsMap[i.id]);
+      // Only fetch stock for NEW items (not already in existing SO)
+      const newItems = items.filter(i => !existingSOItemsMap[i.id]);
       const uniqueProductIds = [...new Set(newItems.map((i: QuoteItem) => i.productId.toString()))];
       const cache: Record<string, StockBatch[]> = {};
       if (uniqueProductIds.length > 0) {
@@ -372,7 +372,7 @@ const Quotes: React.FC = () => {
     const batchRequestedAmounts: Record<string, Record<string, number>> = {};
 
     for (const item of items) {
-      // If this item is already booked in existing SO, pass its existing batch info
+      // If this item already has a batch in existing SO, pass its info
       const existingSOItem = existingSalesOrderItems[item.id];
       if (existingSOItem) {
         itemsPayload.push({
@@ -436,9 +436,9 @@ const Quotes: React.FC = () => {
       }
 
       if (foundBatch) {
-        const availBoxes = foundBatch.remainingBoxes - (foundBatch.bookedBoxes || 0);
-        const availPacks = foundBatch.remainingPacks - (foundBatch.bookedPacks || 0);
-        const availPcs = foundBatch.remainingPcs - (foundBatch.bookedPcs || 0);
+        const availBoxes = foundBatch.remainingBoxes;
+        const availPacks = foundBatch.remainingPacks;
+        const availPcs = foundBatch.remainingPcs;
 
         const requested = batchRequestedAmounts[batchId];
 
@@ -462,8 +462,8 @@ const Quotes: React.FC = () => {
       await dispatch(convertQuoteToSalesOrder({ quoteId: salesModalQuote.id, items: itemsPayload })).unwrap();
       toast.success(
         salesModalQuote.status === 'accepted'
-          ? `Sales Order updated and stock re-booked from ${salesModalQuote.quoteNo}`
-          : `Sales Order created and stock booked from ${salesModalQuote.quoteNo}`
+          ? `Sales Order updated from ${salesModalQuote.quoteNo}`
+          : `Sales Order created from ${salesModalQuote.quoteNo}`
       );
       navigate('/sales-orders');
     } catch (e: any) {
@@ -1565,7 +1565,7 @@ const Quotes: React.FC = () => {
                 <div className="text-xs text-amber-800 bg-amber-50/70 border border-amber-250 rounded-lg px-3.5 py-2.5 flex items-start gap-2">
                   <span className="mt-0.5 text-amber-500 font-bold">ℹ️</span>
                   <p className="leading-relaxed font-medium">
-                    Please select the stock batches from which you want to book inventory for this Sales Order. The booked stock will be reserved until invoiced.
+                    Please select the stock batches for this Sales Order.
                   </p>
                 </div>
 
@@ -1580,18 +1580,18 @@ const Quotes: React.FC = () => {
                       </thead>
                       <tbody className="divide-y divide-gray-200 bg-white">
                         {(salesModalQuote.items || []).map((item: QuoteItem) => {
-                          const isAlreadyBooked = !!existingSalesOrderItems[item.id];
+                          const isAlreadyAssigned = !!existingSalesOrderItems[item.id];
                           const existingSOItem = existingSalesOrderItems[item.id];
                           const batches = salesOrderStockCache[item.productId.toString()] || [];
                           const selections = salesOrderBatchSelections[item.id] || [];
                           const totalSelectedQty = selections.reduce((sum, s) => sum + (parseFloat(s.quantity as any) || 0), 0);
-                          const isQtyMatch = isAlreadyBooked || Math.abs(totalSelectedQty - item.quantity) < 0.001;
+                          const isQtyMatch = isAlreadyAssigned || Math.abs(totalSelectedQty - item.quantity) < 0.001;
 
                           return (
-                            <tr key={item.id} className={`hover:bg-gray-50/50 transition-colors duration-150 border-b border-gray-200 ${isAlreadyBooked ? 'bg-gray-50/80 opacity-70' : ''}`}>
+                            <tr key={item.id} className={`hover:bg-gray-50/50 transition-colors duration-150 border-b border-gray-200 ${isAlreadyAssigned ? 'bg-gray-50/80 opacity-70' : ''}`}>
                               <td className="px-4 py-4 align-top w-[35%]">
                                 <div className="flex items-start gap-2.5">
-                                  <div className={`p-1.5 rounded-lg mt-0.5 ${isAlreadyBooked ? 'bg-gray-100 text-gray-400' : 'bg-emerald-50 text-emerald-700'}`}>
+                                  <div className={`p-1.5 rounded-lg mt-0.5 ${isAlreadyAssigned ? 'bg-gray-100 text-gray-400' : 'bg-emerald-50 text-emerald-700'}`}>
                                     <Package className="h-4 w-4" />
                                   </div>
                                   <div>
@@ -1603,9 +1603,9 @@ const Quotes: React.FC = () => {
                                         <div>Grade: <span className="bg-gray-100 text-gray-700 px-1 rounded font-medium">{item.product.grade}</span></div>
                                       )}
                                       <div>Required: <span className="font-bold text-blue-600">{item.quantity} {item.unit}</span></div>
-                                      {isAlreadyBooked ? (
+                                      {isAlreadyAssigned ? (
                                         <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full w-fit">
-                                          ✓ Already Booked
+                                          ✓ Already Assigned
                                         </span>
                                       ) : (
                                         <div>Selected: <span className={`font-bold ${isQtyMatch ? 'text-emerald-600' : 'text-amber-500'}`}>{totalSelectedQty} / {item.quantity}</span></div>
@@ -1615,9 +1615,9 @@ const Quotes: React.FC = () => {
                                 </div>
                               </td>
                               <td className="px-4 py-4 align-top" colSpan={2}>
-                                {isAlreadyBooked ? (
+                                {isAlreadyAssigned ? (
                                   <div className="text-xs text-gray-500 italic bg-gray-100 rounded px-3 py-2 border border-gray-200">
-                                    Stock already booked — Batch: <span className="font-semibold text-gray-700">{existingSOItem.stockBatchId ? `#${existingSOItem.stockBatchId}` : 'Book Later'}</span>, Qty: <span className="font-semibold text-gray-700">{existingSOItem.quantity} {existingSOItem.unit}</span>
+                                    Stock assigned — Batch: <span className="font-semibold text-gray-700">{existingSOItem.stockBatchId ? `#${existingSOItem.stockBatchId}` : 'Book Later'}</span>, Qty: <span className="font-semibold text-gray-700">{existingSOItem.quantity} {existingSOItem.unit}</span>
                                   </div>
                                 ) : (
                                   <div className="space-y-3">
@@ -1636,9 +1636,9 @@ const Quotes: React.FC = () => {
                                         >
                                           <option value="">Book Later (No Stock)</option>
                                           {batches.map((b: StockBatch) => {
-                                            const availBoxes = b.remainingBoxes - (b.bookedBoxes || 0);
-                                            const availPacks = b.remainingPacks - (b.bookedPacks || 0);
-                                            const availPcs = b.remainingPcs - (b.bookedPcs || 0);
+                                            const availBoxes = b.remainingBoxes;
+                                            const availPacks = b.remainingPacks;
+                                            const availPcs = b.remainingPcs;
                                             return (
                                               <option key={b.id} value={b.id}>
                                                 [{b.location?.name || 'Loc'}] {b.vendor?.name || 'Vendor'} - {b.batchCode || 'No Batch'} (Avail: {availBoxes}b / {availPacks}pk / {availPcs}pc)
