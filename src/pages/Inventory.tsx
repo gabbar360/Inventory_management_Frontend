@@ -364,47 +364,23 @@ const Inventory: React.FC = () => {
     {
       key: 'totalBoxes',
       title: 'Boxes',
-      render: (value: number, record: StockSummary) => {
-        const booked = record.totalBookedBoxes || 0;
-        const avail = value - booked;
-        return (
-          <div className="flex flex-col text-xs">
-            <span className="font-bold text-gray-900">Total: {formatNumber(value)}</span>
-            {booked > 0 && <span className="text-[10px] text-amber-600 font-semibold">Booked: {formatNumber(booked)}</span>}
-            <span className="text-[10px] text-blue-600 font-bold">Avail: {formatNumber(avail)}</span>
-          </div>
-        );
-      },
+      render: (value: number) => (
+        <div className="flex flex-col text-xs"><span className="font-bold text-gray-900">{formatNumber(value)}</span></div>
+      ),
     },
     {
       key: 'totalPacks',
       title: 'Packs',
-      render: (_: any, record: StockSummary) => {
-        const booked = record.totalBookedPacks || 0;
-        const avail = (record.totalPacks || 0) - booked;
-        return (
-          <div className="flex flex-col text-xs">
-            <span className="font-medium text-gray-700">Total: {formatNumber(record.totalPacks || 0)}</span>
-            {booked > 0 && <span className="text-[10px] text-amber-600 font-semibold">Booked: {formatNumber(booked)}</span>}
-            <span className="text-[10px] text-blue-600 font-bold">Avail: {formatNumber(avail)}</span>
-          </div>
-        );
-      },
+      render: (_: any, record: StockSummary) => (
+        <div className="flex flex-col text-xs"><span className="font-medium text-gray-700">{formatNumber(record.totalPacks || 0)}</span></div>
+      ),
     },
     {
       key: 'totalPcs',
       title: 'Pieces',
-      render: (value: number, record: StockSummary) => {
-        const booked = record.totalBookedPcs || 0;
-        const avail = value - booked;
-        return (
-          <div className="flex flex-col text-xs">
-            <span className="font-bold text-gray-900">Total: {formatNumber(value)}</span>
-            {booked > 0 && <span className="text-[10px] text-amber-605 font-semibold">Booked: {formatNumber(booked)}</span>}
-            <span className="text-xs font-extrabold text-primary-700">Avail: {formatNumber(avail)}</span>
-          </div>
-        );
-      },
+      render: (value: number) => (
+        <div className="flex flex-col text-xs"><span className="font-bold text-gray-900">{formatNumber(value)}</span></div>
+      ),
     },
     {
       key: 'totalValue',
@@ -1024,8 +1000,6 @@ const Inventory: React.FC = () => {
                                   <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Boxes</span>
                                   <div className="flex flex-col">
                                     <span className="text-xs font-bold text-gray-900">Total: {formatNumber(batch.remainingBoxes)}</span>
-                                    <span className="text-[10px] text-amber-600 font-semibold">Booked: {formatNumber(batch.bookedBoxes || 0)}</span>
-                                    <span className="text-[10px] text-blue-600 font-bold">Avail: {formatNumber(batch.remainingBoxes - (batch.bookedBoxes || 0))}</span>
                                   </div>
                                   <span className="text-[9px] text-gray-400 block font-normal mt-1">({batch.packPerBox || 1} p/b)</span>
                                 </div>
@@ -1033,8 +1007,6 @@ const Inventory: React.FC = () => {
                                   <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Packs</span>
                                   <div className="flex flex-col">
                                     <span className="text-xs font-bold text-gray-900">Total: {formatNumber(batch.remainingPacks || 0)}</span>
-                                    <span className="text-[10px] text-amber-600 font-semibold">Booked: {formatNumber(batch.bookedPacks || 0)}</span>
-                                    <span className="text-[10px] text-blue-600 font-bold">Avail: {formatNumber((batch.remainingPacks || 0) - (batch.bookedPacks || 0))}</span>
                                   </div>
                                   <span className="text-[9px] text-gray-400 block font-normal mt-1">({batch.packPerPiece || 1} p/p)</span>
                                 </div>
@@ -1042,8 +1014,6 @@ const Inventory: React.FC = () => {
                                   <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Total Pieces</span>
                                   <div className="flex flex-col">
                                     <span className="text-xs font-bold text-gray-900">Total: {formatNumber(batch.remainingPcs)}</span>
-                                    <span className="text-[10px] text-amber-650 font-semibold">Booked: {formatNumber(batch.bookedPcs || 0)}</span>
-                                    <span className="text-xs font-extrabold text-primary-700">Avail: {formatNumber(batch.remainingPcs - (batch.bookedPcs || 0))}</span>
                                   </div>
                                 </div>
                               </div>
