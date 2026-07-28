@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Plus, Edit, Trash2, Eye, Download, Loader2, MoreVertical, FileText, Package, Mail } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Download, Loader2, MoreVertical, FileText, Package, Mail, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { salesOrderService } from '@/services/salesOrderService';
@@ -56,6 +56,10 @@ const SalesOrders: React.FC = () => {
   const [actionModalOrder, setActionModalOrder] = useState<SalesOrder | null>(null);
   const [submittingInvoice, setSubmittingInvoice] = useState(false);
   const [shareOrder, setShareOrder] = useState<SalesOrder | null>(null);
+  const [invoiceModalOrder, setInvoiceModalOrder] = useState<SalesOrder | null>(null);
+  const [batchSelections, setBatchSelections] = useState<Record<string, Array<{ id: string; stockBatchId: string; saleUnit: string; quantity: number }>>>({});
+  const [stockCache, setStockCache] = useState<Record<string, StockBatch[]>>({});
+  const [stockLoading, setStockLoading] = useState(false);
 
   useEffect(() => {
     dispatch(fetchSalesOrders({ page: currentPage, limit: 10, search }));
@@ -124,24 +128,72 @@ const SalesOrders: React.FC = () => {
     }
   };
 
-  const handleDirectInvoiceConversion = async (order: SalesOrder) => {
-    const items = order.items || [];
-    const missingBatch = items.some((item: SalesOrderItem) => !item.stockBatchId);
-    
-    if (!window.confirm(`Are you sure you want to convert Sales Order ${order.orderNo} to an Outward Invoice?`)) {
-      return;
+  const openInvoiceModal = async (order: SalesOrder) => {
+    setInvoiceModalOrder(order);
+    setBatchSelections({});
+    setStockCache({});
+    setStockLoading(true);
+    try {
+      const items = order.items || [];
+      const uniqueProductIds = [...new Set(items.map((i: SalesOrderItem) => i.productId.toString()))];
+      const results = await Promise.all(
+        uniqueProductIds.map((pid) => dispatch(fetchAvailableStock({ productId: pid })).unwrap())
+      );
+      const cache: Record<string, StockBatch[]> = {};
+      uniqueProductIds.forEach((pid, idx) => { cache[pid] = results[idx]; });
+      setStockCache(cache);
+    } catch (err: any) {
+      toast.error('Failed to load available stock batches');
+    } finally {
+      setStockLoading(false);
     }
+  };
 
+  const handleInvoiceSubmit = async () => {
+    if (!invoiceModalOrder) return;
+    const items = invoiceModalOrder.items || [];
+    
+    const itemsPayload: Array<{ salesOrderItemId: string; stockBatchId: string; saleUnit: string; quantity: number }> = [];
+    
+    for (const item of items) {
+      const selections = batchSelections[item.id] || [];
+      if (selections.length === 0) {
+        toast.error(`Please select at least one stock batch for: ${item.product?.name || item.productId}`);
+        return;
+      }
+      
+      let totalSelectedQty = 0;
+      for (const sel of selections) {
+        if (sel.quantity <= 0) {
+          toast.error(`Quantity must be greater than 0 for: ${item.product?.name || item.productId}`);
+          return;
+        }
+        totalSelectedQty += sel.quantity;
+        
+        itemsPayload.push({
+          salesOrderItemId: item.id,
+          stockBatchId: sel.stockBatchId,
+          saleUnit: sel.saleUnit,
+          quantity: sel.quantity,
+        });
+      }
+    }
+    
     setSubmittingInvoice(true);
     try {
-      await dispatch(convertSalesOrderToInvoice({ id: order.id, items: [] })).unwrap();
-      toast.success(`Invoice created from ${order.orderNo}`);
+      await dispatch(convertSalesOrderToInvoice({ id: invoiceModalOrder.id, items: itemsPayload })).unwrap();
+      toast.success(`Invoice created from ${invoiceModalOrder.orderNo}`);
+      setInvoiceModalOrder(null);
       navigate('/outward');
     } catch (e: any) {
       toast.error(e?.message || e || 'Failed to convert to invoice');
     } finally {
       setSubmittingInvoice(false);
     }
+  };
+
+  const handleDirectInvoiceConversion = (order: SalesOrder) => {
+    openInvoiceModal(order);
   };
 
   const columns = [
@@ -323,6 +375,121 @@ const SalesOrders: React.FC = () => {
                 </table>
               </div>
             )}
+          </div>
+        )}
+      </Modal>
+
+      {/* Convert to Invoice Modal */}
+      <Modal isOpen={!!invoiceModalOrder} onClose={() => setInvoiceModalOrder(null)}
+        title={`Convert ${invoiceModalOrder?.orderNo} to Invoice`} size="xl">
+        {invoiceModalOrder && (
+          <div className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-blue-800">
+              Customer: <span className="font-semibold">{invoiceModalOrder.customer?.name}</span>
+              &nbsp;&bull;&nbsp; Order Date: <span className="font-semibold">{formatDate(invoiceModalOrder.orderDate)}</span>
+            </div>
+            {stockLoading ? (
+              <div className="flex items-center justify-center py-10 gap-3">
+                <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                <span className="text-sm text-gray-500 font-semibold">Loading stock batches...</span>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
+                {(invoiceModalOrder.items || []).map((item: SalesOrderItem) => {
+                  const batches: StockBatch[] = stockCache[item.productId.toString()] || [];
+                  const selections = batchSelections[item.id] || [{ id: '1', stockBatchId: '', saleUnit: 'box', quantity: item.quantity }];
+                  return (
+                    <div key={item.id} className="border border-gray-200 rounded p-4 space-y-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Package className="h-4 w-4 text-gray-400" />
+                        <span className="font-bold text-gray-900 text-sm">
+                          {item.product?.name || `Product #${item.productId}`}
+                          {item.product?.grade && <span className="text-xs text-gray-500 font-normal ml-1">({item.product.grade})</span>}
+                          {item.product?.sku && <span className="text-xs text-gray-500 font-normal ml-2">[{item.product.sku}]</span>}
+                        </span>
+                        <span className="ml-auto text-xs font-bold text-gray-700">Qty: {item.quantity} {item.unit}</span>
+                        <span className="text-xs font-bold text-gray-700">Rate: ₹{item.rate}</span>
+                      </div>
+                      {item.description && (
+                        <p className="text-xs text-gray-500 pl-6 italic">{item.description}</p>
+                      )}
+                      <div className="space-y-2">
+                        <div className="text-xs font-bold text-gray-700">Stock Batches & Quantities Selection</div>
+                        {selections.map((sel, idx) => (
+                          <div key={sel.id} className="flex flex-col lg:flex-row items-stretch lg:items-end gap-2 p-2 bg-gray-50 border border-gray-200 rounded">
+                            <div className="flex-1">
+                              <label className="block text-xs font-bold text-gray-600 mb-1">Batch <span className="text-red-500">*</span></label>
+                              {batches.length === 0 ? (
+                                <div className="text-xs text-red-650 bg-red-50 border border-red-200 rounded px-3 py-2 font-semibold">No stock available</div>
+                              ) : (
+                                <select className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                                  value={sel.stockBatchId}
+                                  onChange={(e) => {
+                                    const updated = [...selections];
+                                    updated[idx] = { ...sel, stockBatchId: e.target.value };
+                                    setBatchSelections(prev => ({ ...prev, [item.id]: updated }));
+                                  }}>
+                                  <option value="">Select batch...</option>
+                                  {batches.map((b: StockBatch) => (
+                                    <option key={b.id} value={b.id}>
+                                      {(b as any).location?.name} — {(b as any).vendor?.name} | Boxes: {b.remainingBoxes} | Packs: {b.remainingPacks} | Pcs: {b.remainingPcs}
+                                    </option>
+                                  ))}
+                                </select>
+                              )}
+                            </div>
+                            <div className="w-full lg:w-24">
+                              <label className="block text-xs font-bold text-gray-600 mb-1">Unit</label>
+                              <select className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                                value={sel.saleUnit}
+                                onChange={(e) => {
+                                  const updated = [...selections];
+                                  updated[idx] = { ...sel, saleUnit: e.target.value as 'box' | 'pack' | 'piece' };
+                                  setBatchSelections(prev => ({ ...prev, [item.id]: updated }));
+                                }}>
+                                <option value="box">Box</option>
+                                <option value="pack">Pack</option>
+                                <option value="piece">Piece</option>
+                              </select>
+                            </div>
+                            <div className="w-full lg:w-24">
+                              <label className="block text-xs font-bold text-gray-600 mb-1">Qty</label>
+                              <input type="number" min="1" className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                value={sel.quantity}
+                                onChange={(e) => {
+                                  const updated = [...selections];
+                                  updated[idx] = { ...sel, quantity: Number(e.target.value) || 0 };
+                                  setBatchSelections(prev => ({ ...prev, [item.id]: updated }));
+                                }} />
+                            </div>
+                            {selections.length > 1 && (
+                              <button type="button" onClick={() => {
+                                const updated = selections.filter((_, i) => i !== idx);
+                                setBatchSelections(prev => ({ ...prev, [item.id]: updated }));
+                              }} className="p-1.5 text-red-500 hover:bg-red-50 rounded border border-red-100 lg:border-none">
+                                <X className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        <button type="button" onClick={() => {
+                          const updated = [...selections, { id: Math.random().toString(), stockBatchId: '', saleUnit: 'box' as const, quantity: 1 }];
+                          setBatchSelections(prev => ({ ...prev, [item.id]: updated }));
+                        }} className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700">
+                          <Plus className="h-3.5 w-3.5" /> Add Batch Row
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <div className="flex justify-end gap-3 pt-2.5 border-t border-gray-200">
+              <Button variant="outline" onClick={() => setInvoiceModalOrder(null)}>Cancel</Button>
+              <Button onClick={handleInvoiceSubmit} loading={submittingInvoice} disabled={stockLoading}>
+                Create Invoice
+              </Button>
+            </div>
           </div>
         )}
       </Modal>
