@@ -51,6 +51,7 @@ interface PurchaseOrderFormData {
   status: 'draft' | 'sent' | 'confirmed' | 'received' | 'cancelled';
   notes?: string;
   reference?: string;
+  deliverToAddress?: string;
   items: POItem[];
 }
 
@@ -62,6 +63,7 @@ const poSchema = z.object({
   status: z.enum(['draft', 'sent', 'confirmed', 'received', 'cancelled']),
   notes: z.string().optional(),
   reference: z.string().optional(),
+  deliverToAddress: z.string().optional(),
   items: z
     .array(
       z.object({
@@ -159,6 +161,7 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
       status: 'draft',
       notes: '',
       reference: '',
+      deliverToAddress: '',
       items: [],
     },
   });
@@ -198,6 +201,7 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
         status: purchaseOrder.status,
         notes: purchaseOrder.notes || '',
         reference: purchaseOrder.reference || '',
+        deliverToAddress: (purchaseOrder as any).deliverToAddress || '',
       });
 
       const mappedItems = purchaseOrder.items?.map((item) => {
@@ -253,6 +257,7 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
         status: 'draft',
         notes: '',
         reference: '',
+        deliverToAddress: '',
       });
       setItems([]);
     }
@@ -657,6 +662,17 @@ const AddEditPurchaseOrder: React.FC<AddEditPurchaseOrderProps> = ({ purchaseOrd
               className={`flex w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 ${
                 errors.notes ? 'border-red-500 focus:ring-red-500' : ''
               }`}
+              rows={3}
+            />
+          </div>
+
+          {/* Deliver To Address */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">Deliver To Address</label>
+            <textarea
+              placeholder="Enter delivery address for PDF..."
+              {...register('deliverToAddress')}
+              className="flex w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
               rows={3}
             />
           </div>
