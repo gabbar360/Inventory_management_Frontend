@@ -14,6 +14,28 @@ interface Props {
   onSuccess: () => void;
 }
 
+const calculateOutwardInvoiceGrandTotal = (invoice: any) => {
+  if (!invoice) return 0;
+  let baseCost = 0;
+  let gstCost = 0;
+  const allGstRates: number[] = [];
+  invoice.items?.forEach((item: any) => {
+    const gstRate = item.product?.category?.gstRate || 0;
+    const itemBase = item.quantity * item.ratePerUnit;
+    baseCost += itemBase;
+    gstCost += (itemBase * gstRate) / 100;
+    allGstRates.push(gstRate);
+  });
+  const expense = invoice.expense || 0;
+  const adjustment = invoice.adjustment || 0;
+  const shippingCharge = invoice.shippingCharge || 0;
+  const discount = invoice.discount || 0;
+  const shippingGstRate = allGstRates.includes(18) ? 18 : allGstRates.includes(5) ? 5 : 0;
+  const shippingGstAmt = shippingCharge > 0 ? shippingCharge * (shippingGstRate / 100) : 0;
+  const grandTotal = baseCost + gstCost + shippingGstAmt + expense + shippingCharge - adjustment - discount;
+  return Math.round(grandTotal * 100) / 100;
+};
+
 const ApplyCreditsReceivedModal: React.FC<Props> = ({ payment, isOpen, onClose, onSuccess }) => {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [allocations, setAllocations] = useState<Record<string, number>>({});
@@ -40,13 +62,17 @@ const ApplyCreditsReceivedModal: React.FC<Props> = ({ payment, isOpen, onClose, 
         if (res.data?.success) {
           const bills: OutwardInvoice[] = res.data.data || [];
           const outstanding = bills
-            .map((inv) => ({
-              id: inv.id,
-              invoiceNo: inv.invoiceNo,
-              date: inv.date,
-              totalCost: inv.totalCost,
-              balanceDue: inv.totalCost - (inv.amountReceived || 0),
-            }))
+            .map((inv) => {
+              const grandTotal = calculateOutwardInvoiceGrandTotal(inv);
+              return {
+                id: inv.id,
+                invoiceNo: inv.invoiceNo,
+                date: inv.date,
+                totalCost: grandTotal,
+                amountReceived: inv.amountReceived || 0,
+                balanceDue: grandTotal - (inv.amountReceived || 0),
+              };
+            })
             .filter((inv) => inv.balanceDue > 0.05);
           setInvoices(outstanding);
         }
@@ -162,6 +188,7 @@ const ApplyCreditsReceivedModal: React.FC<Props> = ({ payment, isOpen, onClose, 
                 <tr>
                   <th className="px-4 py-2.5 text-left font-semibold text-gray-500">Invoice No</th>
                   <th className="px-4 py-2.5 text-left font-semibold text-gray-500">Date</th>
+                  <th className="px-4 py-2.5 text-right font-semibold text-gray-500">Invoice Amount</th>
                   <th className="px-4 py-2.5 text-right font-semibold text-gray-500">Balance Due</th>
                   <th className="px-4 py-2.5 text-right font-semibold text-gray-500" style={{ width: 160 }}>
                     Amount to Apply
@@ -175,6 +202,7 @@ const ApplyCreditsReceivedModal: React.FC<Props> = ({ payment, isOpen, onClose, 
                     <tr key={inv.id} className={val > 0 ? 'bg-emerald-50/20' : ''}>
                       <td className="px-4 py-2.5 font-semibold text-gray-800">{inv.invoiceNo}</td>
                       <td className="px-4 py-2.5 text-gray-500">{formatDate(inv.date)}</td>
+                      <td className="px-4 py-2.5 text-right text-gray-800 font-medium">{formatCurrency(inv.totalCost)}</td>
                       <td
                         className="px-4 py-2.5 text-right font-bold text-red-600 cursor-pointer hover:underline"
                         title="Click to fill full balance"
@@ -204,7 +232,7 @@ const ApplyCreditsReceivedModal: React.FC<Props> = ({ payment, isOpen, onClose, 
               {totalAllocated > 0 && (
                 <tfoot className="bg-gray-50">
                   <tr>
-                    <td colSpan={2} className="px-4 py-2 text-right font-bold text-gray-700 text-[13px]">
+                    <td colSpan={3} className="px-4 py-2 text-right font-bold text-gray-700 text-[13px]">
                       Total Applying:
                     </td>
                     <td className="px-4 py-2 text-right font-bold text-emerald-700 text-[13px]">
