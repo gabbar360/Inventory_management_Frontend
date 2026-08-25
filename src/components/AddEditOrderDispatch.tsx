@@ -53,7 +53,6 @@ const AddEditOrderDispatch: React.FC<AddEditOrderDispatchProps> = ({ dispatch, o
     packageCount: '1',
     shippingCost: '0',
     insuranceAmount: '0',
-    notes: '',
     toTheOrder: false,
     courierName: '',
     courierPhone: '',
@@ -224,7 +223,6 @@ const AddEditOrderDispatch: React.FC<AddEditOrderDispatchProps> = ({ dispatch, o
         packageCount: parseInt(formData.packageCount),
         shippingCost: parseFloat(formData.shippingCost),
         insuranceAmount: parseFloat(formData.insuranceAmount),
-        notes: formData.notes || null,
         toTheOrder: formData.toTheOrder || false,
         courierName: formData.courierName || null,
         courierPhone: formData.courierPhone || null,
@@ -476,13 +474,6 @@ const AddEditOrderDispatch: React.FC<AddEditOrderDispatchProps> = ({ dispatch, o
             </div>
           </div>
         </div>
-
-        {dispatch.notes && (
-          <div className="bg-white border border-gray-200 p-5 rounded-lg shadow-sm">
-            <h3 className="text-sm font-bold text-gray-800 border-b border-gray-150 pb-2 mb-2">Notes</h3>
-            <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-wrap">{dispatch.notes}</p>
-          </div>
-        )}
 
         <div className="text-[10px] text-gray-400 space-y-0.5 border-t border-gray-100 pt-4 flex flex-col sm:flex-row sm:justify-between gap-2">
           <p>Created: {new Date(dispatch.createdAt).toLocaleString('en-IN')}</p>
@@ -901,17 +892,6 @@ const AddEditOrderDispatch: React.FC<AddEditOrderDispatchProps> = ({ dispatch, o
                 className="w-full px-2.5 py-1 text-xs border border-gray-300 rounded-sm outline-none focus:ring-1 focus:ring-primary-500 h-8"
               />
             </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Notes</label>
-            <textarea
-              name="notes"
-              value={formData.notes}
-              onChange={handleChange}
-              rows={2}
-              className="w-full px-2.5 py-1 text-xs border border-gray-300 rounded-sm outline-none focus:ring-1 focus:ring-primary-500"
-            />
           </div>
 
           <div className="flex items-center gap-1.5 py-1">

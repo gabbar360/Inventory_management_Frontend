@@ -440,7 +440,6 @@ export interface OrderDispatch {
   packageCount: number;
   shippingCost: number;
   insuranceAmount: number;
-  notes?: string;
   toTheOrder?: boolean;
   courierName?: string;
   courierPhone?: string;

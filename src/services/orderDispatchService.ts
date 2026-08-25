@@ -21,7 +21,6 @@ export interface OrderDispatch {
   packageCount: number;
   shippingCost: number;
   insuranceAmount: number;
-  notes?: string;
   createdAt: string;
   updatedAt: string;
   salesOrder?: any;
