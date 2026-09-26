@@ -50,7 +50,7 @@ export const fetchSalesOrderById = createAsyncThunk('salesOrders/fetchById', asy
 
 export const convertSalesOrderToInvoice = createAsyncThunk(
   'salesOrders/convertToInvoice',
-  async ({ id, items }: { id: string; items: { salesOrderItemId: string; stockBatchId: string; saleUnit: string }[] }, { rejectWithValue }) => {
+  async ({ id, items }: { id: string; items: { salesOrderItemId: string; stockBatchId: string; saleUnit: string; quantity: number }[] }, { rejectWithValue }) => {
     try {
       return await salesOrderService.convertSalesOrderToInvoice(id, items);
     } catch (e: any) {

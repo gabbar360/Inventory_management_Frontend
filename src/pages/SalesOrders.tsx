@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Plus, Edit, Trash2, Eye, Download, Loader2, MoreVertical, FileText, Package, Mail, X } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Download, Loader2, MoreVertical, FileText, Package, Mail, X, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { salesOrderService } from '@/services/salesOrderService';
@@ -37,7 +37,54 @@ const StatusBadge = ({ status }: { status: string }) => {
   );
 };
 
-const unitOptions = ['box', 'pack', 'piece'];
+// ─── MultiLineSelect (same as AddEditOutward) ────────────────────────────────
+interface MultiLineOption { value: string; line1: string; line2: string; }
+interface MultiLineSelectProps {
+  options: MultiLineOption[];
+  value?: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+}
+const MultiLineSelect: React.FC<MultiLineSelectProps> = ({ options, value, onChange, placeholder = 'Select batch...', disabled = false }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const selected = options.find((o) => o.value === value);
+  useEffect(() => {
+    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setIsOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+  return (
+    <div ref={ref} className="relative">
+      <button type="button" onClick={() => !disabled && setIsOpen(!isOpen)} disabled={disabled}
+        className="flex w-full items-center justify-between rounded border border-gray-300 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 min-h-[32px]">
+        <div className="text-left flex-1 min-w-0">
+          {selected ? (
+            <div>
+              <div className="font-medium truncate text-[10px]">{selected.line1}</div>
+              <div className="text-[9px] text-gray-500 truncate">{selected.line2}</div>
+            </div>
+          ) : <span className="text-gray-400 text-[10px]">{placeholder}</span>}
+        </div>
+        <ChevronDown className={`h-3.5 w-3.5 ml-1 flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      {isOpen && (
+        <div className="absolute z-50 mt-1 w-full max-h-52 overflow-auto rounded border border-gray-300 bg-white shadow-lg">
+          {options.length === 0 && <div className="px-3 py-2 text-xs text-gray-400">No stock available</div>}
+          {options.map((opt) => (
+            <button key={opt.value} type="button"
+              onClick={() => { onChange(opt.value); setIsOpen(false); }}
+              className={`w-full text-left px-2 py-1.5 hover:bg-gray-100 border-b border-gray-100 last:border-b-0 ${value === opt.value ? 'bg-blue-50' : ''}`}>
+              <div className="text-[10px] font-medium">{opt.line1}</div>
+              <div className="text-[9px] text-gray-500">{opt.line2}</div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
@@ -57,7 +104,7 @@ const SalesOrders: React.FC = () => {
   const [submittingInvoice, setSubmittingInvoice] = useState(false);
   const [shareOrder, setShareOrder] = useState<SalesOrder | null>(null);
   const [invoiceModalOrder, setInvoiceModalOrder] = useState<SalesOrder | null>(null);
-  const [batchSelections, setBatchSelections] = useState<Record<string, Array<{ id: string; stockBatchId: string; saleUnit: string; quantity: number }>>>({});
+  const [batchSelections, setBatchSelections] = useState<Record<string, Array<{ id: string; stockBatchId: string; saleUnit: string; quantity: number; ratePerUnit: number }>>>({});
   const [stockCache, setStockCache] = useState<Record<string, StockBatch[]>>({});
   const [stockLoading, setStockLoading] = useState(false);
 
@@ -135,13 +182,29 @@ const SalesOrders: React.FC = () => {
     setStockLoading(true);
     try {
       const items = order.items || [];
-      const uniqueProductIds = [...new Set(items.map((i: SalesOrderItem) => i.productId.toString()))];
+      const items2 = order.items || [];
+      const uniqueProductIds = [...new Set(items2.map((i: SalesOrderItem) => i.productId.toString()))];
       const results = await Promise.all(
         uniqueProductIds.map((pid) => dispatch(fetchAvailableStock({ productId: pid })).unwrap())
       );
       const cache: Record<string, StockBatch[]> = {};
       uniqueProductIds.forEach((pid, idx) => { cache[pid] = results[idx]; });
       setStockCache(cache);
+
+      // Pre-fill default batch selection for each item
+      const defaultSelections: Record<string, Array<{ id: string; stockBatchId: string; saleUnit: string; quantity: number; ratePerUnit: number }>> = {};
+      items2.forEach((item: SalesOrderItem) => {
+        const batches = results[uniqueProductIds.indexOf(item.productId.toString())] || [];
+        const defaultBatch = batches[0];
+        defaultSelections[item.id] = [{
+          id: '1',
+          stockBatchId: defaultBatch ? defaultBatch.id.toString() : '',
+          saleUnit: item.unit || 'box',
+          quantity: item.quantity,
+          ratePerUnit: item.rate,
+        }];
+      });
+      setBatchSelections(defaultSelections);
     } catch (err: any) {
       toast.error('Failed to load available stock batches');
     } finally {
@@ -153,7 +216,7 @@ const SalesOrders: React.FC = () => {
     if (!invoiceModalOrder) return;
     const items = invoiceModalOrder.items || [];
     
-    const itemsPayload: Array<{ salesOrderItemId: string; stockBatchId: string; saleUnit: string; quantity: number }> = [];
+    const itemsPayload: Array<{ salesOrderItemId: string; stockBatchId: string; saleUnit: string; quantity: number; ratePerUnit: number }> = [];
     
     for (const item of items) {
       const selections = batchSelections[item.id] || [];
@@ -162,19 +225,21 @@ const SalesOrders: React.FC = () => {
         return;
       }
       
-      let totalSelectedQty = 0;
       for (const sel of selections) {
+        if (!sel.stockBatchId) {
+          toast.error(`Please select a stock batch for: ${item.product?.name || item.productId}`);
+          return;
+        }
         if (sel.quantity <= 0) {
           toast.error(`Quantity must be greater than 0 for: ${item.product?.name || item.productId}`);
           return;
         }
-        totalSelectedQty += sel.quantity;
-        
         itemsPayload.push({
           salesOrderItemId: item.id,
           stockBatchId: sel.stockBatchId,
           saleUnit: sel.saleUnit,
           quantity: sel.quantity,
+          ratePerUnit: sel.ratePerUnit,
         });
       }
     }
@@ -397,7 +462,23 @@ const SalesOrders: React.FC = () => {
               <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
                 {(invoiceModalOrder.items || []).map((item: SalesOrderItem) => {
                   const batches: StockBatch[] = stockCache[item.productId.toString()] || [];
-                  const selections = batchSelections[item.id] || [{ id: '1', stockBatchId: '', saleUnit: 'box', quantity: item.quantity }];
+                  const selections = batchSelections[item.id] || [{ id: '1', stockBatchId: '', saleUnit: item.unit || 'box', quantity: item.quantity, ratePerUnit: item.rate }];
+
+                  const stockBatchOptions = batches.map((b: StockBatch) => ({
+                    value: b.id.toString(),
+                    line1: `[${(b as any).location?.name}] ${(b as any).vendor?.name} - ${new Date(b.inwardDate).toLocaleDateString('en-IN')}`,
+                    line2: `${b.remainingBoxes} boxes, ${b.packPerBox} pack/box, ${b.remainingPacks ?? 0} packs, ${b.packPerPiece} pcs/pack, ${b.remainingPcs} pcs`,
+                  }));
+
+                  const getMaxQty = (sel: typeof selections[0], idx: number) => {
+                    if (!sel.stockBatchId) return 0;
+                    const batch = batches.find((b) => b.id.toString() === sel.stockBatchId);
+                    if (!batch) return 0;
+                    const remaining = sel.saleUnit === 'box' ? batch.remainingBoxes : sel.saleUnit === 'pack' ? (batch.remainingPacks ?? 0) : batch.remainingPcs;
+                    const otherRows = selections.filter((_, i) => i !== idx && _.stockBatchId === sel.stockBatchId && _.saleUnit === sel.saleUnit).reduce((s, r) => s + r.quantity, 0);
+                    return (remaining || 0) - otherRows;
+                  };
+
                   return (
                     <div key={item.id} className="border border-gray-200 rounded p-4 space-y-3">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -415,65 +496,90 @@ const SalesOrders: React.FC = () => {
                       )}
                       <div className="space-y-2">
                         <div className="text-xs font-bold text-gray-700">Stock Batches & Quantities Selection</div>
-                        {selections.map((sel, idx) => (
-                          <div key={sel.id} className="flex flex-col lg:flex-row items-stretch lg:items-end gap-2 p-2 bg-gray-50 border border-gray-200 rounded">
-                            <div className="flex-1">
-                              <label className="block text-xs font-bold text-gray-600 mb-1">Batch <span className="text-red-500">*</span></label>
-                              {batches.length === 0 ? (
-                                <div className="text-xs text-red-650 bg-red-50 border border-red-200 rounded px-3 py-2 font-semibold">No stock available</div>
-                              ) : (
-                                <select className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
-                                  value={sel.stockBatchId}
+                        {selections.map((sel, idx) => {
+                          const maxQty = getMaxQty(sel, idx);
+                          return (
+                            <div key={sel.id} className="flex flex-col lg:flex-row items-stretch lg:items-end gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                              {/* Stock Batch */}
+                              <div className="flex-1 min-w-[240px]">
+                                <label className="block text-xs font-bold text-gray-600 mb-1">Stock Batch <span className="text-red-500">*</span></label>
+                                {batches.length === 0 ? (
+                                  <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2 font-semibold">No stock available</div>
+                                ) : (
+                                  <MultiLineSelect
+                                    options={stockBatchOptions}
+                                    value={sel.stockBatchId}
+                                    onChange={(val) => {
+                                      const batch = batches.find((b) => b.id.toString() === val);
+                                      const suggestedRate = batch
+                                        ? (sel.saleUnit === 'box' ? batch.costPerBox * 1.2 : sel.saleUnit === 'pack' ? (batch.costPerPack || batch.costPerBox / (batch.packPerBox || 1)) * 1.2 : batch.costPerPcs * 1.2)
+                                        : sel.ratePerUnit;
+                                      const updated = [...selections];
+                                      updated[idx] = { ...sel, stockBatchId: val, ratePerUnit: Math.round(suggestedRate * 100) / 100 };
+                                      setBatchSelections(prev => ({ ...prev, [item.id]: updated }));
+                                    }}
+                                  />
+                                )}
+                              </div>
+                              {/* Sale Unit */}
+                              <div className="w-full lg:w-24">
+                                <label className="block text-xs font-bold text-gray-600 mb-1">Sale Unit *</label>
+                                <select className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white h-8"
+                                  value={sel.saleUnit}
                                   onChange={(e) => {
+                                    const unit = e.target.value as 'box' | 'pack' | 'piece';
+                                    const batch = batches.find((b) => b.id.toString() === sel.stockBatchId);
+                                    const suggestedRate = batch
+                                      ? (unit === 'box' ? batch.costPerBox * 1.2 : unit === 'pack' ? (batch.costPerPack || batch.costPerBox / (batch.packPerBox || 1)) * 1.2 : batch.costPerPcs * 1.2)
+                                      : sel.ratePerUnit;
                                     const updated = [...selections];
-                                    updated[idx] = { ...sel, stockBatchId: e.target.value };
+                                    updated[idx] = { ...sel, saleUnit: unit, ratePerUnit: Math.round(suggestedRate * 100) / 100 };
                                     setBatchSelections(prev => ({ ...prev, [item.id]: updated }));
                                   }}>
-                                  <option value="">Select batch...</option>
-                                  {batches.map((b: StockBatch) => (
-                                    <option key={b.id} value={b.id}>
-                                      {(b as any).location?.name} — {(b as any).vendor?.name} | Boxes: {b.remainingBoxes} | Packs: {b.remainingPacks} | Pcs: {b.remainingPcs}
-                                    </option>
-                                  ))}
+                                  <option value="box">Box</option>
+                                  <option value="pack">Pack</option>
+                                  <option value="piece">Piece</option>
                                 </select>
+                              </div>
+                              {/* Qty */}
+                              <div className="w-full lg:w-28">
+                                <label className="block text-xs font-bold text-gray-600 mb-1">
+                                  Qty * <span className="text-[10px] text-gray-400 font-normal">(Max: {maxQty})</span>
+                                </label>
+                                <input type="number" min="1" placeholder={`Max: ${maxQty}`}
+                                  className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 h-8 font-bold"
+                                  value={sel.quantity || ''}
+                                  onChange={(e) => {
+                                    const updated = [...selections];
+                                    updated[idx] = { ...sel, quantity: Number(e.target.value) || 0 };
+                                    setBatchSelections(prev => ({ ...prev, [item.id]: updated }));
+                                  }} />
+                              </div>
+                              {/* Rate */}
+                              <div className="w-full lg:w-28">
+                                <label className="block text-xs font-bold text-gray-600 mb-1">Rate *</label>
+                                <input type="number" step="0.01" min="0"
+                                  className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 h-8"
+                                  value={sel.ratePerUnit || ''}
+                                  onChange={(e) => {
+                                    const updated = [...selections];
+                                    updated[idx] = { ...sel, ratePerUnit: Number(e.target.value) || 0 };
+                                    setBatchSelections(prev => ({ ...prev, [item.id]: updated }));
+                                  }} />
+                              </div>
+                              {selections.length > 1 && (
+                                <button type="button" onClick={() => {
+                                  const updated = selections.filter((_, i) => i !== idx);
+                                  setBatchSelections(prev => ({ ...prev, [item.id]: updated }));
+                                }} className="p-1.5 text-red-500 hover:bg-red-50 rounded border border-red-100 lg:border-none self-end">
+                                  <X className="h-4 w-4" />
+                                </button>
                               )}
                             </div>
-                            <div className="w-full lg:w-24">
-                              <label className="block text-xs font-bold text-gray-600 mb-1">Unit</label>
-                              <select className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
-                                value={sel.saleUnit}
-                                onChange={(e) => {
-                                  const updated = [...selections];
-                                  updated[idx] = { ...sel, saleUnit: e.target.value as 'box' | 'pack' | 'piece' };
-                                  setBatchSelections(prev => ({ ...prev, [item.id]: updated }));
-                                }}>
-                                <option value="box">Box</option>
-                                <option value="pack">Pack</option>
-                                <option value="piece">Piece</option>
-                              </select>
-                            </div>
-                            <div className="w-full lg:w-24">
-                              <label className="block text-xs font-bold text-gray-600 mb-1">Qty</label>
-                              <input type="number" min="1" className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                value={sel.quantity}
-                                onChange={(e) => {
-                                  const updated = [...selections];
-                                  updated[idx] = { ...sel, quantity: Number(e.target.value) || 0 };
-                                  setBatchSelections(prev => ({ ...prev, [item.id]: updated }));
-                                }} />
-                            </div>
-                            {selections.length > 1 && (
-                              <button type="button" onClick={() => {
-                                const updated = selections.filter((_, i) => i !== idx);
-                                setBatchSelections(prev => ({ ...prev, [item.id]: updated }));
-                              }} className="p-1.5 text-red-500 hover:bg-red-50 rounded border border-red-100 lg:border-none">
-                                <X className="h-4 w-4" />
-                              </button>
-                            )}
-                          </div>
-                        ))}
+                          );
+                        })}
                         <button type="button" onClick={() => {
-                          const updated = [...selections, { id: Math.random().toString(), stockBatchId: '', saleUnit: 'box' as const, quantity: 1 }];
+                          const updated = [...selections, { id: Math.random().toString(), stockBatchId: '', saleUnit: 'box' as const, quantity: 1, ratePerUnit: item.rate }];
                           setBatchSelections(prev => ({ ...prev, [item.id]: updated }));
                         }} className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700">
                           <Plus className="h-3.5 w-3.5" /> Add Batch Row

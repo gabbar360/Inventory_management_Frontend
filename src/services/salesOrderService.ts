@@ -36,7 +36,7 @@ export const salesOrderService = {
     return response.data.data;
   },
 
-  convertSalesOrderToInvoice: async (id: string | number, items: { salesOrderItemId: string; stockBatchId: string; saleUnit: string }[]): Promise<any> => {
+  convertSalesOrderToInvoice: async (id: string | number, items: { salesOrderItemId: string; stockBatchId: string; saleUnit: string; quantity: number }[]): Promise<any> => {
     const response = await api.post(`/sales-orders/${id}/convert-to-invoice`, { items });
     return response.data.data;
   },
