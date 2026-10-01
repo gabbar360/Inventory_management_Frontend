@@ -105,14 +105,16 @@ const AddEditPaymentsMade: React.FC<AddEditPaymentsMadeProps> = ({
                 ? payment.invoices.find((i) => i.invoiceId === Number(inv.id))?.amountApplied || 0
                 : 0;
 
-              // unpaid balance = invoice total cost - amountPaid + previous applied amount if editing
-              const balanceDue = inv.totalCost - (inv.amountPaid || 0) + prevApplied;
+              // Invoice amount without expense (expense is for profit/loss only)
+              const invoiceAmount = Math.round(inv.totalCost - (inv.expense || 0));
+              // unpaid balance = invoice amount - amountPaid + previous applied amount if editing
+              const balanceDue = invoiceAmount - (inv.amountPaid || 0) + prevApplied;
 
               return {
                 id: inv.id,
                 invoiceNo: inv.invoiceNo,
                 date: inv.date,
-                totalCost: inv.totalCost,
+                totalCost: invoiceAmount,
                 amountPaid: inv.amountPaid || 0,
                 prevApplied,
                 balanceDue,
