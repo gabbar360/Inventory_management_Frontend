@@ -212,7 +212,7 @@ const Inward: React.FC = () => {
     {
       key: 'totalCost',
       title: 'Total Cost',
-      render: (value: number) => <span className="font-semibold">{formatCurrency(value)}</span>,
+      render: (_: any, record: InwardInvoice) => <span className="font-semibold">{formatCurrency(Math.round(record.totalCost - (record.expense || 0)))}</span>,
     },
     {
       key: 'amountPaid',
@@ -223,7 +223,7 @@ const Inward: React.FC = () => {
       key: 'balanceDue',
       title: 'Balance Due',
       render: (_: any, record: InwardInvoice) => {
-        const balance = record.totalCost - (record.amountPaid || 0);
+        const balance = Math.round(record.totalCost - (record.expense || 0)) - (record.amountPaid || 0);
         return <span className={cn('font-semibold', balance > 0 ? 'text-red-600' : 'text-gray-900')}>{formatCurrency(balance)}</span>;
       },
     },
@@ -231,7 +231,7 @@ const Inward: React.FC = () => {
       key: 'paymentStatus',
       title: 'Payment Status',
       render: (_: any, record: InwardInvoice) => {
-        const balance = record.totalCost - (record.amountPaid || 0);
+        const balance = Math.round(record.totalCost - (record.expense || 0)) - (record.amountPaid || 0);
         const paid = record.amountPaid || 0;
         let status = 'Unpaid';
         let bgClass = 'bg-red-100 text-red-800 border-red-200';
@@ -362,7 +362,7 @@ const Inward: React.FC = () => {
                   Total Cost
                 </label>
                 <div className="text-gray-900 font-semibold">
-                  {formatCurrency(selectedInvoice.totalCost)}
+                  {formatCurrency(Math.round(selectedInvoice.totalCost - (selectedInvoice.expense || 0)))}
                 </div>
               </div>
               <div>
@@ -377,8 +377,8 @@ const Inward: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700">
                   Balance Due
                 </label>
-                <div className={cn('font-bold', (selectedInvoice.totalCost - (selectedInvoice.amountPaid || 0)) > 0 ? 'text-red-600' : 'text-gray-900')}>
-                  {formatCurrency(selectedInvoice.totalCost - (selectedInvoice.amountPaid || 0))}
+                <div className={cn('font-bold', ((Math.round(selectedInvoice.totalCost - (selectedInvoice.expense || 0))) - (selectedInvoice.amountPaid || 0)) > 0 ? 'text-red-600' : 'text-gray-900')}>
+                  {formatCurrency((Math.round(selectedInvoice.totalCost - (selectedInvoice.expense || 0))) - (selectedInvoice.amountPaid || 0))}
                 </div>
               </div>
               <div>
